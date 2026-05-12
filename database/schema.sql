@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS participants (
     emergency_contact_no VARCHAR(50),
     emergency_contact_relationship VARCHAR(100),
     preferred_language VARCHAR(50),
+    registration_type ENUM('pre_register','walk_in') NOT NULL DEFAULT 'pre_register',
     qr_code VARCHAR(64) UNIQUE,
     group_code VARCHAR(20),
     blacklisted TINYINT(1) NOT NULL DEFAULT 0,
@@ -81,7 +82,7 @@ CREATE TABLE IF NOT EXISTS claims (
     receipt_image VARCHAR(500) NULL,
     items_image VARCHAR(500) NULL,
     amount_total DECIMAL(10,2) NOT NULL DEFAULT 0,
-    status ENUM('submitted','verified','approved','paid') NOT NULL DEFAULT 'submitted',
+    status ENUM('draft','submitted','verified','approved','rejected','paid') NOT NULL DEFAULT 'draft',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -90,6 +91,21 @@ CREATE TABLE IF NOT EXISTS budgets (
     department VARCHAR(100) NOT NULL,
     allocated_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
     spent_amount DECIMAL(10,2) NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS buying_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    requester_name VARCHAR(255) NOT NULL,
+    department VARCHAR(100) NOT NULL,
+    item_description TEXT NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    estimated_cost DECIMAL(10,2) NOT NULL DEFAULT 0,
+    justification TEXT,
+    vendor_preference VARCHAR(255),
+    reference_image VARCHAR(500) NULL,
+    status ENUM('draft','pending','approved','rejected','purchased') NOT NULL DEFAULT 'draft',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS vendors (
@@ -205,5 +221,18 @@ CREATE TABLE IF NOT EXISTS incidents (
     description TEXT,
     related_group_code VARCHAR(20),
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS group_move_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    participant_id INT NOT NULL,
+    participant_name VARCHAR(255) NOT NULL,
+    from_group_code VARCHAR(20) NULL,
+    to_group_code VARCHAR(20) NULL,
+    moved_by VARCHAR(255) NOT NULL,
+    action_type ENUM('move','undo') NOT NULL DEFAULT 'move',
+    moved_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_group_move_logs_moved_at (moved_at),
+    INDEX idx_group_move_logs_participant_id (participant_id)
 );
 

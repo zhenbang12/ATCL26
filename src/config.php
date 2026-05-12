@@ -24,6 +24,11 @@ return [
             'password' => 'password', // demo only
             'role'     => 'committee',
         ],
+        [
+            'username' => 'treasurer1',
+            'password' => 'password', // demo only
+            'role'     => 'treasurer',
+        ],
     ],
 ];
 

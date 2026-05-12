@@ -1,13 +1,16 @@
 <?php
 // Participants listing
 $currentFilter = $_GET['filter'] ?? 'all';
+$participants = $participants ?? [];
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>Participants</h2>
+    <h2>Participants List</h2>
     <div>
-        <a href="/participants/create" class="btn btn-primary btn-sm">New registration</a>
+        <a href="/participants" class="btn btn-outline-primary btn-sm">Dashboard</a>
+        <a href="/participants/create" class="btn btn-primary btn-sm">Pre-register</a>
+        <a href="/participants/create-walkin" class="btn btn-dark btn-sm">Walk-in Registration</a>
         <a href="/participants/checkin" class="btn btn-outline-secondary btn-sm">QR Check-in</a>
-        <a href="/participants/groups" class="btn btn-outline-secondary btn-sm">Grouping overview</a>
+        <a href="/participants/groups" class="btn btn-outline-secondary btn-sm">Grouping Overview</a>
         <a href="/participants/export?filter=<?= urlencode($currentFilter) ?>" class="btn btn-success btn-sm">
             Export CSV
         </a>
@@ -39,6 +42,7 @@ $currentFilter = $_GET['filter'] ?? 'all';
         <th>Faculty</th>
         <th>Phone</th>
         <th>Language</th>
+        <th>Registration</th>
         <th>Group</th>
         <th>Checked in?</th>
     </tr>
@@ -54,6 +58,13 @@ $currentFilter = $_GET['filter'] ?? 'all';
             <td><?= htmlspecialchars($p['faculty'] ?? '') ?></td>
             <td><?= htmlspecialchars($p['contact_no'] ?? '') ?></td>
             <td><?= htmlspecialchars($p['preferred_language'] ?? '') ?></td>
+            <td>
+                <?php if (($p['registration_type'] ?? 'pre_register') === 'walk_in'): ?>
+                    <span class="badge bg-dark">Walk-in</span>
+                <?php else: ?>
+                    <span class="badge bg-secondary">Pre-register</span>
+                <?php endif; ?>
+            </td>
             <td><?= htmlspecialchars($p['group_code'] ?? '-') ?></td>
             <td><?= !empty($p['checked_in_at'] ?? null) ? 'Yes' : 'No' ?></td>
         </tr>

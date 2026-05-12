@@ -22,10 +22,8 @@ use App\Core\Auth;
                 <?php if (\App\Core\Auth::check()): ?>
                     <li class="nav-item"><a class="nav-link" href="/participants">Participants</a></li>
                     <li class="nav-item"><a class="nav-link" href="/finance">Finance</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/operations">Operations</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/governance">Governance</a></li>
                     <li class="nav-item"><a class="nav-link" href="/forms">Forms</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/logistics">Logistics</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/operations">Operations</a></li>
                 <?php else: ?>
                     <li class="nav-item"><a class="nav-link" href="/participants/create">Participant Registration</a></li>
                 <?php endif; ?>
