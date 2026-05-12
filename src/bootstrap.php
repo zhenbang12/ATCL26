@@ -9,9 +9,9 @@ if (file_exists($vendorAutoload)) {
 
 // Start session for simple authentication
 if (session_status() === PHP_SESSION_NONE) {
-    // Configure session for ngrok compatibility
-    // ngrok provides HTTPS but we're proxying, so don't require secure cookies
-    ini_set('session.cookie_secure', '0');
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+    ini_set('session.cookie_secure', $https ? '1' : '0');
     ini_set('session.cookie_samesite', 'Lax');
     session_start();
 }
