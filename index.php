@@ -19,6 +19,7 @@ $router->get('/public', 'HomeController@public');
 // Site settings (advisor / committee)
 $router->get('/settings/landing', 'SettingsController@landingPage');
 $router->post('/settings/landing/save', 'SettingsController@landingPageSave');
+$router->post('/settings/registration/save', 'SettingsController@registrationSettingsSave');
 
 // Auth
 $router->get('/login', 'AuthController@showLogin');

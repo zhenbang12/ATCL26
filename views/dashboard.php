@@ -2,6 +2,17 @@
 // Standalone home page for logged-in committee/advisors.
 /** @var array<string, mixed> $stats */
 $stats = $stats ?? [];
+/** @var array{pre_register_enabled: bool, walk_in_enabled: bool} $registrationSettings */
+$registrationSettings = $registrationSettings ?? [
+    'pre_register_enabled' => true,
+    'walk_in_enabled' => true,
+];
+
+$registrationMessage = $_SESSION['registration_settings_message'] ?? null;
+$registrationMessageType = $_SESSION['registration_settings_message_type'] ?? 'info';
+if (isset($_SESSION['registration_settings_message'])) {
+    unset($_SESSION['registration_settings_message'], $_SESSION['registration_settings_message_type']);
+}
 
 $modules = [
     ['title' => 'Participants', 'caption' => 'Registration, check-in, QR lookup, and grouping.', 'href' => '/participants'],
@@ -110,6 +121,28 @@ $modules = [
         </div>
 
         <div class="col-lg-5">
+            <?php if ($registrationMessage): ?>
+                <div class="alert alert-<?= htmlspecialchars($registrationMessageType) ?> alert-dismissible fade show">
+                    <?= htmlspecialchars($registrationMessage) ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
+
+            <div class="border rounded p-4 bg-white mb-4">
+                <h2 class="h5 mb-3">Registration Controls</h2>
+                <form method="post" action="/settings/registration/save">
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" name="pre_register_enabled" value="1" id="pre_register_enabled" <?= $registrationSettings['pre_register_enabled'] ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="pre_register_enabled">Show Pre-register</label>
+                    </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" name="walk_in_enabled" value="1" id="walk_in_enabled" <?= $registrationSettings['walk_in_enabled'] ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="walk_in_enabled">Show Walk-in Register</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">Save Registration Controls</button>
+                </form>
+            </div>
+
             <div class="border rounded p-4 bg-light">
                 <h2 class="h5 mb-3">Quick Actions</h2>
                 <div class="d-grid gap-2">

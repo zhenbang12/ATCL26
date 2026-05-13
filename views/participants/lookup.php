@@ -1,5 +1,9 @@
 <?php
 // Public form to look up QR code after registration
+$registrationSettings = $registrationSettings ?? [
+    'pre_register_enabled' => true,
+    'walk_in_enabled' => true,
+];
 $errorMessage = $_SESSION['registration_error'] ?? null;
 $prefilledStudentId = $_GET['student_id'] ?? '';
 if (isset($_SESSION['registration_error'])) {
@@ -7,9 +11,11 @@ if (isset($_SESSION['registration_error'])) {
 }
 ?>
 <ul class="nav nav-tabs mb-3">
-    <li class="nav-item">
-        <a class="nav-link" href="/participants/create">Register</a>
-    </li>
+    <?php if ($registrationSettings['pre_register_enabled'] || \App\Core\Auth::check()): ?>
+        <li class="nav-item">
+            <a class="nav-link" href="/participants/create">Register</a>
+        </li>
+    <?php endif; ?>
     <li class="nav-item">
         <a class="nav-link active" aria-current="page" href="/participants/lookup">Find My QR</a>
     </li>
@@ -43,4 +49,3 @@ if (isset($_SESSION['registration_error'])) {
     </div>
     <button type="submit" class="btn btn-primary">Find my QR</button>
 </form>
-

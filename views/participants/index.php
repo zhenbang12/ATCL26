@@ -2,13 +2,21 @@
 // Participants listing
 $currentFilter = $_GET['filter'] ?? 'all';
 $participants = $participants ?? [];
+$registrationSettings = $registrationSettings ?? [
+    'pre_register_enabled' => true,
+    'walk_in_enabled' => true,
+];
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2>Participants List</h2>
     <div>
         <a href="/participants" class="btn btn-outline-primary btn-sm">Dashboard</a>
-        <a href="/participants/create" class="btn btn-primary btn-sm">Pre-register</a>
-        <a href="/participants/create-walkin" class="btn btn-dark btn-sm">Walk-in Registration</a>
+        <?php if ($registrationSettings['pre_register_enabled'] || \App\Core\Auth::check()): ?>
+            <a href="/participants/create" class="btn btn-primary btn-sm">Pre-register</a>
+        <?php endif; ?>
+        <?php if ($registrationSettings['walk_in_enabled'] || \App\Core\Auth::check()): ?>
+            <a href="/participants/create-walkin" class="btn btn-dark btn-sm">Walk-in Registration</a>
+        <?php endif; ?>
         <a href="/participants/checkin" class="btn btn-outline-secondary btn-sm">QR Check-in</a>
         <a href="/participants/groups" class="btn btn-outline-secondary btn-sm">Grouping Overview</a>
         <a href="/participants/export?filter=<?= urlencode($currentFilter) ?>" class="btn btn-success btn-sm">
@@ -91,4 +99,3 @@ $participants = $participants ?? [];
         });
     });
 </script>
-

@@ -24,6 +24,7 @@ class HomeController
         ];
         $landingImages = array_merge($defaults, SettingsController::loadLandingImages($db));
         $landingSettings = SettingsController::loadLandingSettings($db);
+        $registrationSettings = SettingsController::loadRegistrationSettings($db);
 
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/home.php';
@@ -36,6 +37,7 @@ class HomeController
 
         $title = 'Advisor / Committee Home';
         $stats = $this->loadDashboardStats();
+        $registrationSettings = SettingsController::loadRegistrationSettings(Container::get('db'));
 
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/dashboard.php';
@@ -54,6 +56,7 @@ class HomeController
         ];
         $landingImages = array_merge($defaults, SettingsController::loadLandingImages($db));
         $landingSettings = SettingsController::loadLandingSettings($db);
+        $registrationSettings = SettingsController::loadRegistrationSettings($db);
         $forcePublic = true;
 
         include __DIR__ . '/../../views/layout/header.php';

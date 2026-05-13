@@ -73,6 +73,7 @@ class ParticipantController
         // Recent registrations (last 10)
         $stmt = $db->query('SELECT id, full_name, student_id, intake, programme_name, faculty, group_code, registration_type, checked_in_at FROM participants ORDER BY id DESC LIMIT 10');
         $recentParticipants = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $registrationSettings = SettingsController::loadRegistrationSettings($db);
 
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/participants/dashboard.php';
@@ -103,6 +104,7 @@ class ParticipantController
         
         $stmt = $db->query($query);
         $participants = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $registrationSettings = SettingsController::loadRegistrationSettings($db);
 
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/participants/index.php';
@@ -113,6 +115,15 @@ class ParticipantController
     {
         $title = 'Pre-register Participant';
         $registrationType = 'pre_register';
+        $registrationSettings = SettingsController::loadRegistrationSettings(Container::get('db'));
+        if (!$registrationSettings['pre_register_enabled'] && !Auth::check()) {
+            $closedTitle = 'Pre-registration is currently closed';
+            include __DIR__ . '/../../views/layout/header.php';
+            include __DIR__ . '/../../views/participants/registration_closed.php';
+            include __DIR__ . '/../../views/layout/footer.php';
+            return;
+        }
+
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/participants/create.php';
         include __DIR__ . '/../../views/layout/footer.php';
@@ -122,6 +133,15 @@ class ParticipantController
     {
         $title = 'Walk-in Registration';
         $registrationType = 'walk_in';
+        $registrationSettings = SettingsController::loadRegistrationSettings(Container::get('db'));
+        if (!$registrationSettings['walk_in_enabled'] && !Auth::check()) {
+            $closedTitle = 'Walk-in registration is currently closed';
+            include __DIR__ . '/../../views/layout/header.php';
+            include __DIR__ . '/../../views/participants/registration_closed.php';
+            include __DIR__ . '/../../views/layout/footer.php';
+            return;
+        }
+
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/participants/walkin.php';
         include __DIR__ . '/../../views/layout/footer.php';
@@ -137,39 +157,43 @@ class ParticipantController
             $registrationType = 'pre_register';
         }
 
-        if ($registrationType === 'pre_register') {
-            $fullName = trim((string)($_POST['full_name'] ?? ''));
-            $gender = trim((string)($_POST['gender'] ?? ''));
-            $studentEmail = trim((string)($_POST['student_email'] ?? ''));
-            $programmeName = trim((string)($_POST['programme_name'] ?? ''));
-            $contactRaw = trim((string)($_POST['contact_no'] ?? ''));
-            $preferredLanguage = trim((string)($_POST['preferred_language'] ?? ''));
-
-            if (
-                $fullName === ''
-                || $gender === ''
-                || $studentId === ''
-                || $studentEmail === ''
-                || $programmeName === ''
-                || $contactRaw === ''
-                || $preferredLanguage === ''
-            ) {
-                $_SESSION['registration_error'] = 'Please complete every field on the form.';
-                header('Location: /participants/create');
-                exit;
-            }
-
-            if (!$this->isValidTarcStudentEmail($studentEmail)) {
-                $_SESSION['registration_error'] = 'Student email must be a valid address ending with @student.tarc.edu.my.';
-                header('Location: /participants/create');
-                exit;
-            }
+        $registrationSettings = SettingsController::loadRegistrationSettings($db);
+        if (!Auth::check() && $registrationType === 'pre_register' && !$registrationSettings['pre_register_enabled']) {
+            $_SESSION['registration_error'] = 'Pre-registration is currently closed. You can still use Find My QR if you already registered.';
+            header('Location: /participants/lookup');
+            exit;
+        }
+        if (!Auth::check() && $registrationType === 'walk_in' && !$registrationSettings['walk_in_enabled']) {
+            $_SESSION['registration_error'] = 'Walk-in registration is currently closed. You can still use Find My QR if you already registered.';
+            header('Location: /participants/lookup');
+            exit;
         }
 
-        $studentEmailForWalkIn = trim((string)($_POST['student_email'] ?? ''));
-        if ($registrationType === 'walk_in' && $studentEmailForWalkIn !== '' && !$this->isValidTarcStudentEmail($studentEmailForWalkIn)) {
+        $returnPath = $registrationType === 'walk_in' ? '/participants/create-walkin' : '/participants/create';
+        $fullName = trim((string)($_POST['full_name'] ?? ''));
+        $gender = trim((string)($_POST['gender'] ?? ''));
+        $studentEmail = trim((string)($_POST['student_email'] ?? ''));
+        $programmeName = trim((string)($_POST['programme_name'] ?? ''));
+        $contactRaw = trim((string)($_POST['contact_no'] ?? ''));
+        $preferredLanguage = trim((string)($_POST['preferred_language'] ?? ''));
+
+        if (
+            $fullName === ''
+            || $gender === ''
+            || $studentId === ''
+            || $studentEmail === ''
+            || $programmeName === ''
+            || $contactRaw === ''
+            || $preferredLanguage === ''
+        ) {
+            $_SESSION['registration_error'] = 'Please complete every field on the form.';
+            header('Location: ' . $returnPath);
+            exit;
+        }
+
+        if (!$this->isValidTarcStudentEmail($studentEmail)) {
             $_SESSION['registration_error'] = 'Student email must be a valid address ending with @student.tarc.edu.my.';
-            header('Location: /participants/create-walkin');
+            header('Location: ' . $returnPath);
             exit;
         }
 
@@ -813,6 +837,7 @@ class ParticipantController
     public function lookupForm(): void
     {
         $title = 'Find My QR Code';
+        $registrationSettings = SettingsController::loadRegistrationSettings(Container::get('db'));
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/participants/lookup.php';
         include __DIR__ . '/../../views/layout/footer.php';
@@ -1164,4 +1189,3 @@ class ParticipantController
         exit;
     }
 }
-

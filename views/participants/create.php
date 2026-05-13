@@ -1,4 +1,8 @@
 <?php
+$registrationSettings = $registrationSettings ?? [
+    'pre_register_enabled' => true,
+    'walk_in_enabled' => true,
+];
 // Participant registration form (pre-register — minimal fields)
 $errorMessage = $_SESSION['registration_error'] ?? null;
 if (isset($_SESSION['registration_error'])) {
@@ -6,12 +10,16 @@ if (isset($_SESSION['registration_error'])) {
 }
 ?>
 <ul class="nav nav-tabs mb-3">
-    <li class="nav-item">
-        <a class="nav-link active" aria-current="page" href="/participants/create">Pre-register</a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link" href="/participants/create-walkin">Walk-in Register</a>
-    </li>
+    <?php if ($registrationSettings['pre_register_enabled'] || \App\Core\Auth::check()): ?>
+        <li class="nav-item">
+            <a class="nav-link active" aria-current="page" href="/participants/create">Pre-register</a>
+        </li>
+    <?php endif; ?>
+    <?php if ($registrationSettings['walk_in_enabled'] || \App\Core\Auth::check()): ?>
+        <li class="nav-item">
+            <a class="nav-link" href="/participants/create-walkin">Walk-in Register</a>
+        </li>
+    <?php endif; ?>
     <li class="nav-item">
         <a class="nav-link" href="/participants/lookup">Find My QR</a>
     </li>

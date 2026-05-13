@@ -20,6 +20,11 @@ $landingSettings = $landingSettings ?? [
     'section_3_title' => 'Before you arrive',
     'section_3_caption' => 'Pre-register with your student details so we can prepare your QR for check-in and place you in a group when you arrive. If you already registered, you can retrieve your QR any time.',
 ];
+/** @var array{pre_register_enabled: bool, walk_in_enabled: bool} $registrationSettings */
+$registrationSettings = $registrationSettings ?? [
+    'pre_register_enabled' => true,
+    'walk_in_enabled' => true,
+];
 
 $landingUrl = static function (?string $filename): ?string {
     if ($filename === null || $filename === '') {
@@ -152,7 +157,11 @@ $landingUrl = static function (?string $filename): ?string {
                         <p class="text-muted small mb-4">
                             Takes only a minute. You will need your student ID and TAR UMT student email.
                         </p>
-                        <a href="/participants/create" class="btn btn-primary btn-lg px-5">Register for ATCL</a>
+                        <?php if ($registrationSettings['pre_register_enabled']): ?>
+                            <a href="/participants/create" class="btn btn-primary btn-lg px-5">Register for ATCL</a>
+                        <?php else: ?>
+                            <p class="text-muted mb-0">Pre-registration is currently closed.</p>
+                        <?php endif; ?>
                         <div class="mt-3">
                             <a href="/participants/lookup" class="link-secondary small">Already registered? Find my QR code</a>
                         </div>

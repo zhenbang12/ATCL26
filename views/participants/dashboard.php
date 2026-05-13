@@ -11,12 +11,20 @@ $stats = $stats ?? [
     'group_distribution' => [],
 ];
 $recentParticipants = $recentParticipants ?? [];
+$registrationSettings = $registrationSettings ?? [
+    'pre_register_enabled' => true,
+    'walk_in_enabled' => true,
+];
 ?>
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Participants Dashboard</h2>
     <div>
-        <a href="/participants/create" class="btn btn-primary btn-sm">Pre-register</a>
-        <a href="/participants/create-walkin" class="btn btn-dark btn-sm">Walk-in Registration</a>
+        <?php if ($registrationSettings['pre_register_enabled'] || \App\Core\Auth::check()): ?>
+            <a href="/participants/create" class="btn btn-primary btn-sm">Pre-register</a>
+        <?php endif; ?>
+        <?php if ($registrationSettings['walk_in_enabled'] || \App\Core\Auth::check()): ?>
+            <a href="/participants/create-walkin" class="btn btn-dark btn-sm">Walk-in Registration</a>
+        <?php endif; ?>
         <a href="/participants/checkin" class="btn btn-outline-secondary btn-sm">QR Check-in</a>
         <a href="/participants/groups" class="btn btn-outline-secondary btn-sm">Grouping Overview</a>
         <a href="/participants/list" class="btn btn-outline-primary btn-sm">View List</a>

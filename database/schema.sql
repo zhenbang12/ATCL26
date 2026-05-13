@@ -46,6 +46,16 @@ INSERT IGNORE INTO landing_images (slot, filename, alt_text) VALUES
     ('feature_1', NULL, ''),
     ('feature_2', NULL, '');
 
+CREATE TABLE IF NOT EXISTS registration_settings (
+    id TINYINT UNSIGNED PRIMARY KEY DEFAULT 1,
+    pre_register_enabled TINYINT(1) NOT NULL DEFAULT 1,
+    walk_in_enabled TINYINT(1) NOT NULL DEFAULT 1,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT IGNORE INTO registration_settings (id, pre_register_enabled, walk_in_enabled)
+VALUES (1, 1, 1);
+
 CREATE TABLE IF NOT EXISTS event_groups (
     id INT AUTO_INCREMENT PRIMARY KEY,
     group_code VARCHAR(20) NOT NULL,
@@ -264,4 +274,3 @@ CREATE TABLE IF NOT EXISTS group_move_logs (
     INDEX idx_group_move_logs_moved_at (moved_at),
     INDEX idx_group_move_logs_participant_id (participant_id)
 );
-

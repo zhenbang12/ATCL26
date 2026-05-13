@@ -215,6 +215,42 @@ class SettingsController
         exit;
     }
 
+    public function registrationSettingsSave(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db = Container::get('db');
+        $preRegisterEnabled = isset($_POST['pre_register_enabled']) ? 1 : 0;
+        $walkInEnabled = isset($_POST['walk_in_enabled']) ? 1 : 0;
+
+        try {
+            $db->exec('CREATE TABLE IF NOT EXISTS registration_settings (
+                id TINYINT UNSIGNED PRIMARY KEY DEFAULT 1,
+                pre_register_enabled TINYINT(1) NOT NULL DEFAULT 1,
+                walk_in_enabled TINYINT(1) NOT NULL DEFAULT 1,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )');
+
+            $stmt = $db->prepare('
+                INSERT INTO registration_settings (id, pre_register_enabled, walk_in_enabled)
+                VALUES (1, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    pre_register_enabled = VALUES(pre_register_enabled),
+                    walk_in_enabled = VALUES(walk_in_enabled)
+            ');
+            $stmt->execute([$preRegisterEnabled, $walkInEnabled]);
+
+            $_SESSION['registration_settings_message'] = 'Registration settings saved.';
+            $_SESSION['registration_settings_message_type'] = 'success';
+        } catch (\Exception $e) {
+            $_SESSION['registration_settings_message'] = 'Could not save registration settings: ' . $e->getMessage();
+            $_SESSION['registration_settings_message_type'] = 'danger';
+        }
+
+        header('Location: /dashboard');
+        exit;
+    }
+
     /**
      * @return array<string, array{filename: ?string, alt_text: string}>
      */
@@ -292,6 +328,30 @@ class SettingsController
     public static function landingSlotLabels(): array
     {
         return self::LANDING_SLOTS;
+    }
+
+    /**
+     * @return array{pre_register_enabled: bool, walk_in_enabled: bool}
+     */
+    public static function loadRegistrationSettings(\PDO $db): array
+    {
+        try {
+            $stmt = $db->query('SELECT pre_register_enabled, walk_in_enabled FROM registration_settings WHERE id = 1');
+            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+            if ($row) {
+                return [
+                    'pre_register_enabled' => (bool)$row['pre_register_enabled'],
+                    'walk_in_enabled' => (bool)$row['walk_in_enabled'],
+                ];
+            }
+        } catch (\Exception $e) {
+            // Table might not exist yet; keep both registration paths open.
+        }
+
+        return [
+            'pre_register_enabled' => true,
+            'walk_in_enabled' => true,
+        ];
     }
 
     /**
