@@ -6,18 +6,19 @@ $registrationSettings = $registrationSettings ?? [
 ];
 $errorMessage = $_SESSION['registration_error'] ?? null;
 $prefilledStudentId = $_GET['student_id'] ?? '';
+$lookupFrom = ($lookupFrom ?? ($_GET['from'] ?? 'pre-reg')) === 'walk-in' ? 'walk-in' : 'pre-reg';
+$registrationHref = $lookupFrom === 'walk-in' ? '/participants/create-walkin' : '/participants/create';
+$registrationLabel = $lookupFrom === 'walk-in' ? 'Walk-in' : 'Pre-register';
 if (isset($_SESSION['registration_error'])) {
     unset($_SESSION['registration_error']);
 }
 ?>
 <ul class="nav nav-tabs mb-3">
-    <?php if ($registrationSettings['pre_register_enabled'] || \App\Core\Auth::check()): ?>
-        <li class="nav-item">
-            <a class="nav-link" href="/participants/create">Register</a>
-        </li>
-    <?php endif; ?>
     <li class="nav-item">
-        <a class="nav-link active" aria-current="page" href="/participants/lookup">Find My QR</a>
+        <a class="nav-link" href="<?= htmlspecialchars($registrationHref) ?>"><?= htmlspecialchars($registrationLabel) ?></a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link active" aria-current="page" href="/participants/lookup?from=<?= htmlspecialchars($lookupFrom) ?>">Find My QR</a>
     </li>
 </ul>
 
@@ -36,6 +37,7 @@ if (isset($_SESSION['registration_error'])) {
 </p>
 
 <form method="post" action="/participants/lookup" class="mt-3" style="max-width: 480px;">
+    <input type="hidden" name="from" value="<?= htmlspecialchars($lookupFrom) ?>">
     <div class="mb-3">
         <label class="form-label">Student ID</label>
         <input

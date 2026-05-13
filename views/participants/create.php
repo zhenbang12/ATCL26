@@ -16,7 +16,7 @@ if (isset($_SESSION['registration_error'])) {
         </li>
     <?php endif; ?>
     <li class="nav-item">
-        <a class="nav-link" href="/participants/lookup">Find My QR</a>
+        <a class="nav-link" href="/participants/lookup?from=pre-reg">Find My QR</a>
     </li>
 </ul>
 

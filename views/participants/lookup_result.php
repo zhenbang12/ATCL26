@@ -1,5 +1,8 @@
 <?php
 // Result page for QR lookup
+$lookupFrom = ($lookupFrom ?? 'pre-reg') === 'walk-in' ? 'walk-in' : 'pre-reg';
+$registrationHref = $lookupFrom === 'walk-in' ? '/participants/create-walkin' : '/participants/create';
+$registrationLabel = $lookupFrom === 'walk-in' ? 'Back to walk-in' : 'Back to pre-reg';
 ?>
 <h2>Find My QR Code</h2>
 
@@ -22,7 +25,6 @@
 <?php endif; ?>
 
 <p class="mt-4">
-    <a href="/participants/lookup" class="btn btn-outline-secondary btn-sm">Search again</a>
-    <a href="/participants/create" class="btn btn-link btn-sm">Back to registration</a>
+    <a href="/participants/lookup?from=<?= htmlspecialchars($lookupFrom) ?>" class="btn btn-outline-secondary btn-sm">Search again</a>
+    <a href="<?= htmlspecialchars($registrationHref) ?>" class="btn btn-link btn-sm"><?= htmlspecialchars($registrationLabel) ?></a>
 </p>
-

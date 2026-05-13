@@ -10,16 +10,11 @@ if (isset($_SESSION['registration_error'])) {
 }
 ?>
 <ul class="nav nav-tabs mb-3">
-    <?php if ($registrationSettings['pre_register_enabled'] || \App\Core\Auth::check()): ?>
-        <li class="nav-item">
-            <a class="nav-link" href="/participants/create">Pre-register</a>
-        </li>
-    <?php endif; ?>
     <li class="nav-item">
-        <a class="nav-link active" aria-current="page" href="/participants/create-walkin">Walk-in Register</a>
+        <a class="nav-link active" aria-current="page" href="/participants/create-walkin">Walk-in</a>
     </li>
     <li class="nav-item">
-        <a class="nav-link" href="/participants/lookup">Find My QR</a>
+        <a class="nav-link" href="/participants/lookup?from=walk-in">Find My QR</a>
     </li>
 </ul>
 

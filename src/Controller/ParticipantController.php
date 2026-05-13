@@ -825,6 +825,7 @@ class ParticipantController
     public function lookupForm(): void
     {
         $title = 'Find My QR Code';
+        $lookupFrom = $this->normalizeLookupFrom((string)($_GET['from'] ?? 'pre-reg'));
         $registrationSettings = SettingsController::loadRegistrationSettings(Container::get('db'));
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/participants/lookup.php';
@@ -839,6 +840,7 @@ class ParticipantController
         $db = Container::get('db');
 
         $studentId = trim($_POST['student_id'] ?? '');
+        $lookupFrom = $this->normalizeLookupFrom((string)($_POST['from'] ?? 'pre-reg'));
 
         $participant = null;
         $qrImage = null;
@@ -861,6 +863,11 @@ class ParticipantController
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/participants/lookup_result.php';
         include __DIR__ . '/../../views/layout/footer.php';
+    }
+
+    private function normalizeLookupFrom(string $from): string
+    {
+        return $from === 'walk-in' ? 'walk-in' : 'pre-reg';
     }
 
     /**
