@@ -41,6 +41,8 @@ $router->post('/participants/auto-group', 'ParticipantController@autoGroup');
 $router->post('/participants/group-by-faculty', 'ParticipantController@groupByFaculty');
 $router->post('/participants/group-by-language', 'ParticipantController@groupByLanguage');
 $router->post('/participants/groups/save-layout', 'ParticipantController@saveGroupLayout');
+$router->post('/participants/groups/add-group', 'ParticipantController@addGroupShell');
+$router->post('/participants/groups/add-slot', 'ParticipantController@addGroupSlot');
 $router->post('/participants/groups/move', 'ParticipantController@moveParticipantGroup');
 $router->post('/participants/groups/assign-facilitator', 'ParticipantController@assignFacilitatorToGroup');
 $router->get('/participants/groups/state', 'ParticipantController@groupsState');

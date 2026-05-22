@@ -8,6 +8,8 @@ $groupTypes = $groupTypes ?? [];
 $recentMoveLogs = $recentMoveLogs ?? [];
 $facilitators = $facilitators ?? [];
 $facilitatorByGroup = $facilitatorByGroup ?? [];
+$currentMaxPerGroup = (int)($currentMaxPerGroup ?? 0);
+$currentEnglishGroups = (int)($currentEnglishGroups ?? 0);
 $currentMover = \App\Core\Auth::user()['username'] ?? 'Unknown';
 
 $message = $_SESSION['grouping_message'] ?? null;
@@ -15,6 +17,7 @@ $messageType = $_SESSION['grouping_message_type'] ?? 'info';
 if (isset($_SESSION['grouping_message'])) {
     unset($_SESSION['grouping_message'], $_SESSION['grouping_message_type']);
 }
+$maxPerGroupLabel = $currentMaxPerGroup > 0 ? (string)$currentMaxPerGroup : 'No limit';
 ?>
 <h2>Grouping Overview</h2>
 
@@ -35,18 +38,29 @@ if (isset($_SESSION['grouping_message'])) {
                     <form method="post" action="/participants/groups/save-layout" class="d-flex flex-wrap align-items-end gap-2 mb-0">
                         <div>
                             <label for="num_groups_custom" class="form-label form-label-sm mb-1">Total groups</label>
-                            <input type="number" name="num_groups" id="num_groups_custom" class="form-control form-control-sm" value="8" min="1" max="99" required style="width: 120px;">
+                            <input type="number" name="num_groups" id="num_groups_custom" class="form-control form-control-sm" value="<?= max(1, count($groups) ?: 8) ?>" min="1" max="99" required style="width: 120px;">
                         </div>
                         <div>
                             <label for="english_groups" class="form-label form-label-sm mb-1">English pool (first N group numbers)</label>
-                            <input type="number" name="english_groups" id="english_groups" class="form-control form-control-sm" value="2" min="1" max="99" required style="width: 120px;">
+                            <input type="number" name="english_groups" id="english_groups" class="form-control form-control-sm" value="<?= max(1, $currentEnglishGroups ?: 2) ?>" min="1" max="99" required style="width: 120px;">
                         </div>
                         <div>
                             <label for="max_per_group" class="form-label form-label-sm mb-1">Max per group at check-in (0 = no limit)</label>
-                            <input type="number" name="max_per_group" id="max_per_group" class="form-control form-control-sm" value="0" min="0" max="300" style="width: 120px;">
+                            <input type="number" name="max_per_group" id="max_per_group" class="form-control form-control-sm" value="<?= $currentMaxPerGroup ?>" min="0" max="300" style="width: 120px;">
                         </div>
                         <button type="submit" class="btn btn-dark btn-sm">Save group layout</button>
                     </form>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                        <form method="post" action="/participants/groups/add-group" class="m-0">
+                            <button type="submit" class="btn btn-outline-primary btn-sm">+1 Group</button>
+                        </form>
+                        <form method="post" action="/participants/groups/add-slot" class="m-0">
+                            <button type="submit" class="btn btn-outline-primary btn-sm">+1 Slot Per Group</button>
+                        </form>
+                        <span class="small text-muted">
+                            Current max per group: <strong><?= htmlspecialchars($maxPerGroupLabel) ?></strong>
+                        </span>
+                    </div>
                     <p class="small text-muted mb-0 mt-2">
                         This only creates empty group shells (Group 1, Group 2, …). Participants stay ungrouped until they check in;
                         then they are placed round-robin into the English or Mandarin pool matching their preferred language.
@@ -71,7 +85,14 @@ if (isset($_SESSION['grouping_message'])) {
                                         <select name="crew_ids[]" class="form-select form-select-sm mb-1">
                                             <option value="0">Unassigned</option>
                                             <?php foreach ($facilitators as $facilitator): ?>
-                                                <option value="<?= (int)$facilitator['id'] ?>" <?= $slot1Id === (int)$facilitator['id'] ? 'selected' : '' ?>>
+                                                <?php
+                                                $facilitatorId = (int)$facilitator['id'];
+                                                $assignedGroup = trim((string)($facilitator['assigned_group_code'] ?? ''));
+                                                if ($assignedGroup !== '' && $assignedGroup !== $groupCode && $slot1Id !== $facilitatorId) {
+                                                    continue;
+                                                }
+                                                ?>
+                                                <option value="<?= $facilitatorId ?>" <?= $slot1Id === $facilitatorId ? 'selected' : '' ?>>
                                                     <?= htmlspecialchars($facilitator['full_name']) ?>
                                                 </option>
                                             <?php endforeach; ?>
@@ -79,7 +100,14 @@ if (isset($_SESSION['grouping_message'])) {
                                         <select name="crew_ids[]" class="form-select form-select-sm">
                                             <option value="0">Unassigned</option>
                                             <?php foreach ($facilitators as $facilitator): ?>
-                                                <option value="<?= (int)$facilitator['id'] ?>" <?= $slot2Id === (int)$facilitator['id'] ? 'selected' : '' ?>>
+                                                <?php
+                                                $facilitatorId = (int)$facilitator['id'];
+                                                $assignedGroup = trim((string)($facilitator['assigned_group_code'] ?? ''));
+                                                if ($assignedGroup !== '' && $assignedGroup !== $groupCode && $slot2Id !== $facilitatorId) {
+                                                    continue;
+                                                }
+                                                ?>
+                                                <option value="<?= $facilitatorId ?>" <?= $slot2Id === $facilitatorId ? 'selected' : '' ?>>
                                                     <?= htmlspecialchars($facilitator['full_name']) ?>
                                                 </option>
                                             <?php endforeach; ?>
@@ -93,6 +121,7 @@ if (isset($_SESSION['grouping_message'])) {
                 </div>
                 <div class="d-flex flex-wrap gap-3 small text-muted mb-2">
                     <span><strong>Total Groups:</strong> <?= count($groups) ?></span>
+                    <span><strong>Max Per Group:</strong> <?= htmlspecialchars($maxPerGroupLabel) ?></span>
                     <span><strong>Ungrouped Participants:</strong> <?= (int)$ungrouped ?></span>
                     <span><strong>Total Grouped:</strong> <?= array_sum(array_column($groups, 'count')) ?></span>
                 </div>
@@ -281,6 +310,7 @@ if (isset($_SESSION['grouping_message'])) {
                                 <div class="d-flex justify-content-between align-items-center mb-2 lane-header">
                                     <div class="d-flex align-items-center gap-1">
                                         <strong>Group <?= htmlspecialchars($groupCode) ?></strong>
+                                        <span class="badge bg-info text-dark">Max <?= htmlspecialchars($maxPerGroupLabel) ?></span>
                                         <span class="badge bg-light text-dark border ms-1"><?= htmlspecialchars($groupTypes[$groupCode] ?? 'Mixed') ?></span>
                                         <span class="badge bg-primary group-count" data-count-group="<?= htmlspecialchars($groupCode) ?>"><?= count($participants) ?></span>
                                     </div>
@@ -431,6 +461,7 @@ if (isset($_SESSION['grouping_message'])) {
                         <div class="card mb-3">
                             <div class="card-header">
                                 <strong>Group <?= htmlspecialchars($groupCode) ?></strong>
+                                <span class="badge bg-info text-dark">Max <?= htmlspecialchars($maxPerGroupLabel) ?></span>
                                 <span class="badge bg-light text-dark border"><?= htmlspecialchars($groupTypes[$groupCode] ?? 'Mixed') ?></span>
                                 (<?= count($participants) ?> participants)
                             </div>
@@ -1019,4 +1050,3 @@ if (isset($_SESSION['grouping_message'])) {
         }, 3000);
     })();
 </script>
-

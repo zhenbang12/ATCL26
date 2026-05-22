@@ -346,6 +346,8 @@ class ParticipantController
 
         $title = 'Grouping Overview';
         $db = Container::get('db');
+        $currentMaxPerGroup = $this->getEventGroupMaxPerGroup($db);
+        $currentEnglishGroups = 0;
 
         // Groups dashboard: prefer configured empty shells (event_groups)
         $layoutRows = [];
@@ -373,6 +375,9 @@ class ParticipantController
                 $gc = (string)$row['group_code'];
                 $groups[] = ['group_code' => $gc, 'count' => $countMap[$gc] ?? 0];
                 $groupTypes[$gc] = (($row['language_pool'] ?? '') === 'english') ? 'English' : 'Mandarin';
+                if (($row['language_pool'] ?? '') === 'english') {
+                    $currentEnglishGroups++;
+                }
                 $participantsByGroup[$gc] = [];
             }
 
@@ -642,6 +647,73 @@ class ParticipantController
                 $db->rollBack();
             }
             $_SESSION['grouping_message'] = 'Could not save group layout. Run database migrations if this is a new install: ' . $e->getMessage();
+            $_SESSION['grouping_message_type'] = 'danger';
+        }
+
+        header('Location: /participants/groups');
+        exit;
+    }
+
+    public function addGroupShell(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db = Container::get('db');
+
+        try {
+            $row = $db->query('
+                SELECT
+                    COALESCE(MAX(CAST(group_code AS UNSIGNED)), 0) AS max_code,
+                    COALESCE(MAX(sort_order), 0) AS max_sort,
+                    COUNT(*) AS total_groups
+                FROM event_groups
+            ')->fetch(\PDO::FETCH_ASSOC);
+
+            $totalGroups = (int)($row['total_groups'] ?? 0);
+            if ($totalGroups >= 99) {
+                $_SESSION['grouping_message'] = 'You already have the maximum of 99 groups.';
+                $_SESSION['grouping_message_type'] = 'warning';
+                header('Location: /participants/groups');
+                exit;
+            }
+
+            $nextCode = (int)($row['max_code'] ?? 0) + 1;
+            $nextSort = (int)($row['max_sort'] ?? 0) + 1;
+            $pool = $totalGroups === 0 ? 'english' : 'mandarin';
+
+            $stmt = $db->prepare('INSERT INTO event_groups (group_code, language_pool, sort_order) VALUES (?, ?, ?)');
+            $stmt->execute([(string)$nextCode, $pool, $nextSort]);
+
+            $_SESSION['grouping_message'] = 'Added Group ' . $nextCode . ' to the saved layout.';
+            $_SESSION['grouping_message_type'] = 'success';
+        } catch (\Exception $e) {
+            $_SESSION['grouping_message'] = 'Could not add group. Run migrations if needed: ' . $e->getMessage();
+            $_SESSION['grouping_message_type'] = 'danger';
+        }
+
+        header('Location: /participants/groups');
+        exit;
+    }
+
+    public function addGroupSlot(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db = Container::get('db');
+        $currentMax = $this->getEventGroupMaxPerGroup($db);
+        $nextMax = min(300, $currentMax + 1);
+
+        try {
+            $stmt = $db->prepare('
+                INSERT INTO event_group_settings (id, max_per_group) VALUES (1, ?)
+                ON DUPLICATE KEY UPDATE max_per_group = VALUES(max_per_group)
+            ');
+            $stmt->execute([$nextMax]);
+
+            $_SESSION['grouping_message'] = 'Max per group increased to ' . $nextMax . '.';
+            $_SESSION['grouping_message_type'] = 'success';
+        } catch (\Exception $e) {
+            $_SESSION['grouping_message'] = 'Could not add slot. Run migrations if needed: ' . $e->getMessage();
             $_SESSION['grouping_message_type'] = 'danger';
         }
 
