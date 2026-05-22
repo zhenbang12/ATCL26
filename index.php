@@ -49,6 +49,13 @@ $router->get('/participants/groups/state', 'ParticipantController@groupsState');
 $router->post('/participants/clear-groups', 'ParticipantController@clearGroups');
 $router->post('/participants/clear-group-shells', 'ParticipantController@clearGroupShells');
 $router->get('/participants/export', 'ParticipantController@export');
+$router->get('/participants/edit', 'ParticipantController@edit');
+$router->post('/participants/update', 'ParticipantController@update');
+$router->post('/participants/delete', 'ParticipantController@delete');
+$router->get('/participants/verify-edit', 'ParticipantController@verifyEditForm');
+$router->post('/participants/verify-edit', 'ParticipantController@processVerifyEdit');
+$router->get('/participants/edit-public', 'ParticipantController@editPublicForm');
+$router->post('/participants/update-public', 'ParticipantController@updatePublic');
 
 // 2. Financial Control & Procurement
 $router->get('/finance', 'FinanceController@index');

@@ -6,7 +6,19 @@ $registrationSettings = $registrationSettings ?? [
     'pre_register_enabled' => true,
     'walk_in_enabled' => true,
 ];
+$participantsMessage = $_SESSION['participants_message'] ?? null;
+$participantsMessageType = $_SESSION['participants_message_type'] ?? 'info';
+if (isset($_SESSION['participants_message'])) {
+    unset($_SESSION['participants_message'], $_SESSION['participants_message_type']);
+}
 ?>
+<?php if ($participantsMessage): ?>
+    <div class="alert alert-<?= $participantsMessageType ?> alert-dismissible fade show" role="alert">
+        <?= htmlspecialchars($participantsMessage) ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+<?php endif; ?>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2>Participants List</h2>
     <div>
@@ -52,6 +64,9 @@ $registrationSettings = $registrationSettings ?? [
         <th>Registration</th>
         <th>Group</th>
         <th>Checked in?</th>
+        <?php if (\App\Core\Auth::check()): ?>
+            <th>Actions</th>
+        <?php endif; ?>
     </tr>
     </thead>
     <tbody>
@@ -75,6 +90,17 @@ $registrationSettings = $registrationSettings ?? [
             </td>
             <td><?= htmlspecialchars($p['group_code'] ?? '-') ?></td>
             <td><?= !empty($p['checked_in_at'] ?? null) ? 'Yes' : 'No' ?></td>
+            <?php if (\App\Core\Auth::check()): ?>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <a href="/participants/edit?id=<?= $p['id'] ?>" class="btn btn-sm btn-outline-primary me-2">Edit</a>
+                        <form method="post" action="/participants/delete" class="d-inline m-0" onsubmit="return confirm('Are you sure you want to delete this participant?');">
+                            <input type="hidden" name="id" value="<?= $p['id'] ?>">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            <?php endif; ?>
         </tr>
     <?php endforeach; ?>
     </tbody>

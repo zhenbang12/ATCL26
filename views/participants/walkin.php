@@ -8,6 +8,10 @@ $errorMessage = $_SESSION['registration_error'] ?? null;
 if (isset($_SESSION['registration_error'])) {
     unset($_SESSION['registration_error']);
 }
+$duplicateId = $_SESSION['registration_duplicate_id'] ?? null;
+if (isset($_SESSION['registration_duplicate_id'])) {
+    unset($_SESSION['registration_duplicate_id']);
+}
 $savedInput = $_SESSION['registration_input'] ?? [];
 if (isset($_SESSION['registration_input'])) {
     unset($_SESSION['registration_input']);
@@ -28,6 +32,10 @@ if (isset($_SESSION['registration_input'])) {
 <?php if ($errorMessage !== null): ?>
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
         <?= htmlspecialchars($errorMessage) ?>
+        <?php if ($duplicateId): ?>
+            <br>
+            If you wish to edit your registered information, <a href="/participants/verify-edit?student_id=<?= urlencode($duplicateId) ?>" class="alert-link">click here to edit your details</a>.
+        <?php endif; ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 <?php endif; ?>

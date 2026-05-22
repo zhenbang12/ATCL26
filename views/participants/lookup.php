@@ -24,9 +24,13 @@ if (isset($_SESSION['registration_error'])) {
 
 <h2>Find My QR Code</h2>
 
-<?php if ($errorMessage): ?>
-    <div class="alert alert-warning alert-dismissible fade show" role="alert">
-        <strong>Already Registered!</strong><br>
+<?php if ($errorMessage): 
+    $isSuccess = (strpos(strtolower($errorMessage), 'success') !== false || strpos(strtolower($errorMessage), 'updated') !== false);
+    $alertClass = $isSuccess ? 'alert-success' : 'alert-warning';
+    $alertTitle = $isSuccess ? 'Success!' : 'Already Registered!';
+?>
+    <div class="alert <?= $alertClass ?> alert-dismissible fade show" role="alert">
+        <strong><?= $alertTitle ?></strong><br>
         <?= htmlspecialchars($errorMessage) ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>

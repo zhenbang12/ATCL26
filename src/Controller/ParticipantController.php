@@ -196,10 +196,11 @@ class ParticipantController
             $existing = $checkStmt->fetch(\PDO::FETCH_ASSOC);
             
             if ($existing) {
-                // Student ID already exists - redirect to lookup page with error message
-                $_SESSION['registration_error'] = 'This Student ID is already registered. Please use the "Find My QR" page to retrieve your QR code.';
+                // Student ID already exists - redirect back with edit details prompt
+                $_SESSION['registration_error'] = 'This Student ID is already registered.';
+                $_SESSION['registration_duplicate_id'] = $studentId;
                 $_SESSION['registration_input'] = $_POST;
-                header('Location: /participants/lookup?student_id=' . urlencode($studentId));
+                header('Location: ' . $returnPath);
                 exit;
             }
         }
@@ -1264,5 +1265,288 @@ class ParticipantController
             'latest_moved_at' => $latestMovedAt,
         ], JSON_UNESCAPED_UNICODE);
         exit;
+    }
+
+    public function edit(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+        $db = Container::get('db');
+        $id = (int)($_GET['id'] ?? 0);
+
+        $stmt = $db->prepare('SELECT * FROM participants WHERE id = ?');
+        $stmt->execute([$id]);
+        $participant = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$participant) {
+            $_SESSION['participants_message'] = 'Participant not found.';
+            $_SESSION['participants_message_type'] = 'danger';
+            header('Location: /participants/list');
+            exit;
+        }
+
+        $title = 'Edit Participant';
+        include __DIR__ . '/../../views/layout/header.php';
+        include __DIR__ . '/../../views/participants/edit.php';
+        include __DIR__ . '/../../views/layout/footer.php';
+    }
+
+    public function update(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+        $db = Container::get('db');
+        $id = (int)($_POST['id'] ?? 0);
+
+        $fullName = trim((string)($_POST['full_name'] ?? ''));
+        $icPassport = trim((string)($_POST['ic_passport_no'] ?? ''));
+        $studentId = trim((string)($_POST['student_id'] ?? ''));
+        $studentEmail = trim((string)($_POST['student_email'] ?? ''));
+        $intake = trim((string)($_POST['intake'] ?? ''));
+        $programmeName = trim((string)($_POST['programme_name'] ?? ''));
+        $faculty = trim((string)($_POST['faculty'] ?? ''));
+        $gender = trim((string)($_POST['gender'] ?? ''));
+        $contactNo = $this->formatPhoneNumber($_POST['contact_no'] ?? '');
+        $emergencyContactNo = $this->formatPhoneNumber($_POST['emergency_contact_no'] ?? '');
+        $emergencyRelationship = trim((string)($_POST['emergency_contact_relationship'] ?? ''));
+        $preferredLanguage = trim((string)($_POST['preferred_language'] ?? ''));
+        $registrationType = trim((string)($_POST['registration_type'] ?? 'pre_register'));
+        $groupCode = trim((string)($_POST['group_code'] ?? ''));
+        if ($groupCode === '') {
+            $groupCode = null;
+        }
+        $blacklisted = isset($_POST['blacklisted']) ? 1 : 0;
+
+        if ($fullName === '' || $studentId === '' || $studentEmail === '') {
+            $_SESSION['participants_message'] = 'Name, Student ID, and Email are required.';
+            $_SESSION['participants_message_type'] = 'danger';
+            header('Location: /participants/edit?id=' . $id);
+            exit;
+        }
+
+        try {
+            $stmt = $db->prepare('UPDATE participants SET 
+                full_name = ?,
+                ic_passport_no = ?,
+                student_id = ?,
+                student_email = ?,
+                intake = ?,
+                programme_name = ?,
+                faculty = ?,
+                gender = ?,
+                contact_no = ?,
+                emergency_contact_no = ?,
+                emergency_contact_relationship = ?,
+                preferred_language = ?,
+                registration_type = ?,
+                group_code = ?,
+                blacklisted = ?
+                WHERE id = ?');
+            $stmt->execute([
+                $fullName,
+                $icPassport,
+                $studentId,
+                $studentEmail,
+                $intake,
+                $programmeName,
+                $faculty,
+                $gender,
+                $contactNo,
+                $emergencyContactNo,
+                $emergencyRelationship,
+                $preferredLanguage,
+                $registrationType,
+                $groupCode,
+                $blacklisted,
+                $id
+            ]);
+
+            $_SESSION['participants_message'] = 'Participant updated successfully.';
+            $_SESSION['participants_message_type'] = 'success';
+        } catch (\Exception $e) {
+            $_SESSION['participants_message'] = 'Error updating participant: ' . $e->getMessage();
+            $_SESSION['participants_message_type'] = 'danger';
+        }
+
+        header('Location: /participants/list');
+        exit;
+    }
+
+    public function delete(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+        $db = Container::get('db');
+        $id = (int)($_POST['id'] ?? 0);
+
+        try {
+            $stmt = $db->prepare('DELETE FROM participants WHERE id = ?');
+            $stmt->execute([$id]);
+            $_SESSION['participants_message'] = 'Participant deleted successfully.';
+            $_SESSION['participants_message_type'] = 'success';
+        } catch (\Exception $e) {
+            $_SESSION['participants_message'] = 'Error deleting participant: ' . $e->getMessage();
+            $_SESSION['participants_message_type'] = 'danger';
+        }
+
+        header('Location: /participants/list');
+        exit;
+    }
+
+    public function verifyEditForm(): void
+    {
+        $studentId = trim((string)($_GET['student_id'] ?? ''));
+        $title = 'Verify Identity';
+        
+        $errorMessage = $_SESSION['public_verify_error'] ?? null;
+        if (isset($_SESSION['public_verify_error'])) {
+            unset($_SESSION['public_verify_error']);
+        }
+
+        include __DIR__ . '/../../views/layout/header.php';
+        include __DIR__ . '/../../views/participants/verify_edit.php';
+        include __DIR__ . '/../../views/layout/footer.php';
+    }
+
+    public function processVerifyEdit(): void
+    {
+        $db = Container::get('db');
+        $studentId = trim((string)($_POST['student_id'] ?? ''));
+        $email = trim((string)($_POST['student_email'] ?? ''));
+
+        if ($studentId === '' || $email === '') {
+            $_SESSION['public_verify_error'] = 'Both Student ID and Email are required.';
+            header('Location: /participants/verify-edit?student_id=' . urlencode($studentId));
+            exit;
+        }
+
+        $stmt = $db->prepare('SELECT id, student_email FROM participants WHERE student_id = ?');
+        $stmt->execute([$studentId]);
+        $participant = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if ($participant && strtolower(trim((string)$participant['student_email'])) === strtolower($email)) {
+            $_SESSION['public_edit_participant_id'] = (int)$participant['id'];
+            header('Location: /participants/edit-public');
+            exit;
+        } else {
+            $_SESSION['public_verify_error'] = 'Verification failed. The email entered does not match our records for this Student ID.';
+            header('Location: /participants/verify-edit?student_id=' . urlencode($studentId));
+            exit;
+        }
+    }
+
+    public function editPublicForm(): void
+    {
+        $db = Container::get('db');
+        $id = (int)($_SESSION['public_edit_participant_id'] ?? 0);
+
+        if ($id === 0) {
+            $_SESSION['registration_error'] = 'Session expired or invalid access. Please try again.';
+            header('Location: /participants/create');
+            exit;
+        }
+
+        $stmt = $db->prepare('SELECT * FROM participants WHERE id = ?');
+        $stmt->execute([$id]);
+        $participant = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$participant) {
+            $_SESSION['registration_error'] = 'Participant not found.';
+            header('Location: /participants/create');
+            exit;
+        }
+
+        $errorMessage = $_SESSION['registration_error'] ?? null;
+        if (isset($_SESSION['registration_error'])) {
+            unset($_SESSION['registration_error']);
+        }
+
+        $title = 'Edit Registration Info';
+        include __DIR__ . '/../../views/layout/header.php';
+        include __DIR__ . '/../../views/participants/edit_public.php';
+        include __DIR__ . '/../../views/layout/footer.php';
+    }
+
+    public function updatePublic(): void
+    {
+        $db = Container::get('db');
+        $id = (int)($_SESSION['public_edit_participant_id'] ?? 0);
+
+        if ($id === 0) {
+            $_SESSION['registration_error'] = 'Session expired or invalid access.';
+            header('Location: /participants/create');
+            exit;
+        }
+
+        $fullName = trim((string)($_POST['full_name'] ?? ''));
+        $gender = trim((string)($_POST['gender'] ?? ''));
+        $studentEmail = trim((string)($_POST['student_email'] ?? ''));
+        $programmeName = trim((string)($_POST['programme_name'] ?? ''));
+        $faculty = trim((string)($_POST['faculty'] ?? ''));
+        $contactRaw = trim((string)($_POST['contact_no'] ?? ''));
+        $preferredLanguage = trim((string)($_POST['preferred_language'] ?? ''));
+
+        if (
+            $fullName === ''
+            || $gender === ''
+            || $studentEmail === ''
+            || $programmeName === ''
+            || $faculty === ''
+            || $contactRaw === ''
+            || $preferredLanguage === ''
+        ) {
+            $_SESSION['registration_error'] = 'Please complete every field on the form.';
+            header('Location: /participants/edit-public');
+            exit;
+        }
+
+        if (!$this->isValidTarcStudentEmail($studentEmail)) {
+            $_SESSION['registration_error'] = 'Student email must be a valid address ending with @student.tarc.edu.my.';
+            header('Location: /participants/edit-public');
+            exit;
+        }
+
+        // Convert phone numbers
+        $contactNo = $this->formatPhoneNumber($contactRaw);
+        $emergencyContactNo = $this->formatPhoneNumber($_POST['emergency_contact_no'] ?? '');
+
+        try {
+            $stmt = $db->prepare('UPDATE participants SET 
+                full_name = ?,
+                gender = ?,
+                student_email = ?,
+                programme_name = ?,
+                faculty = ?,
+                contact_no = ?,
+                emergency_contact_no = ?,
+                emergency_contact_relationship = ?,
+                preferred_language = ?
+                WHERE id = ?');
+            $stmt->execute([
+                $fullName,
+                $gender,
+                $studentEmail,
+                $programmeName,
+                $faculty,
+                $contactNo,
+                $emergencyContactNo,
+                $_POST['emergency_contact_relationship'] ?? '',
+                $preferredLanguage,
+                $id
+            ]);
+
+            // Retrieve updated student_id for redirect
+            $stmtId = $db->prepare('SELECT student_id FROM participants WHERE id = ?');
+            $stmtId->execute([$id]);
+            $studentId = $stmtId->fetchColumn();
+
+            // Clear session edit ID
+            unset($_SESSION['public_edit_participant_id']);
+
+            $_SESSION['registration_error'] = 'Your registration details have been updated successfully.';
+            header('Location: /participants/lookup?student_id=' . urlencode($studentId));
+            exit;
+        } catch (\Exception $e) {
+            $_SESSION['registration_error'] = 'Error updating registration: ' . $e->getMessage();
+            header('Location: /participants/edit-public');
+            exit;
+        }
     }
 }
