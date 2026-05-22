@@ -94,7 +94,8 @@ $theme = $registrationSettings['theme'] ?? 'violet';
         </nav>
         
         <div class="mt-auto pt-3 border-top">
-            <!-- Sidebar Theme Switcher -->
+            <!-- Sidebar Theme Switcher (Superuser Only) -->
+            <?php if (\App\Core\Auth::isSuperuser()): ?>
             <div class="px-2 mb-3 theme-switcher-sidebar">
                 <div class="d-flex align-items-center justify-content-between">
                     <span class="small text-muted fw-semibold" style="font-size: 0.70rem; letter-spacing: 0.5px;">THEME</span>
@@ -105,6 +106,7 @@ $theme = $registrationSettings['theme'] ?? 'violet';
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
 
             <!-- User Profile -->
             <div class="d-flex align-items-center gap-2 px-2 pt-2 border-top">

@@ -44,8 +44,14 @@ try {
             'username' => 'treasurer1',
             'password' => 'password',
             'role'     => 'treasurer',
-        ]
+        ],
+        [
+            'username' => 'superuser',
+            'password' => 'changeme',   // <-- CHANGE THIS before running on server
+            'role'     => 'superuser',
+        ],
     ];
+
 
     foreach ($defaultUsers as $u) {
         $check = $db->prepare('SELECT COUNT(*) FROM users WHERE username = ?');

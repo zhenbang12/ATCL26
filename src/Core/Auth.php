@@ -50,6 +50,14 @@ class Auth
     }
 
     /**
+     * Returns true only if the current user has the 'superuser' role.
+     */
+    public static function isSuperuser(): bool
+    {
+        return self::role() === 'superuser';
+    }
+
+    /**
      * Require that the current user has at least one of the given roles.
      * Redirects to /login if not authorised.
      */

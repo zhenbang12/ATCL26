@@ -26,7 +26,7 @@ class SettingsController
 
     public function landingPage(): void
     {
-        Auth::requireRole(['advisor', 'committee']);
+        Auth::requireRole(['advisor', 'committee', 'superuser']);
 
         $title = 'Landing page images';
         $db = Container::get('db');
@@ -44,7 +44,7 @@ class SettingsController
 
     public function landingPageSave(): void
     {
-        Auth::requireRole(['advisor', 'committee']);
+        Auth::requireRole(['advisor', 'committee', 'superuser']);
 
         $db = Container::get('db');
         $uploadDir = $this->landingUploadDir();
@@ -217,14 +217,22 @@ class SettingsController
 
     public function registrationSettingsSave(): void
     {
-        Auth::requireRole(['advisor', 'committee']);
+        Auth::requireRole(['advisor', 'committee', 'superuser']);
 
         $db = Container::get('db');
         $regMode = trim((string)($_POST['reg_mode'] ?? 'pre_reg'));
-        $theme = trim((string)($_POST['theme'] ?? 'violet'));
 
-        if (!in_array($theme, ['violet', 'pink', 'yellow'], true)) {
-            $theme = 'violet';
+        // Only superuser is allowed to change the theme.
+        // Other roles preserve the existing theme from the database.
+        if (Auth::isSuperuser()) {
+            $theme = trim((string)($_POST['theme'] ?? 'violet'));
+            if (!in_array($theme, ['violet', 'pink', 'yellow'], true)) {
+                $theme = 'violet';
+            }
+        } else {
+            // Load existing theme so it is not accidentally overwritten
+            $existing = self::loadRegistrationSettings($db);
+            $theme = $existing['theme'];
         }
 
         $preRegisterEnabled = 0;
