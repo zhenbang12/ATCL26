@@ -75,28 +75,13 @@ class ParticipantController
         $recentParticipants = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         $registrationSettings = SettingsController::loadRegistrationSettings($db);
 
-        include __DIR__ . '/../../views/layout/header.php';
-        include __DIR__ . '/../../views/participants/dashboard.php';
-        include __DIR__ . '/../../views/layout/footer.php';
-    }
-
-    public function list(): void
-    {
-        // Only advisor / committee can see full participant listing
-        Auth::requireRole(['advisor', 'committee']);
-
-        $title = 'Participants List';
-        $db = Container::get('db');
-
-        // Get filter parameter
-        $filter = $_GET['filter'] ?? 'all'; // 'all', 'checked_in', 'not_checked_in'
-        
-        // Build query with optional filter
+        // Fetch participants list for the table with filter
+        $currentFilter = $_GET['filter'] ?? 'all';
         $query = 'SELECT id, full_name, student_id, student_email, intake, programme_name, faculty, contact_no, preferred_language, group_code, registration_type, checked_in_at FROM participants';
         
-        if ($filter === 'checked_in') {
+        if ($currentFilter === 'checked_in') {
             $query .= ' WHERE checked_in_at IS NOT NULL';
-        } elseif ($filter === 'not_checked_in') {
+        } elseif ($currentFilter === 'not_checked_in') {
             $query .= ' WHERE checked_in_at IS NULL';
         }
         
@@ -104,11 +89,18 @@ class ParticipantController
         
         $stmt = $db->query($query);
         $participants = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-        $registrationSettings = SettingsController::loadRegistrationSettings($db);
 
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/participants/index.php';
         include __DIR__ . '/../../views/layout/footer.php';
+    }
+
+    public function list(): void
+    {
+        // Redirect to unified index
+        $filter = $_GET['filter'] ?? 'all';
+        header('Location: /participants?filter=' . urlencode($filter));
+        exit;
     }
 
     public function create(): void
@@ -135,6 +127,14 @@ class ParticipantController
         $registrationType = 'walk_in';
         $registrationSettings = SettingsController::loadRegistrationSettings(Container::get('db'));
 
+        if (!$registrationSettings['walk_in_enabled'] && !Auth::check()) {
+            $closedTitle = 'Walk-in registration is currently closed';
+            include __DIR__ . '/../../views/layout/header.php';
+            include __DIR__ . '/../../views/participants/registration_closed.php';
+            include __DIR__ . '/../../views/layout/footer.php';
+            return;
+        }
+
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/participants/walkin.php';
         include __DIR__ . '/../../views/layout/footer.php';
@@ -153,6 +153,12 @@ class ParticipantController
         $registrationSettings = SettingsController::loadRegistrationSettings($db);
         if (!Auth::check() && $registrationType === 'pre_register' && !$registrationSettings['pre_register_enabled']) {
             $_SESSION['registration_error'] = 'Pre-registration is currently closed. You can still use Find My QR if you already registered.';
+            header('Location: /participants/lookup');
+            exit;
+        }
+
+        if (!Auth::check() && $registrationType === 'walk_in' && !$registrationSettings['walk_in_enabled']) {
+            $_SESSION['registration_error'] = 'Walk-in registration is currently closed.';
             header('Location: /participants/lookup');
             exit;
         }
@@ -290,6 +296,15 @@ class ParticipantController
         // adjust roles as needed. For now, restrict to advisor / committee.
         Auth::requireRole(['advisor', 'committee']);
 
+        $db = Container::get('db');
+        $recentCheckins = $db->query('
+            SELECT id, full_name, student_id, checked_in_at, group_code, preferred_language 
+            FROM participants 
+            WHERE checked_in_at IS NOT NULL 
+            ORDER BY checked_in_at DESC 
+            LIMIT 5
+        ')->fetchAll(\PDO::FETCH_ASSOC);
+
         $title = 'QR Check-In';
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/participants/checkin.php';
@@ -303,46 +318,85 @@ class ParticipantController
         $db = Container::get('db');
         $code = $_POST['qr_code'] ?? '';
 
-        $stmt = $db->prepare('SELECT * FROM participants WHERE qr_code = ?');
-        $stmt->execute([$code]);
+        $stmt = $db->prepare('SELECT * FROM participants WHERE qr_code = ? OR student_id = ?');
+        $stmt->execute([$code, $code]);
         $participant = $stmt->fetch(\PDO::FETCH_ASSOC);
 
         $checkinAssignmentNotice = null;
         $checkinCriticalError = null;
 
         if ($participant) {
-            $participantId = (int)$participant['id'];
-            $hadGroup = trim((string)($participant['group_code'] ?? '')) !== '';
+            if ((int)($participant['blacklisted'] ?? 0) === 1) {
+                $checkinCriticalError = 'Participant is blacklisted and cannot be checked in.';
+            } else {
+                $participantId = (int)$participant['id'];
+                $hadGroup = trim((string)($participant['group_code'] ?? '')) !== '';
 
-            $checkinSaved = false;
-            try {
-                $update = $db->prepare('UPDATE participants SET checked_in_at = NOW() WHERE id = ?');
-                $update->execute([$participantId]);
-                $checkinSaved = true;
-            } catch (\Exception $e) {
-                $checkinCriticalError = 'Could not save check-in: ' . $e->getMessage();
-            }
-
-            if ($checkinSaved && !$hadGroup) {
+                $checkinSaved = false;
                 try {
-                    $notice = $this->assignGroupAtCheckIn(
-                        $db,
-                        $participantId,
-                        (string)($participant['preferred_language'] ?? ''),
-                        (string)($participant['full_name'] ?? 'Participant')
-                    );
-                    if ($notice !== null) {
-                        $checkinAssignmentNotice = $notice;
-                    }
+                    $update = $db->prepare('UPDATE participants SET checked_in_at = NOW() WHERE id = ?');
+                    $update->execute([$participantId]);
+                    $checkinSaved = true;
                 } catch (\Exception $e) {
-                    $checkinAssignmentNotice = 'Checked in, but group assignment failed: ' . $e->getMessage();
+                    $checkinCriticalError = 'Could not save check-in: ' . $e->getMessage();
+                }
+
+                if ($checkinSaved && !$hadGroup) {
+                    try {
+                        $notice = $this->assignGroupAtCheckIn(
+                            $db,
+                            $participantId,
+                            (string)($participant['preferred_language'] ?? ''),
+                            (string)($participant['full_name'] ?? 'Participant')
+                        );
+                        if ($notice !== null) {
+                            $checkinAssignmentNotice = $notice;
+                        }
+                    } catch (\Exception $e) {
+                        $checkinAssignmentNotice = 'Checked in, but group assignment failed: ' . $e->getMessage();
+                    }
+                }
+
+                if ($checkinSaved) {
+                    $stmt->execute([$code, $code]);
+                    $participant = $stmt->fetch(\PDO::FETCH_ASSOC);
                 }
             }
+        }
 
-            if ($checkinSaved) {
-                $stmt->execute([$code]);
-                $participant = $stmt->fetch(\PDO::FETCH_ASSOC);
+        $isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') || (isset($_GET['format']) && $_GET['format'] === 'json');
+
+        if ($isAjax) {
+            header('Content-Type: application/json');
+            if ($participant) {
+                if ($checkinCriticalError) {
+                    echo json_encode([
+                        'success' => false,
+                        'message' => $checkinCriticalError
+                    ], JSON_UNESCAPED_UNICODE);
+                } else {
+                    echo json_encode([
+                        'success' => true,
+                        'message' => 'Check-in successful',
+                        'participant' => [
+                            'id' => $participant['id'],
+                            'full_name' => $participant['full_name'],
+                            'student_id' => $participant['student_id'],
+                            'group_code' => $participant['group_code'] ?: 'Not assigned',
+                            'medical_notes' => $participant['medical_notes'] ?: '',
+                            'dietary_notes' => $participant['dietary_notes'] ?: '',
+                            'checked_in_at' => $participant['checked_in_at']
+                        ],
+                        'notice' => $checkinAssignmentNotice
+                    ], JSON_UNESCAPED_UNICODE);
+                }
+            } else {
+                echo json_encode([
+                    'success' => false,
+                    'message' => $checkinCriticalError ?: 'QR code / Student ID not recognized.'
+                ], JSON_UNESCAPED_UNICODE);
             }
+            exit;
         }
 
         $title = 'QR Check-In Result';
@@ -1280,7 +1334,7 @@ class ParticipantController
         if (!$participant) {
             $_SESSION['participants_message'] = 'Participant not found.';
             $_SESSION['participants_message_type'] = 'danger';
-            header('Location: /participants/list');
+            header('Location: /participants');
             exit;
         }
 
@@ -1366,7 +1420,7 @@ class ParticipantController
             $_SESSION['participants_message_type'] = 'danger';
         }
 
-        header('Location: /participants/list');
+        header('Location: /participants');
         exit;
     }
 
@@ -1386,7 +1440,7 @@ class ParticipantController
             $_SESSION['participants_message_type'] = 'danger';
         }
 
-        header('Location: /participants/list');
+        header('Location: /participants');
         exit;
     }
 

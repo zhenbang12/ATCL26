@@ -23,18 +23,22 @@ class Auth
 
     public static function attempt(string $username, string $password): bool
     {
-        /** @var array $config */
-        $config = Container::get('config');
-        $users = $config['users'] ?? [];
+        $db = Container::get('db');
 
-        foreach ($users as $user) {
-            if ($user['username'] === $username && $user['password'] === $password) {
-                $_SESSION['user'] = [
-                    'username' => $user['username'],
-                    'role' => $user['role'],
-                ];
-                return true;
-            }
+        $stmt = $db->prepare('SELECT * FROM users WHERE username = ? LIMIT 1');
+        $stmt->execute([$username]);
+        $user = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if ($user && password_verify($password, $user['password_hash'])) {
+            // Prevent Session Fixation attacks
+            session_regenerate_id(true);
+
+            $_SESSION['user'] = [
+                'id' => (int)$user['id'],
+                'username' => $user['username'],
+                'role' => $user['role'],
+            ];
+            return true;
         }
 
         return false;

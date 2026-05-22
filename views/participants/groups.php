@@ -31,8 +31,23 @@ $maxPerGroupLabel = $currentMaxPerGroup > 0 ? (string)$currentMaxPerGroup : 'No 
 <div class="row mb-3">
     <div class="col-md-12">
         <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Grouping Options</h5>
+            <!-- Collapsible Header -->
+            <div class="card-header d-flex justify-content-between align-items-center py-3" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#groupingOptionsCollapse" aria-expanded="<?= count($groups) > 0 ? 'false' : 'true' ?>" aria-controls="groupingOptionsCollapse">
+                <h5 class="m-0 d-flex align-items-center gap-2" style="font-size: 1.15rem; color: var(--md-sys-color-on-surface);">
+                    <span class="material-symbols-outlined text-primary">settings</span>
+                    Grouping Configuration & Options
+                </h5>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-secondary-container text-on-secondary-container small" style="font-size: 0.75rem;">
+                        <?= count($groups) ?> Groups
+                    </span>
+                    <span class="material-symbols-outlined transition-icon" style="<?= count($groups) > 0 ? '' : 'transform: rotate(180deg);' ?>">expand_more</span>
+                </div>
+            </div>
+            <!-- Collapsible Body -->
+            <div class="collapse <?= count($groups) > 0 ? '' : 'show' ?>" id="groupingOptionsCollapse">
+                <div class="card-body pt-3">
+                    <h5 class="card-title d-none">Grouping Options</h5>
                 <div class="card card-body bg-light border mb-2">
                     <h6 class="mb-2">1. Save empty group shells</h6>
                     <form method="post" action="/participants/groups/save-layout" class="d-flex flex-wrap align-items-end gap-2 mb-0">
@@ -135,6 +150,7 @@ $maxPerGroupLabel = $currentMaxPerGroup > 0 ? (string)$currentMaxPerGroup : 'No 
                     </form>
                 </div>
             </div>
+            </div>
         </div>
     </div>
 </div>
@@ -143,27 +159,37 @@ $maxPerGroupLabel = $currentMaxPerGroup > 0 ? (string)$currentMaxPerGroup : 'No 
 
 <style>
     .group-lane {
-        border: 2px solid #dfe3e8;
-        border-radius: 10px;
-        background: #f8fafc;
+        border: 1px solid var(--md-sys-color-outline-variant);
+        border-radius: 16px;
+        background: var(--md-sys-color-surface-container-low);
     }
 
     .drop-zone {
         min-height: 140px;
         transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
         border: 2px dashed transparent;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
     }
 
     .drop-zone.drag-active {
-        border-color: #0d6efd;
-        background: #eaf2ff;
-        box-shadow: inset 0 0 0 1px rgba(13, 110, 253, 0.2);
+        border-color: var(--md-sys-color-primary);
+        background: var(--md-sys-color-primary-container);
+        box-shadow: inset 0 0 0 1px rgba(103, 80, 164, 0.2);
     }
 
     .participant-item {
         cursor: grab;
-        border: 1px solid #d0d7de;
-        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+        border: 1px solid var(--md-sys-color-outline-variant) !important;
+        border-radius: 12px !important;
+        background-color: var(--md-sys-color-surface-container-lowest) !important;
+        box-shadow: 0 1px 2px var(--md-sys-color-shadow) !important;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .participant-item:hover {
+        box-shadow: 0 4px 8px var(--md-sys-color-shadow) !important;
     }
 
     .member-number {
@@ -175,13 +201,14 @@ $maxPerGroupLabel = $currentMaxPerGroup > 0 ? (string)$currentMaxPerGroup : 'No 
 
     .facilitator-pill {
         font-size: 12px;
-        border: 1px solid #ced4da;
-        background: #eef2ff;
-        color: #1f3a8a;
+        border: 1px solid var(--md-sys-color-outline-variant);
+        background: var(--md-sys-color-secondary-container);
+        color: var(--md-sys-color-on-secondary-container);
         border-radius: 999px;
-        padding: 2px 8px;
+        padding: 4px 12px;
         display: inline-block;
         margin-bottom: 6px;
+        font-weight: 500;
     }
 
     .checkin-pill {
@@ -190,18 +217,19 @@ $maxPerGroupLabel = $currentMaxPerGroup > 0 ? (string)$currentMaxPerGroup : 'No 
         padding: 2px 8px;
         display: inline-block;
         margin-top: 4px;
+        font-weight: 500;
     }
 
     .checkin-pill.checked {
-        background: #d1e7dd;
-        color: #0f5132;
-        border: 1px solid #badbcc;
+        background: var(--md-sys-color-success-container);
+        color: var(--md-sys-color-on-success-container);
+        border: 1px solid var(--md-sys-color-outline-variant);
     }
 
     .checkin-pill.pending {
-        background: #fff3cd;
-        color: #664d03;
-        border: 1px solid #ffecb5;
+        background: var(--md-sys-color-tertiary-container);
+        color: var(--md-sys-color-on-tertiary-container);
+        border: 1px solid var(--md-sys-color-outline-variant);
     }
 
     .participant-item.dragging {
@@ -211,13 +239,13 @@ $maxPerGroupLabel = $currentMaxPerGroup > 0 ? (string)$currentMaxPerGroup : 'No 
     }
 
     .participant-item.selected {
-        border: 2px solid #198754;
-        background: #eefaf3;
+        border: 2px solid var(--md-sys-color-primary) !important;
+        background: var(--md-sys-color-primary-container) !important;
     }
 
     .drag-hint {
         font-size: 12px;
-        color: #6c757d;
+        color: var(--md-sys-color-on-surface-variant);
     }
 
     .lane-toggle {
@@ -232,7 +260,7 @@ $maxPerGroupLabel = $currentMaxPerGroup > 0 ? (string)$currentMaxPerGroup : 'No 
     .group-lane.minimized {
         height: auto !important;
         padding-bottom: 8px !important;
-        background: #f3f5f7;
+        background: var(--md-sys-color-surface-container);
     }
 
     .group-lane.minimized .lane-header {
@@ -240,10 +268,17 @@ $maxPerGroupLabel = $currentMaxPerGroup > 0 ? (string)$currentMaxPerGroup : 'No 
     }
 
     .group-lane.header-drag-active .lane-header {
-        background: #eaf2ff;
-        border: 1px dashed #0d6efd;
+        background: var(--md-sys-color-primary-container);
+        border: 1px dashed var(--md-sys-color-primary);
         border-radius: 8px;
         padding: 6px;
+    }
+
+    .transition-icon {
+        transition: transform 0.2s ease;
+    }
+    [aria-expanded="true"] .transition-icon {
+        transform: rotate(180deg) !important;
     }
 </style>
 

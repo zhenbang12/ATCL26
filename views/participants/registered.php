@@ -9,7 +9,7 @@
         Please save the QR code below and present it during check-in.
     </p>
     <p class="text-muted small mt-2 mb-0">
-        Your camp group is assigned when you check in at the event (not at registration).
+        Your group is assigned when you check in at the event (not at registration).
     </p>
 
     <div class="mt-4 text-center">

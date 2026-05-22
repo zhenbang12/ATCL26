@@ -19,7 +19,7 @@ try {
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2>Edit Participant</h2>
-    <a href="/participants/list" class="btn btn-outline-secondary btn-sm">Back to List</a>
+    <a href="/participants" class="btn btn-outline-secondary btn-sm">Back to List</a>
 </div>
 
 <?php if ($message): ?>
@@ -138,7 +138,7 @@ try {
 
             <div class="mt-4">
                 <button type="submit" class="btn btn-primary">Save Changes</button>
-                <a href="/participants/list" class="btn btn-outline-secondary">Cancel</a>
+                <a href="/participants" class="btn btn-outline-secondary">Cancel</a>
             </div>
         </form>
     </div>

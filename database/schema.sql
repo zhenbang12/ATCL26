@@ -94,11 +94,12 @@ CREATE TABLE IF NOT EXISTS registration_settings (
     id TINYINT UNSIGNED PRIMARY KEY DEFAULT 1,
     pre_register_enabled TINYINT(1) NOT NULL DEFAULT 1,
     walk_in_enabled TINYINT(1) NOT NULL DEFAULT 1,
+    theme VARCHAR(20) NOT NULL DEFAULT 'violet',
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-INSERT IGNORE INTO registration_settings (id, pre_register_enabled, walk_in_enabled)
-VALUES (1, 1, 1);
+INSERT IGNORE INTO registration_settings (id, pre_register_enabled, walk_in_enabled, theme)
+VALUES (1, 1, 1, 'violet');
 
 CREATE TABLE IF NOT EXISTS event_groups (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -318,3 +319,13 @@ CREATE TABLE IF NOT EXISTS group_move_logs (
     INDEX idx_group_move_logs_moved_at (moved_at),
     INDEX idx_group_move_logs_participant_id (participant_id)
 );
+
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(30) NOT NULL DEFAULT 'committee',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

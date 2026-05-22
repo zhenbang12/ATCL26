@@ -220,28 +220,69 @@ class SettingsController
         Auth::requireRole(['advisor', 'committee']);
 
         $db = Container::get('db');
-        $preRegisterEnabled = isset($_POST['pre_register_enabled']) ? 1 : 0;
+        $regMode = trim((string)($_POST['reg_mode'] ?? 'pre_reg'));
+        $theme = trim((string)($_POST['theme'] ?? 'violet'));
+
+        if (!in_array($theme, ['violet', 'pink', 'yellow'], true)) {
+            $theme = 'violet';
+        }
+
+        $preRegisterEnabled = 0;
+        $walkInEnabled = 0;
+
+        if ($regMode === 'pre_reg') {
+            $preRegisterEnabled = 1;
+        } elseif ($regMode === 'walk_in') {
+            $walkInEnabled = 1;
+        }
+
+        $isAjax = (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+                  || (isset($_GET['format']) && $_GET['format'] === 'json');
 
         try {
             $db->exec('CREATE TABLE IF NOT EXISTS registration_settings (
                 id TINYINT UNSIGNED PRIMARY KEY DEFAULT 1,
                 pre_register_enabled TINYINT(1) NOT NULL DEFAULT 1,
                 walk_in_enabled TINYINT(1) NOT NULL DEFAULT 1,
+                theme VARCHAR(20) NOT NULL DEFAULT \'violet\',
                 updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )');
 
             $stmt = $db->prepare('
-                INSERT INTO registration_settings (id, pre_register_enabled, walk_in_enabled)
-                VALUES (1, ?, 1)
+                INSERT INTO registration_settings (id, pre_register_enabled, walk_in_enabled, theme)
+                VALUES (1, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                     pre_register_enabled = VALUES(pre_register_enabled),
-                    walk_in_enabled = 1
+                    walk_in_enabled = VALUES(walk_in_enabled),
+                    theme = VALUES(theme)
             ');
-            $stmt->execute([$preRegisterEnabled]);
+            $stmt->execute([$preRegisterEnabled, $walkInEnabled, $theme]);
+
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Registration settings saved.',
+                    'pre_register_enabled' => (bool)$preRegisterEnabled,
+                    'walk_in_enabled' => (bool)$walkInEnabled,
+                    'theme' => $theme,
+                ]);
+                exit;
+            }
 
             $_SESSION['registration_settings_message'] = 'Registration settings saved.';
             $_SESSION['registration_settings_message_type'] = 'success';
         } catch (\Exception $e) {
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                http_response_code(500);
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Could not save registration settings: ' . $e->getMessage(),
+                ]);
+                exit;
+            }
+
             $_SESSION['registration_settings_message'] = 'Could not save registration settings: ' . $e->getMessage();
             $_SESSION['registration_settings_message_type'] = 'danger';
         }
@@ -249,6 +290,7 @@ class SettingsController
         header('Location: /dashboard');
         exit;
     }
+
 
     /**
      * @return array<string, array{filename: ?string, alt_text: string}>
@@ -330,17 +372,18 @@ class SettingsController
     }
 
     /**
-     * @return array{pre_register_enabled: bool, walk_in_enabled: bool}
+     * @return array{pre_register_enabled: bool, walk_in_enabled: bool, theme: string}
      */
     public static function loadRegistrationSettings(\PDO $db): array
     {
         try {
-            $stmt = $db->query('SELECT pre_register_enabled, walk_in_enabled FROM registration_settings WHERE id = 1');
+            $stmt = $db->query('SELECT pre_register_enabled, walk_in_enabled, theme FROM registration_settings WHERE id = 1');
             $row = $stmt->fetch(\PDO::FETCH_ASSOC);
             if ($row) {
                 return [
                     'pre_register_enabled' => (bool)$row['pre_register_enabled'],
-                    'walk_in_enabled' => true,
+                    'walk_in_enabled' => (bool)$row['walk_in_enabled'],
+                    'theme' => (string)($row['theme'] ?? 'violet'),
                 ];
             }
         } catch (\Exception $e) {
@@ -350,6 +393,7 @@ class SettingsController
         return [
             'pre_register_enabled' => true,
             'walk_in_enabled' => true,
+            'theme' => 'violet',
         ];
     }
 

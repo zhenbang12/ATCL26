@@ -41,7 +41,7 @@ $landingUrl = static function (?string $filename): ?string {
 <?php if (!\App\Core\Auth::check() || isset($forcePublic)): ?>
     <style>
         body {
-            background-color: <?= htmlspecialchars($landingSettings['background_color']) ?> !important;
+            background-color: <?= ($landingSettings['background_color'] === '#ffffff' || $landingSettings['background_color'] === '#FFF') ? 'var(--md-sys-color-background)' : htmlspecialchars($landingSettings['background_color']) ?> !important;
             margin: 0;
             padding: 0;
         }
@@ -51,10 +51,6 @@ $landingUrl = static function (?string $filename): ?string {
             padding: clamp(2rem, 6vw, 4rem) 0 0;
             max-width: none;
             width: 100%;
-        }
-        .navbar {
-            background-color: rgba(0, 0, 0, 0.8) !important;
-            backdrop-filter: blur(10px);
         }
         .landing-logo-strip {
             display: flex;
@@ -70,10 +66,12 @@ $landingUrl = static function (?string $filename): ?string {
             object-fit: contain;
         }
         .landing-footer {
-            padding: 1.5rem 1rem 0;
+            padding: 2.5rem 1rem 1.5rem;
             text-align: center;
-            color: rgba(33, 37, 41, 0.7);
+            color: var(--md-sys-color-on-surface-variant);
             font-size: 0.95rem;
+            border-top: 1px solid var(--md-sys-color-outline-variant);
+            margin-top: 4rem;
         }
     </style>
 
@@ -97,80 +95,97 @@ $landingUrl = static function (?string $filename): ?string {
                 <?php endif; ?>
 
                 <header class="text-center mb-5">
-                    <h1 class="display-6 fw-semibold mb-3"><?= htmlspecialchars($landingSettings['main_title']) ?></h1>
-                    <p class="lead text-muted mb-0 mx-auto" style="max-width: 36rem;">
+                    <h1 class="display-5 fw-bold mb-3" style="color: var(--md-sys-color-primary);"><?= htmlspecialchars($landingSettings['main_title']) ?></h1>
+                    <p class="lead mb-0 mx-auto" style="max-width: 38rem; color: var(--md-sys-color-on-surface-variant); font-size: 1.15rem; line-height: 1.6;">
                         <?= htmlspecialchars($landingSettings['main_caption']) ?>
                     </p>
                 </header>
 
-                <div class="card border-0 shadow-sm mb-5" style="background-color: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px);">
+                <div class="card mb-5 border-0" style="background-color: var(--md-sys-color-primary-container) !important; color: var(--md-sys-color-on-primary-container) !important; box-shadow: 0 4px 20px var(--md-sys-color-shadow) !important;">
                     <div class="card-body text-center py-5 px-4">
-                        <h2 class="h5 fw-semibold mb-2">Ready to join?</h2>
-                        <p class="text-muted small mb-4">
+                        <span class="material-symbols-outlined mb-2 text-primary" style="font-size: 48px;">campaign</span>
+                        <h2 class="h4 fw-bold mb-2">Ready to join?</h2>
+                        <p class="mb-4 text-center mx-auto" style="max-width: 28rem; opacity: 0.9;">
                             Takes only a minute. You will need your student ID and TAR UMT student email.
                         </p>
                         <?php if ($registrationSettings['pre_register_enabled']): ?>
-                            <a href="/participants/create" class="btn btn-primary btn-lg px-5">Register for ATCL</a>
+                            <a href="/participants/create" class="btn btn-primary btn-lg px-5 fs-6 shadow-sm">Register for ATCL</a>
+                        <?php elseif ($registrationSettings['walk_in_enabled']): ?>
+                            <a href="/participants/create-walkin" class="btn btn-primary btn-lg px-5 fs-6 shadow-sm">Register as Walk-in</a>
                         <?php else: ?>
-                            <p class="text-muted mb-0">Pre-registration is currently closed.</p>
+                            <p class="mb-0 fw-medium">Registration is currently closed.</p>
                         <?php endif; ?>
                         <div class="mt-3">
-                            <a href="/participants/lookup" class="link-secondary small">Already registered? Find my QR code</a>
+                            <a href="/participants/lookup" class="btn btn-link btn-sm text-decoration-none fw-semibold" style="color: var(--md-sys-color-primary) !important;">Already registered? Find my QR code</a>
                         </div>
-                        <p class="text-muted small mt-4 mb-0">
+                        <p class="small mt-4 mb-0" style="opacity: 0.8;">
                             Committee or facilitators:
-                            <a href="/login" class="link-secondary">Advisor / committee login</a>
+                            <a href="/login" class="fw-semibold text-decoration-none" style="color: var(--md-sys-color-primary) !important;">Advisor / committee login</a>
                         </p>
                     </div>
                 </div>
 
-                <section class="mb-5">
-                    <h2 class="h5 fw-semibold mb-3 text-center"><?= htmlspecialchars($landingSettings['section_1_title']) ?></h2>
-                    <p class="text-muted mb-4 text-center">
-                        <?= nl2br(htmlspecialchars($landingSettings['section_1_caption'])) ?>
-                    </p>
-                    <?php
-                    $heroUrl = $landingUrl($landingImages['hero']['filename'] ?? null);
-                    $heroAlt = (string)($landingImages['hero']['alt_text'] ?? '');
-                    ?>
-                    <?php if ($heroUrl !== null): ?>
-                        <figure class="text-center">
-                            <img src="<?= htmlspecialchars($heroUrl) ?>" alt="<?= htmlspecialchars($heroAlt) ?>" class="img-fluid rounded shadow-sm" style="max-height: 360px;">
-                        </figure>
-                    <?php endif; ?>
-                </section>
+                <div class="row g-4">
+                    <div class="col-12">
+                        <section class="card p-4 border-0" style="background-color: var(--md-sys-color-surface-container-low) !important;">
+                            <div class="card-body">
+                                <h2 class="h4 fw-bold mb-3 text-center" style="color: var(--md-sys-color-on-surface);"><?= htmlspecialchars($landingSettings['section_1_title']) ?></h2>
+                                <p class="text-center mb-4" style="color: var(--md-sys-color-on-surface-variant); line-height: 1.6;">
+                                    <?= nl2br(htmlspecialchars($landingSettings['section_1_caption'])) ?>
+                                </p>
+                                <?php
+                                $heroUrl = $landingUrl($landingImages['hero']['filename'] ?? null);
+                                $heroAlt = (string)($landingImages['hero']['alt_text'] ?? '');
+                                ?>
+                                <?php if ($heroUrl !== null): ?>
+                                    <div class="text-center mt-2">
+                                        <img src="<?= htmlspecialchars($heroUrl) ?>" alt="<?= htmlspecialchars($heroAlt) ?>" class="img-fluid rounded-4 shadow-sm" style="max-height: 380px; border: 1px solid var(--md-sys-color-outline-variant); width: 100%; object-fit: cover;">
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </section>
+                    </div>
 
-                <section class="mb-5">
-                    <h2 class="h5 fw-semibold mb-3 text-center"><?= htmlspecialchars($landingSettings['section_2_title']) ?></h2>
-                    <p class="text-muted mb-4 text-center">
-                        <?= nl2br(htmlspecialchars($landingSettings['section_2_caption'])) ?>
-                    </p>
-                    <?php
-                    $f1Url = $landingUrl($landingImages['feature_1']['filename'] ?? null);
-                    $f1Alt = (string)($landingImages['feature_1']['alt_text'] ?? '');
-                    ?>
-                    <?php if ($f1Url !== null): ?>
-                        <figure class="text-center">
-                            <img src="<?= htmlspecialchars($f1Url) ?>" alt="<?= htmlspecialchars($f1Alt) ?>" class="img-fluid rounded shadow-sm" style="max-height: 360px;">
-                        </figure>
-                    <?php endif; ?>
-                </section>
+                    <div class="col-md-6">
+                        <section class="card h-100 p-4 border-0" style="background-color: var(--md-sys-color-surface-container-low) !important;">
+                            <div class="card-body d-flex flex-column h-100">
+                                <h2 class="h4 fw-bold mb-3" style="color: var(--md-sys-color-on-surface);"><?= htmlspecialchars($landingSettings['section_2_title']) ?></h2>
+                                <p class="mb-4 flex-grow-1" style="color: var(--md-sys-color-on-surface-variant); line-height: 1.6;">
+                                    <?= nl2br(htmlspecialchars($landingSettings['section_2_caption'])) ?>
+                                </p>
+                                <?php
+                                $f1Url = $landingUrl($landingImages['feature_1']['filename'] ?? null);
+                                $f1Alt = (string)($landingImages['feature_1']['alt_text'] ?? '');
+                                ?>
+                                <?php if ($f1Url !== null): ?>
+                                    <div class="text-center mt-auto pt-2">
+                                        <img src="<?= htmlspecialchars($f1Url) ?>" alt="<?= htmlspecialchars($f1Alt) ?>" class="img-fluid rounded-4 shadow-sm" style="max-height: 280px; border: 1px solid var(--md-sys-color-outline-variant); width: 100%; object-fit: cover;">
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </section>
+                    </div>
 
-                <section class="mb-5">
-                    <h2 class="h5 fw-semibold mb-3 text-center"><?= htmlspecialchars($landingSettings['section_3_title']) ?></h2>
-                    <p class="text-muted mb-4 text-center">
-                        <?= nl2br(htmlspecialchars($landingSettings['section_3_caption'])) ?>
-                    </p>
-                    <?php
-                    $f2Url = $landingUrl($landingImages['feature_2']['filename'] ?? null);
-                    $f2Alt = (string)($landingImages['feature_2']['alt_text'] ?? '');
-                    ?>
-                    <?php if ($f2Url !== null): ?>
-                        <figure class="text-center">
-                            <img src="<?= htmlspecialchars($f2Url) ?>" alt="<?= htmlspecialchars($f2Alt) ?>" class="img-fluid rounded shadow-sm" style="max-height: 360px;">
-                        </figure>
-                    <?php endif; ?>
-                </section>
+                    <div class="col-md-6">
+                        <section class="card h-100 p-4 border-0" style="background-color: var(--md-sys-color-surface-container-low) !important;">
+                            <div class="card-body d-flex flex-column h-100">
+                                <h2 class="h4 fw-bold mb-3" style="color: var(--md-sys-color-on-surface);"><?= htmlspecialchars($landingSettings['section_3_title']) ?></h2>
+                                <p class="mb-4 flex-grow-1" style="color: var(--md-sys-color-on-surface-variant); line-height: 1.6;">
+                                    <?= nl2br(htmlspecialchars($landingSettings['section_3_caption'])) ?>
+                                </p>
+                                <?php
+                                $f2Url = $landingUrl($landingImages['feature_2']['filename'] ?? null);
+                                $f2Alt = (string)($landingImages['feature_2']['alt_text'] ?? '');
+                                ?>
+                                <?php if ($f2Url !== null): ?>
+                                    <div class="text-center mt-auto pt-2">
+                                        <img src="<?= htmlspecialchars($f2Url) ?>" alt="<?= htmlspecialchars($f2Alt) ?>" class="img-fluid rounded-4 shadow-sm" style="max-height: 280px; border: 1px solid var(--md-sys-color-outline-variant); width: 100%; object-fit: cover;">
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </section>
+                    </div>
+                </div>
             </div>
         </div>
         <footer class="landing-footer">
