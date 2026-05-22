@@ -43,6 +43,7 @@ $registrationSettings = $registrationSettings ?? [
         <th>#</th>
         <th>Name</th>
         <th>Student ID</th>
+        <th>Email</th>
         <th>Intake</th>
         <th>Programme</th>
         <th>Faculty</th>
@@ -59,6 +60,7 @@ $registrationSettings = $registrationSettings ?? [
             <td><?= $counter++ ?></td>
             <td><?= htmlspecialchars($p['full_name']) ?></td>
             <td><?= htmlspecialchars($p['student_id'] ?? '') ?></td>
+            <td><?= htmlspecialchars($p['student_email'] ?? '') ?></td>
             <td><?= htmlspecialchars($p['intake'] ?? '') ?></td>
             <td><?= htmlspecialchars($p['programme_name'] ?? '') ?></td>
             <td><?= htmlspecialchars($p['faculty'] ?? '') ?></td>

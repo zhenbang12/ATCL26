@@ -8,6 +8,10 @@ $errorMessage = $_SESSION['registration_error'] ?? null;
 if (isset($_SESSION['registration_error'])) {
     unset($_SESSION['registration_error']);
 }
+$savedInput = $_SESSION['registration_input'] ?? [];
+if (isset($_SESSION['registration_input'])) {
+    unset($_SESSION['registration_input']);
+}
 ?>
 <ul class="nav nav-tabs mb-3">
     <?php if ($registrationSettings['pre_register_enabled'] || \App\Core\Auth::check()): ?>
@@ -33,16 +37,15 @@ if (isset($_SESSION['registration_error'])) {
     <input type="hidden" name="registration_type" value="pre_register">
     <div class="mb-3">
         <label class="form-label" for="full_name">Name</label>
-        <input type="text" name="full_name" id="full_name" placeholder="e.g. Liow Zhen Bang" class="form-control" required autocomplete="name">
+        <input type="text" name="full_name" id="full_name" placeholder="e.g. Liow Zhen Bang" class="form-control" required autocomplete="name" value="<?= htmlspecialchars($savedInput['full_name'] ?? '') ?>">
     </div>
     <div class="mb-3">
         <label class="form-label" for="gender">Gender</label>
         <select name="gender" id="gender" class="form-select" required>
-            <option value="" disabled selected>Select…</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Other">Other</option>
-            <option value="Prefer not to say">Prefer not to say</option>
+            <option value="" disabled <?= empty($savedInput['gender']) ? 'selected' : '' ?>>Select…</option>
+            <option value="Male" <?= ($savedInput['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
+            <option value="Female" <?= ($savedInput['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
+            <option value="Prefer not to say" <?= ($savedInput['gender'] ?? '') === 'Prefer not to say' ? 'selected' : '' ?>>Prefer not to say</option>
         </select>
     </div>
     <div class="mb-3">
@@ -56,6 +59,7 @@ if (isset($_SESSION['registration_error'])) {
             placeholder="e.g. 25WMR09999"
             pattern="^[0-9]{2}[A-Z]{3}[0-9]{5}$"
             autocomplete="username"
+            value="<?= htmlspecialchars($savedInput['student_id'] ?? '') ?>"
         >
     </div>
     <div class="mb-3">
@@ -70,7 +74,17 @@ if (isset($_SESSION['registration_error'])) {
             pattern="^[a-zA-Z0-9._%+-]+(?:-?[a-zA-Z0-9._%+-]+)*@student\.tarc\.edu\.my$"
             title="Must be a valid student address ending with @student.tarc.edu.my"
             autocomplete="email"
+            value="<?= htmlspecialchars($savedInput['student_email'] ?? '') ?>"
         >
+    </div>
+    <div class="mb-3">
+        <label class="form-label" for="faculty">Faculty</label>
+        <select name="faculty" id="faculty" class="form-select" required>
+            <option value="" disabled <?= empty($savedInput['faculty']) ? 'selected' : '' ?>>Select faculty…</option>
+            <?php foreach (['FAFB', 'FOAS', 'FOCS', 'FOBE', 'FOET', 'FCCI', 'FSSH', 'CPUS'] as $fac): ?>
+                <option value="<?= $fac ?>" <?= ($savedInput['faculty'] ?? '') === $fac ? 'selected' : '' ?>><?= $fac ?></option>
+            <?php endforeach; ?>
+        </select>
     </div>
     <div class="mb-3">
         <label class="form-label" for="programme_name">Programme</label>
@@ -82,6 +96,7 @@ if (isset($_SESSION['registration_error'])) {
             required
             placeholder="e.g. Bachelor of Computer Science (Hons)"
             autocomplete="off"
+            value="<?= htmlspecialchars($savedInput['programme_name'] ?? '') ?>"
         >
     </div>
     <div class="mb-3">
@@ -96,15 +111,16 @@ if (isset($_SESSION['registration_error'])) {
             pattern="^(0|60)[0-9]{9,10}$"
             title="Enter 10–12 digits starting with 0 or 60"
             autocomplete="tel"
+            value="<?= htmlspecialchars($savedInput['contact_no'] ?? '') ?>"
         >
         <small class="form-text text-muted">Saved as 60XXXXXXXXX</small>
     </div>
     <div class="mb-3">
         <label class="form-label" for="preferred_language">Language</label>
         <select name="preferred_language" id="preferred_language" class="form-select" required>
-            <option value="" disabled selected>Select…</option>
-            <option value="Mandarin">Mandarin</option>
-            <option value="English">English</option>
+            <option value="" disabled <?= empty($savedInput['preferred_language']) ? 'selected' : '' ?>>Select…</option>
+            <option value="Mandarin" <?= ($savedInput['preferred_language'] ?? '') === 'Mandarin' ? 'selected' : '' ?>>Mandarin</option>
+            <option value="English" <?= ($savedInput['preferred_language'] ?? '') === 'English' ? 'selected' : '' ?>>English</option>
         </select>
     </div>
     <button type="submit" class="btn btn-primary">Save</button>

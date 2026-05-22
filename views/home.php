@@ -103,6 +103,27 @@ $landingUrl = static function (?string $filename): ?string {
                     </p>
                 </header>
 
+                <div class="card border-0 shadow-sm mb-5" style="background-color: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px);">
+                    <div class="card-body text-center py-5 px-4">
+                        <h2 class="h5 fw-semibold mb-2">Ready to join?</h2>
+                        <p class="text-muted small mb-4">
+                            Takes only a minute. You will need your student ID and TAR UMT student email.
+                        </p>
+                        <?php if ($registrationSettings['pre_register_enabled']): ?>
+                            <a href="/participants/create" class="btn btn-primary btn-lg px-5">Register for ATCL</a>
+                        <?php else: ?>
+                            <p class="text-muted mb-0">Pre-registration is currently closed.</p>
+                        <?php endif; ?>
+                        <div class="mt-3">
+                            <a href="/participants/lookup" class="link-secondary small">Already registered? Find my QR code</a>
+                        </div>
+                        <p class="text-muted small mt-4 mb-0">
+                            Committee or facilitators:
+                            <a href="/login" class="link-secondary">Advisor / committee login</a>
+                        </p>
+                    </div>
+                </div>
+
                 <section class="mb-5">
                     <h2 class="h5 fw-semibold mb-3 text-center"><?= htmlspecialchars($landingSettings['section_1_title']) ?></h2>
                     <p class="text-muted mb-4 text-center">
@@ -150,27 +171,6 @@ $landingUrl = static function (?string $filename): ?string {
                         </figure>
                     <?php endif; ?>
                 </section>
-
-                <div class="card border-0 shadow-sm mt-5" style="background-color: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px);">
-                    <div class="card-body text-center py-5 px-4">
-                        <h2 class="h5 fw-semibold mb-2">Ready to join?</h2>
-                        <p class="text-muted small mb-4">
-                            Takes only a minute. You will need your student ID and TAR UMT student email.
-                        </p>
-                        <?php if ($registrationSettings['pre_register_enabled']): ?>
-                            <a href="/participants/create" class="btn btn-primary btn-lg px-5">Register for ATCL</a>
-                        <?php else: ?>
-                            <p class="text-muted mb-0">Pre-registration is currently closed.</p>
-                        <?php endif; ?>
-                        <div class="mt-3">
-                            <a href="/participants/lookup" class="link-secondary small">Already registered? Find my QR code</a>
-                        </div>
-                        <p class="text-muted small mt-4 mb-0">
-                            Committee or facilitators:
-                            <a href="/login" class="link-secondary">Advisor / committee login</a>
-                        </p>
-                    </div>
-                </div>
             </div>
         </div>
         <footer class="landing-footer">

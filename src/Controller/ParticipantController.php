@@ -92,7 +92,7 @@ class ParticipantController
         $filter = $_GET['filter'] ?? 'all'; // 'all', 'checked_in', 'not_checked_in'
         
         // Build query with optional filter
-        $query = 'SELECT id, full_name, student_id, intake, programme_name, faculty, contact_no, preferred_language, group_code, registration_type, checked_in_at FROM participants';
+        $query = 'SELECT id, full_name, student_id, student_email, intake, programme_name, faculty, contact_no, preferred_language, group_code, registration_type, checked_in_at FROM participants';
         
         if ($filter === 'checked_in') {
             $query .= ' WHERE checked_in_at IS NOT NULL';
@@ -162,6 +162,7 @@ class ParticipantController
         $gender = trim((string)($_POST['gender'] ?? ''));
         $studentEmail = trim((string)($_POST['student_email'] ?? ''));
         $programmeName = trim((string)($_POST['programme_name'] ?? ''));
+        $faculty = trim((string)($_POST['faculty'] ?? ''));
         $contactRaw = trim((string)($_POST['contact_no'] ?? ''));
         $preferredLanguage = trim((string)($_POST['preferred_language'] ?? ''));
 
@@ -171,16 +172,19 @@ class ParticipantController
             || $studentId === ''
             || $studentEmail === ''
             || $programmeName === ''
+            || $faculty === ''
             || $contactRaw === ''
             || $preferredLanguage === ''
         ) {
             $_SESSION['registration_error'] = 'Please complete every field on the form.';
+            $_SESSION['registration_input'] = $_POST;
             header('Location: ' . $returnPath);
             exit;
         }
 
         if (!$this->isValidTarcStudentEmail($studentEmail)) {
             $_SESSION['registration_error'] = 'Student email must be a valid address ending with @student.tarc.edu.my.';
+            $_SESSION['registration_input'] = $_POST;
             header('Location: ' . $returnPath);
             exit;
         }
@@ -194,6 +198,7 @@ class ParticipantController
             if ($existing) {
                 // Student ID already exists - redirect to lookup page with error message
                 $_SESSION['registration_error'] = 'This Student ID is already registered. Please use the "Find My QR" page to retrieve your QR code.';
+                $_SESSION['registration_input'] = $_POST;
                 header('Location: /participants/lookup?student_id=' . urlencode($studentId));
                 exit;
             }
@@ -246,6 +251,7 @@ class ParticipantController
             // Handle duplicate student_id constraint violation
             if ($e->getCode() == 23000 || strpos($e->getMessage(), 'Duplicate entry') !== false || strpos($e->getMessage(), 'student_id') !== false) {
                 $_SESSION['registration_error'] = 'This Student ID is already registered. Please use the "Find My QR" page to retrieve your QR code.';
+                $_SESSION['registration_input'] = $_POST;
                 header('Location: /participants/lookup?student_id=' . urlencode($studentId));
                 exit;
             }
@@ -267,6 +273,10 @@ class ParticipantController
         $qrImage = (new QRCode($options))->render($participant['qr_code'] ?? '');
 
         $title = 'Registration Successful';
+
+        if (isset($_SESSION['registration_input'])) {
+            unset($_SESSION['registration_input']);
+        }
 
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/participants/registered.php';
