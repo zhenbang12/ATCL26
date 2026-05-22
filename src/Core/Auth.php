@@ -59,12 +59,21 @@ class Auth
 
     /**
      * Require that the current user has at least one of the given roles.
+     * Superuser always passes — they have access to everything.
      * Redirects to /login if not authorised.
      */
     public static function requireRole(array $roles): void
     {
         $role = self::role();
-        if ($role === null || !in_array($role, $roles, true)) {
+        if ($role === null) {
+            header('Location: /login');
+            exit;
+        }
+        // Superuser bypasses all role restrictions
+        if ($role === 'superuser') {
+            return;
+        }
+        if (!in_array($role, $roles, true)) {
             header('Location: /login');
             exit;
         }

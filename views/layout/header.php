@@ -82,7 +82,15 @@ $theme = $registrationSettings['theme'] ?? 'violet';
                     </a>
                 </li>
                 */ ?>
-                <?php if (in_array(\App\Core\Auth::role(), ['advisor', 'committee'], true)): ?>
+                <?php if (\App\Core\Auth::isSuperuser()): ?>
+                    <li>
+                        <a href="/users" class="m3-nav-item <?= strpos($_SERVER['REQUEST_URI'], '/users') !== false ? 'active' : '' ?>">
+                            <span class="material-symbols-outlined">manage_accounts</span>
+                            Users
+                        </a>
+                    </li>
+                <?php endif; ?>
+                <?php if (in_array(\App\Core\Auth::role(), ['advisor', 'committee', 'superuser'], true)): ?>
                     <li>
                         <a href="/settings/landing" class="m3-nav-item <?= strpos($_SERVER['REQUEST_URI'], '/settings') !== false ? 'active' : '' ?>">
                             <span class="material-symbols-outlined">settings</span>

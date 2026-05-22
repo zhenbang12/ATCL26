@@ -46,8 +46,8 @@ try {
             'role'     => 'treasurer',
         ],
         [
-            'username' => 'superuser',
-            'password' => 'changeme',   // <-- CHANGE THIS before running on server
+            'username' => 'zhenbang',
+            'password' => 'kaiyen',
             'role'     => 'superuser',
         ],
     ];

@@ -21,6 +21,10 @@ $router->get('/settings/landing', 'SettingsController@landingPage');
 $router->post('/settings/landing/save', 'SettingsController@landingPageSave');
 $router->post('/settings/registration/save', 'SettingsController@registrationSettingsSave');
 
+// User management (superuser only)
+$router->get('/users', 'UserController@index');
+$router->post('/users/reset-password', 'UserController@resetPassword');
+
 // Auth
 $router->get('/login', 'AuthController@showLogin');
 $router->post('/login', 'AuthController@login');
