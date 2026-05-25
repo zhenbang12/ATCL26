@@ -231,6 +231,7 @@
                             <div style="font-size: 1.05rem; line-height: 1.8;">
                                 <div class="mb-1"><strong>Name:</strong> ${escapeHtml(data.participant.full_name)}</div>
                                 <div class="mb-1"><strong>Student ID:</strong> ${escapeHtml(data.participant.student_id)}</div>
+                                <div class="mb-1"><strong>Email:</strong> ${escapeHtml(data.participant.student_email || 'N/A')}</div>
                                 <div class="mb-1"><strong>Language:</strong> ${escapeHtml(data.participant.preferred_language || 'N/A')}</div>
                                 <div class="mt-2"><strong>Group:</strong> ${groupInfo}</div>
                             </div>

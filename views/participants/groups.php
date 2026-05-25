@@ -5,6 +5,7 @@ $ungrouped = (int)($ungrouped ?? 0);
 $participantsByGroup = $participantsByGroup ?? [];
 $ungroupedParticipants = $ungroupedParticipants ?? [];
 $groupTypes = $groupTypes ?? [];
+$groupMaxMap = $groupMaxMap ?? [];
 $recentMoveLogs = $recentMoveLogs ?? [];
 $facilitators = $facilitators ?? [];
 $facilitatorByGroup = $facilitatorByGroup ?? [];
@@ -421,10 +422,16 @@ usort($allParticipants, function($a, $b) {
                 if (e.target.classList.contains('bulk-checkbox')) updateSelectAllState();
             });
 
+            // Bulk move result alert container (created once)
+            const bulkResultContainer = document.createElement('div');
+            bulkResultContainer.id = 'bulk-move-result';
+            moveBtn.closest('.card').querySelector('.d-flex.justify-content-between').insertAdjacentElement('afterend', bulkResultContainer);
+
             moveBtn.addEventListener('click', async function() {
                 const target = targetGroup.value;
                 if (!target) return;
-                const ids = Array.from(tableBody.querySelectorAll('.bulk-checkbox:checked')).map(c => c.value);
+                const checkedBoxes = tableBody.querySelectorAll('.bulk-checkbox:checked');
+                const ids = Array.from(checkedBoxes).map(c => c.value);
                 if (!ids.length) return;
 
                 moveBtn.disabled = true;
@@ -437,12 +444,63 @@ usort($allParticipants, function($a, $b) {
 
                     const res = await fetch('/participants/groups/bulk-move', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
                         body: params.toString()
                     });
                     const data = await res.json();
                     if (data.success) {
-                        location.reload();
+                        // Build success alert with move details
+                        const targetLabel = target === 'ungrouped' ? 'Ungrouped' : 'Group ' + target;
+                        const movedNames = Array.from(checkedBoxes).map(cb => {
+                            const row = cb.closest('tr');
+                            return row ? row.querySelector('td:nth-child(2)')?.textContent?.trim() : '';
+                        }).filter(Boolean);
+
+                        let logHtml = '<ul class="mb-0" style="font-size:0.82rem; padding-left: 1.2rem;">';
+                        const now = new Date();
+                        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                        movedNames.forEach(name => {
+                            logHtml += '<li>' + escapeHtmlBulk(name) + ' moved to ' + escapeHtmlBulk(targetLabel) + ' at ' + timeStr + '</li>';
+                        });
+                        logHtml += '</ul>';
+
+                        bulkResultContainer.innerHTML =
+                            '<div class="alert alert-success alert-dismissible fade show mt-3 mb-0" role="alert">' +
+                            '<div class="d-flex align-items-center gap-2 mb-2">' +
+                            '<span class="material-symbols-outlined" style="font-size: 22px;">check_circle</span>' +
+                            '<strong>' + ids.length + ' participant(s) moved to ' + escapeHtmlBulk(targetLabel) + '</strong>' +
+                            '</div>' +
+                            '<div class="mb-1"><strong>Move Log:</strong></div>' +
+                            logHtml +
+                            '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                            '</div>';
+
+                        // Update the table rows in-place
+                        checkedBoxes.forEach(cb => {
+                            const row = cb.closest('tr');
+                            if (!row) return;
+                            // Update data-group attribute
+                            row.dataset.group = target === 'ungrouped' ? '' : target;
+                            // Update the Current Group cell (5th column)
+                            const groupCell = row.querySelector('td:nth-child(5)');
+                            if (groupCell) {
+                                if (target === 'ungrouped') {
+                                    groupCell.innerHTML = '<span class="badge bg-surface" style="font-size:0.72rem">Ungrouped</span>';
+                                } else {
+                                    groupCell.innerHTML = '<span class="badge bg-primary" style="font-size:0.72rem">Group ' + escapeHtmlBulk(target) + '</span>';
+                                }
+                            }
+                            // Uncheck
+                            cb.checked = false;
+                        });
+
+                        // Reset controls
+                        selectAll.checked = false;
+                        selectAll.indeterminate = false;
+                        targetGroup.value = '';
+                        countLabel.textContent = '0 selected';
+                        moveBtn.disabled = true;
+                        moveBtn.textContent = 'Move Selected';
                     } else {
                         alert('Error: ' + (data.message || 'Unknown error'));
                         moveBtn.disabled = false;
@@ -454,6 +512,12 @@ usort($allParticipants, function($a, $b) {
                     moveBtn.textContent = 'Move Selected';
                 }
             });
+
+            function escapeHtmlBulk(s) {
+                if (!s) return '';
+                const map = { '&': '\u0026amp;', '<': '\u0026lt;', '>': '\u0026gt;', '"': '\u0026quot;', "'": '\u0026#039;' };
+                return s.replace(/[&<>"']/g, c => map[c]);
+            }
         })();
         </script>
     </div>
@@ -506,13 +570,20 @@ usort($allParticipants, function($a, $b) {
                         <div class="col-md-4 group-column" id="group-col-<?= htmlspecialchars($groupCode) ?>">
                             <div class="group-lane p-2">
                                 <div class="d-flex justify-content-between align-items-center mb-2 lane-header">
-                                    <div class="d-flex align-items-center gap-1">
+                                    <div class="d-flex align-items-center gap-1 flex-wrap">
                                         <strong>Group <?= htmlspecialchars($groupCode) ?></strong>
-                                        <span class="badge bg-info text-dark">Max <?= htmlspecialchars($maxPerGroupLabel) ?></span>
-                                        <span class="badge bg-light text-dark border ms-1"><?= htmlspecialchars($groupTypes[$groupCode] ?? 'Mixed') ?></span>
+                                        <?php
+                                            $gMax = $groupMaxMap[$groupCode] ?? 0;
+                                            $effectiveGMax = $gMax > 0 ? $gMax : $currentMaxPerGroup;
+                                            $gMaxLabel = $effectiveGMax > 0 ? (string)$effectiveGMax : 'No limit';
+                                        ?>
+                                        <span class="badge bg-info text-dark">Max <?= htmlspecialchars($gMaxLabel) ?></span>
+                                        <span class="badge bg-light text-dark border"><?= htmlspecialchars($groupTypes[$groupCode] ?? 'Mixed') ?></span>
                                         <span class="badge bg-primary group-count" data-count-group="<?= htmlspecialchars($groupCode) ?>"><?= count($participants) ?></span>
+                                        <button type="button" class="btn btn-sm p-0 d-flex align-items-center justify-content-center slot-adjust-btn" data-group="<?= htmlspecialchars($groupCode) ?>" data-delta="-1" style="width:20px;height:20px;border-radius:50%;background:var(--md-sys-color-surface-container-high);border:1px solid var(--md-sys-color-outline-variant);font-size:14px;line-height:1;" title="Remove 1 slot from Group <?= htmlspecialchars($groupCode) ?>">&#8722;</button>
+                                        <button type="button" class="btn btn-sm p-0 d-flex align-items-center justify-content-center slot-adjust-btn" data-group="<?= htmlspecialchars($groupCode) ?>" data-delta="1" style="width:20px;height:20px;border-radius:50%;background:var(--md-sys-color-primary-container);border:1px solid var(--md-sys-color-outline-variant);font-size:14px;line-height:1;" title="Add 1 slot to Group <?= htmlspecialchars($groupCode) ?>">&#43;</button>
                                     </div>
-                                <button type="button" class="btn btn-outline-secondary btn-sm lane-toggle" data-toggle-target="group-zone-<?= htmlspecialchars($groupCode) ?>">Minimize</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm lane-toggle" data-toggle-target="group-zone-<?= htmlspecialchars($groupCode) ?>">Minimize</button>
                                 </div>
                                 <div class="drop-zone rounded p-2 bg-light" id="group-zone-<?= htmlspecialchars($groupCode) ?>" data-target-group="<?= htmlspecialchars($groupCode) ?>" data-group-label="Group <?= htmlspecialchars($groupCode) ?>">
                                     <?php foreach (($facilitatorByGroup[$groupCode] ?? []) as $buddy): ?>
@@ -629,22 +700,29 @@ usort($allParticipants, function($a, $b) {
                     <tr>
                         <th>Group</th>
                         <th>Count</th>
+                        <th>Max</th>
                         <th>Senior Buddy</th>
                     </tr>
                     </thead>
                     <tbody>
                     <?php if (empty($groups)): ?>
                         <tr>
-                            <td colspan="3" class="text-muted">No groups assigned yet</td>
+                            <td colspan="4" class="text-muted">No groups assigned yet</td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($groups as $g): ?>
+                            <?php
+                                $rMax = $groupMaxMap[$g['group_code']] ?? 0;
+                                $rEffectiveMax = $rMax > 0 ? $rMax : $currentMaxPerGroup;
+                                $rMaxLabel = $rEffectiveMax > 0 ? (string)$rEffectiveMax : '-';
+                            ?>
                             <tr>
                                 <td>
                                     <strong><?= htmlspecialchars($g['group_code']) ?></strong>
                                     <span class="badge bg-surface"><?= htmlspecialchars($groupTypes[$g['group_code']] ?? 'Mixed') ?></span>
                                 </td>
                                 <td><?= (int)$g['count'] ?></td>
+                                <td><?= htmlspecialchars($rMaxLabel) ?></td>
                                 <td>
                                     <?php $buddies = $facilitatorByGroup[$g['group_code']] ?? []; ?>
                                     <?php if (!empty($buddies)): ?>
@@ -1242,6 +1320,40 @@ usort($allParticipants, function($a, $b) {
         renderSelectionCount();
         renderMoveHistory();
         renumberAllLanes();
+
+        // Per-group slot adjustment buttons (AJAX, no page reload)
+        document.querySelectorAll('.slot-adjust-btn').forEach(function(btn) {
+            btn.addEventListener('click', async function() {
+                const groupCode = btn.dataset.group;
+                const delta = btn.dataset.delta;
+                btn.disabled = true;
+                try {
+                    const res = await fetch('/participants/groups/adjust-slot', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+                        body: new URLSearchParams({ group_code: groupCode, delta: delta }).toString()
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        // Find the Max badge for this group in the lane header and update it
+                        const lane = btn.closest('.lane-header') || btn.closest('.group-lane');
+                        if (lane) {
+                            const maxBadge = lane.querySelector('.badge.bg-info.text-dark');
+                            if (maxBadge) {
+                                maxBadge.textContent = 'Max ' + data.max_label;
+                            }
+                        }
+                        showAlert('success', data.message);
+                    } else {
+                        showAlert('danger', data.message || 'Failed to adjust slot.');
+                    }
+                } catch (err) {
+                    showAlert('danger', 'Network error adjusting slot.');
+                } finally {
+                    btn.disabled = false;
+                }
+            });
+        });
 
         window.setInterval(async () => {
             try {

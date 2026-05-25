@@ -50,6 +50,7 @@ $router->post('/participants/group-by-language', 'ParticipantController@groupByL
 $router->post('/participants/groups/save-layout', 'ParticipantController@saveGroupLayout');
 $router->post('/participants/groups/add-group', 'ParticipantController@addGroupShell');
 $router->post('/participants/groups/add-slot', 'ParticipantController@addGroupSlot');
+$router->post('/participants/groups/adjust-slot', 'ParticipantController@adjustGroupSlot');
 $router->post('/participants/groups/move', 'ParticipantController@moveParticipantGroup');
 $router->post('/participants/groups/bulk-move', 'ParticipantController@bulkMoveParticipantGroup');
 $router->post('/participants/groups/assign-facilitator', 'ParticipantController@assignFacilitatorToGroup');

@@ -405,6 +405,8 @@ class ParticipantController
                             'id' => $participant['id'],
                             'full_name' => $participant['full_name'],
                             'student_id' => $participant['student_id'],
+                            'student_email' => $participant['student_email'] ?? '',
+                            'preferred_language' => $participant['preferred_language'] ?? '',
                             'group_code' => $participant['group_code'] ?: 'Not assigned',
                             'medical_notes' => $participant['medical_notes'] ?: '',
                             'dietary_notes' => $participant['dietary_notes'] ?: '',
@@ -441,13 +443,15 @@ class ParticipantController
         $layoutRows = [];
         try {
             $layoutRows = $db->query('
-                SELECT group_code, language_pool
+                SELECT group_code, language_pool, max_per_group
                 FROM event_groups
                 ORDER BY sort_order ASC, CAST(group_code AS UNSIGNED), group_code
             ')->fetchAll(\PDO::FETCH_ASSOC);
         } catch (\Exception $e) {
             $layoutRows = [];
         }
+
+        $groupMaxMap = [];
 
         if ($layoutRows !== []) {
             $countMap = [];
@@ -463,6 +467,7 @@ class ParticipantController
                 $gc = (string)$row['group_code'];
                 $groups[] = ['group_code' => $gc, 'count' => $countMap[$gc] ?? 0];
                 $groupTypes[$gc] = (($row['language_pool'] ?? '') === 'english') ? 'English' : 'Mandarin';
+                $groupMaxMap[$gc] = (int)($row['max_per_group'] ?? 0);
                 if (($row['language_pool'] ?? '') === 'english') {
                     $currentEnglishGroups++;
                 }
@@ -927,6 +932,87 @@ class ParticipantController
     }
 
     /**
+     * Adjust max slots for a specific group (per-group override).
+     * delta: +1 or -1
+     */
+    public function adjustGroupSlot(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db = Container::get('db');
+        $groupCode = trim((string)($_POST['group_code'] ?? ''));
+        $delta = (int)($_POST['delta'] ?? 0);
+
+        $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+
+        if ($groupCode === '' || !in_array($delta, [-1, 1], true)) {
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => 'Invalid request.'], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+            $_SESSION['grouping_message'] = 'Invalid request.';
+            $_SESSION['grouping_message_type'] = 'danger';
+            header('Location: /participants/groups');
+            exit;
+        }
+
+        try {
+            // Verify group exists
+            $v = $db->prepare('SELECT max_per_group FROM event_groups WHERE group_code = ? LIMIT 1');
+            $v->execute([$groupCode]);
+            $current = (int)$v->fetchColumn();
+            if ($current === false) {
+                if ($isAjax) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => false, 'message' => 'Group not found.'], JSON_UNESCAPED_UNICODE);
+                    exit;
+                }
+                $_SESSION['grouping_message'] = 'Group not found.';
+                $_SESSION['grouping_message_type'] = 'danger';
+                header('Location: /participants/groups');
+                exit;
+            }
+
+            // Compute effective current max (if 0, use global)
+            $globalMax = $this->getEventGroupMaxPerGroup($db);
+            $effectiveMax = $current > 0 ? $current : $globalMax;
+            $newMax = max(0, $effectiveMax + $delta);
+
+            $stmt = $db->prepare('UPDATE event_groups SET max_per_group = ? WHERE group_code = ?');
+            $stmt->execute([$newMax, $groupCode]);
+
+            $label = $newMax > 0 ? (string)$newMax : 'No limit';
+
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Group ' . $groupCode . ' max set to ' . $label . '.',
+                    'group_code' => $groupCode,
+                    'max_per_group' => $newMax,
+                    'max_label' => $label,
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
+            $_SESSION['grouping_message'] = 'Group ' . $groupCode . ' max per group set to ' . $label . '.';
+            $_SESSION['grouping_message_type'] = 'success';
+        } catch (\Exception $e) {
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => 'Could not adjust slot: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+            $_SESSION['grouping_message'] = 'Could not adjust slot: ' . $e->getMessage();
+            $_SESSION['grouping_message_type'] = 'danger';
+        }
+
+        header('Location: /participants/groups');
+        exit;
+    }
+
+    /**
      * Move a participant to another group (used by drag-and-drop).
      */
     public function moveParticipantGroup(): void
@@ -1330,19 +1416,26 @@ class ParticipantController
         $pool = ($lang === 'english') ? 'english' : 'mandarin';
 
         $stmt = $db->prepare('
-            SELECT group_code
+            SELECT group_code, max_per_group
             FROM event_groups
             WHERE language_pool = ?
             ORDER BY sort_order ASC, CAST(group_code AS UNSIGNED), group_code
         ');
         $stmt->execute([$pool]);
-        $poolCodes = array_map('strval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+        $poolRows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $poolCodes = [];
+        $perGroupMax = [];
+        foreach ($poolRows as $row) {
+            $gc = (string)$row['group_code'];
+            $poolCodes[] = $gc;
+            $perGroupMax[$gc] = (int)($row['max_per_group'] ?? 0);
+        }
         if ($poolCodes === []) {
             return 'The saved layout has no groups in this participant\'s language pool. Adjust total vs English group counts.';
         }
 
-        $max = $this->getEventGroupMaxPerGroup($db);
-        $chosen = $this->pickGroupWithLightestLoad($db, $poolCodes, $max);
+        $globalMax = $this->getEventGroupMaxPerGroup($db);
+        $chosen = $this->pickGroupWithLightestLoad($db, $poolCodes, $globalMax, $perGroupMax);
         if ($chosen === null) {
             return 'All groups in this language pool are at capacity. Raise max per group or add groups, then check in again.';
         }
@@ -1374,8 +1467,9 @@ class ParticipantController
 
     /**
      * @param list<string> $poolCodes
+     * @param array<string,int> $perGroupMax  Per-group max overrides (0 = use global)
      */
-    private function pickGroupWithLightestLoad(\PDO $db, array $poolCodes, int $maxPerGroup): ?string
+    private function pickGroupWithLightestLoad(\PDO $db, array $poolCodes, int $globalMax, array $perGroupMax = []): ?string
     {
         if ($poolCodes === []) {
             return null;
@@ -1400,7 +1494,9 @@ class ParticipantController
         $bestCount = PHP_INT_MAX;
         foreach ($poolCodes as $code) {
             $n = $counts[$code] ?? 0;
-            if ($maxPerGroup > 0 && $n >= $maxPerGroup) {
+            // Per-group max takes precedence over global if non-zero
+            $groupLimit = ($perGroupMax[$code] ?? 0) > 0 ? $perGroupMax[$code] : $globalMax;
+            if ($groupLimit > 0 && $n >= $groupLimit) {
                 continue;
             }
             if ($n < $bestCount) {
