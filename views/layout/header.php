@@ -24,7 +24,7 @@ $theme = $registrationSettings['theme'] ?? 'violet';
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <link rel="stylesheet" href="/css/material3.css">
+    <link rel="stylesheet" href="/css/material3.css?v=<?= filemtime($_SERVER['DOCUMENT_ROOT'] . '/css/material3.css') ?>">
     <script>
         // Apply sidebar state immediately to prevent layout shift/flicker
         if (localStorage.getItem('sidebar-collapsed') === 'true') {
