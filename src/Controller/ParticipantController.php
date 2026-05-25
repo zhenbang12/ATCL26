@@ -958,7 +958,7 @@ class ParticipantController
         }
 
         try {
-            // Verify group exists
+            // Verify group exists and get current per-group max
             $v = $db->prepare('SELECT max_per_group FROM event_groups WHERE group_code = ? LIMIT 1');
             $v->execute([$groupCode]);
             $current = (int)$v->fetchColumn();
@@ -977,11 +977,23 @@ class ParticipantController
             // Compute effective current max (if 0, use global)
             $globalMax = $this->getEventGroupMaxPerGroup($db);
             $effectiveMax = $current > 0 ? $current : $globalMax;
-            $newMax = max(0, $effectiveMax + $delta);
 
-            $stmt = $db->prepare('UPDATE event_groups SET max_per_group = ? WHERE group_code = ?');
-            $stmt->execute([$newMax, $groupCode]);
+            // Use atomic increment/decrement to prevent race conditions
+            // When current is 0 (uses global), set it explicitly to effectiveMax + delta
+            // Otherwise use atomic SQL arithmetic
+            if ($current > 0) {
+                $stmt = $db->prepare('UPDATE event_groups SET max_per_group = GREATEST(0, max_per_group + ?) WHERE group_code = ?');
+                $stmt->execute([$delta, $groupCode]);
+            } else {
+                // Group uses global max (0); set per-group override explicitly
+                $newMax = max(0, $effectiveMax + $delta);
+                $stmt = $db->prepare('UPDATE event_groups SET max_per_group = ? WHERE group_code = ?');
+                $stmt->execute([$newMax, $groupCode]);
+            }
 
+            // Read back the actual value to report accurately
+            $v->execute([$groupCode]);
+            $newMax = (int)$v->fetchColumn();
             $label = $newMax > 0 ? (string)$newMax : 'No limit';
 
             if ($isAjax) {
@@ -1140,10 +1152,15 @@ class ParticipantController
         $db = Container::get('db');
 
         try {
+            $db->beginTransaction();
             $db->exec('UPDATE participants SET group_code = NULL');
+            $db->commit();
             $_SESSION['grouping_message'] = 'All group assignments have been cleared.';
             $_SESSION['grouping_message_type'] = 'success';
         } catch (\Exception $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             $_SESSION['grouping_message'] = 'Error clearing groups: ' . $e->getMessage();
             $_SESSION['grouping_message_type'] = 'danger';
         }
@@ -1415,54 +1432,81 @@ class ParticipantController
         $lang = strtolower(trim($preferredLanguage));
         $pool = ($lang === 'english') ? 'english' : 'mandarin';
 
-        $stmt = $db->prepare('
-            SELECT group_code, max_per_group
-            FROM event_groups
-            WHERE language_pool = ?
-            ORDER BY sort_order ASC, CAST(group_code AS UNSIGNED), group_code
-        ');
-        $stmt->execute([$pool]);
-        $poolRows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-        $poolCodes = [];
-        $perGroupMax = [];
-        foreach ($poolRows as $row) {
-            $gc = (string)$row['group_code'];
-            $poolCodes[] = $gc;
-            $perGroupMax[$gc] = (int)($row['max_per_group'] ?? 0);
-        }
-        if ($poolCodes === []) {
-            return 'The saved layout has no groups in this participant\'s language pool. Adjust total vs English group counts.';
-        }
-
-        $globalMax = $this->getEventGroupMaxPerGroup($db);
-        $chosen = $this->pickGroupWithLightestLoad($db, $poolCodes, $globalMax, $perGroupMax);
-        if ($chosen === null) {
-            return 'All groups in this language pool are at capacity. Raise max per group or add groups, then check in again.';
-        }
-
-        $upd = $db->prepare('UPDATE participants SET group_code = ? WHERE id = ? AND IFNULL(group_code, \'\') = \'\'');
-        $upd->execute([$chosen, $participantId]);
-        if ($upd->rowCount() === 0) {
-            return null;
-        }
+        // Use a transaction with row-level locking (FOR UPDATE) to prevent
+        // concurrent check-in operators from assigning two participants to
+        // the same group that was at capacity, causing a TOCTOU race.
+        $db->beginTransaction();
 
         try {
-            $log = $db->prepare('
-                INSERT INTO group_move_logs (
-                    participant_id,
-                    participant_name,
-                    from_group_code,
-                    to_group_code,
-                    moved_by,
-                    action_type
-                ) VALUES (?, ?, NULL, ?, ?, ?)
-            ');
-            $log->execute([$participantId, $participantName, $chosen, 'System Check-in', 'move']);
-        } catch (\Exception $e) {
-            // Check-in assignment should still succeed if logging fails.
-        }
+            // Lock the event_group_settings row to serialize group assignment
+            $lockStmt = $db->prepare('SELECT max_per_group FROM event_group_settings WHERE id = 1 FOR UPDATE');
+            $lockStmt->execute();
+            $globalMax = max(0, (int)$lockStmt->fetchColumn());
 
-        return null;
+            // Lock all group rows in this language pool
+            $stmt = $db->prepare('
+                SELECT group_code, max_per_group
+                FROM event_groups
+                WHERE language_pool = ?
+                ORDER BY sort_order ASC, CAST(group_code AS UNSIGNED), group_code
+                FOR UPDATE
+            ');
+            $stmt->execute([$pool]);
+            $poolRows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            $poolCodes = [];
+            $perGroupMax = [];
+            foreach ($poolRows as $row) {
+                $gc = (string)$row['group_code'];
+                $poolCodes[] = $gc;
+                $perGroupMax[$gc] = (int)($row['max_per_group'] ?? 0);
+            }
+
+            if ($poolCodes === []) {
+                $db->rollBack();
+                return 'The saved layout has no groups in this participant\'s language pool. Adjust total vs English group counts.';
+            }
+
+            // Count current members (read is safe within the locked transaction)
+            $chosen = $this->pickGroupWithLightestLoad($db, $poolCodes, $globalMax, $perGroupMax);
+            if ($chosen === null) {
+                $db->rollBack();
+                return 'All groups in this language pool are at capacity. Raise max per group or add groups, then check in again.';
+            }
+
+            $upd = $db->prepare('UPDATE participants SET group_code = ? WHERE id = ? AND IFNULL(group_code, \'\') = \'\'');
+            $upd->execute([$chosen, $participantId]);
+
+            if ($upd->rowCount() === 0) {
+                $db->rollBack();
+                return null;
+            }
+
+            // Log the assignment
+            try {
+                $log = $db->prepare('
+                    INSERT INTO group_move_logs (
+                        participant_id,
+                        participant_name,
+                        from_group_code,
+                        to_group_code,
+                        moved_by,
+                        action_type
+                    ) VALUES (?, ?, NULL, ?, ?, ?)
+                ');
+                $log->execute([$participantId, $participantName, $chosen, 'System Check-in', 'move']);
+            } catch (\Exception $e) {
+                // Logging failure should not block check-in
+            }
+
+            $db->commit();
+            return null;
+        } catch (\Exception $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            return 'Group assignment failed: ' . $e->getMessage();
+        }
     }
 
     /**
@@ -2185,10 +2229,20 @@ class ParticipantController
         }
 
         try {
-            $stmt = $db->prepare('UPDATE participants SET duplicate_of = ? WHERE id = ?');
+            // Validate canonical record exists
+            $checkStmt = $db->prepare('SELECT id FROM participants WHERE id = ? LIMIT 1');
+            $checkStmt->execute([$canonicalId]);
+            if (!$checkStmt->fetch()) {
+                $_SESSION['participants_message'] = 'The selected original record no longer exists.';
+                $_SESSION['participants_message_type'] = 'danger';
+                header('Location: /participants/duplicates');
+                exit;
+            }
+
+            $stmt = $db->prepare('UPDATE participants SET duplicate_of = ? WHERE id = ? AND id != ?');
             $flagged = 0;
             foreach ($duplicateIds as $dupId) {
-                $stmt->execute([$canonicalId, $dupId]);
+                $stmt->execute([$canonicalId, $dupId, $canonicalId]);
                 $flagged += $stmt->rowCount();
             }
             $_SESSION['participants_message'] = "Flagged {$flagged} record(s) as duplicate of #{$canonicalId}.";
