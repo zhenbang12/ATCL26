@@ -47,6 +47,23 @@ $theme = $registrationSettings['theme'] ?? 'violet';
                 <span class="material-symbols-outlined" style="font-size: 20px;">menu_open</span>
             </button>
         </div>
+        <!-- Session Selector -->
+        <?php
+        try {
+            $currentSessionData = \App\Core\SessionHelper::currentSession();
+            $allSessions = \App\Core\SessionHelper::all();
+        } catch (\Exception $e) {
+            $currentSessionData = null;
+            $allSessions = [];
+        }
+        ?>
+        <?php if ($currentSessionData && in_array(\App\Core\Auth::role(), ['advisor', 'committee', 'superuser'], true)): ?>
+        <a href="/sessions" class="d-flex align-items-center gap-2 px-2 py-2 mb-2 text-decoration-none rounded" style="background: var(--md-sys-color-primary-container, #EADDFF); color: var(--md-sys-color-on-primary-container, #21005D); font-size: 0.8rem;" title="Manage Sessions">
+            <span class="material-symbols-outlined" style="font-size: 18px;">event</span>
+            <span class="text-truncate fw-semibold"><?= htmlspecialchars($currentSessionData['name']) ?></span>
+            <span class="material-symbols-outlined ms-auto" style="font-size: 16px;">swap_horiz</span>
+        </a>
+        <?php endif; ?>
         
         <nav class="flex-grow-1">
             <ul class="m3-nav-group">

@@ -5,11 +5,18 @@ namespace App\Controller;
 
 use App\Core\Container;
 use App\Core\Auth;
+use App\Core\SessionHelper;
 use chillerlan\QRCode\QRCode;
 use chillerlan\QRCode\QROptions;
 
 class ParticipantController
 {
+    /** Return active session_id shortcut */
+    private function sid(): int
+    {
+        return SessionHelper::currentSessionId();
+    }
+
     public function index(): void
     {
         // Only advisor / committee can see full participant listing
@@ -17,12 +24,14 @@ class ParticipantController
 
         $title = 'Participants & Admission';
         $db = Container::get('db');
+        $sid = $this->sid();
 
         // Calculate statistics
         $stats = [];
         
         // Fetch total and checked-in counts in a single query (excluding duplicates)
-        $statsStmt = $db->query('SELECT COUNT(*) as total, COUNT(checked_in_at) as checked_in FROM participants WHERE duplicate_of IS NULL');
+        $statsStmt = $db->prepare('SELECT COUNT(*) as total, COUNT(checked_in_at) as checked_in FROM participants WHERE duplicate_of IS NULL AND session_id = ?');
+        $statsStmt->execute([$sid]);
         $statsData = $statsStmt->fetch(\PDO::FETCH_ASSOC);
         $stats['total'] = (int)($statsData['total'] ?? 0);
         $stats['checked_in'] = (int)($statsData['checked_in'] ?? 0);
@@ -30,20 +39,25 @@ class ParticipantController
         
         // Groups: configured shells if present, else distinct assignments
         try {
-            $shellCount = (int)$db->query('SELECT COUNT(*) FROM event_groups')->fetchColumn();
+            $sidStmt = $db->prepare('SELECT COUNT(*) FROM event_groups WHERE session_id = ?');
+            $sidStmt->execute([$sid]);
+            $shellCount = (int)$sidStmt->fetchColumn();
             if ($shellCount > 0) {
                 $stats['groups'] = $shellCount;
             } else {
-                $stmt = $db->query("SELECT COUNT(DISTINCT group_code) as count FROM participants WHERE group_code IS NOT NULL AND group_code != '' AND duplicate_of IS NULL");
+                $stmt = $db->prepare("SELECT COUNT(DISTINCT group_code) as count FROM participants WHERE group_code IS NOT NULL AND group_code != '' AND duplicate_of IS NULL AND session_id = ?");
+                $stmt->execute([$sid]);
                 $stats['groups'] = (int)$stmt->fetch(\PDO::FETCH_ASSOC)['count'];
             }
         } catch (\Exception $e) {
-            $stmt = $db->query("SELECT COUNT(DISTINCT group_code) as count FROM participants WHERE group_code IS NOT NULL AND group_code != '' AND duplicate_of IS NULL");
+            $stmt = $db->prepare("SELECT COUNT(DISTINCT group_code) as count FROM participants WHERE group_code IS NOT NULL AND group_code != '' AND duplicate_of IS NULL AND session_id = ?");
+            $stmt->execute([$sid]);
             $stats['groups'] = (int)$stmt->fetch(\PDO::FETCH_ASSOC)['count'];
         }
         
         // Faculty distribution
-        $stmt = $db->query("SELECT faculty, COUNT(*) as count FROM participants WHERE duplicate_of IS NULL GROUP BY faculty ORDER BY count DESC");
+        $stmt = $db->prepare("SELECT faculty, COUNT(*) as count FROM participants WHERE duplicate_of IS NULL AND session_id = ? GROUP BY faculty ORDER BY count DESC");
+        $stmt->execute([$sid]);
         $facultyData = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         $stats['faculty_distribution'] = [];
         foreach ($facultyData as $row) {
@@ -51,7 +65,8 @@ class ParticipantController
         }
         
         // Language distribution
-        $stmt = $db->query("SELECT preferred_language, COUNT(*) as count FROM participants WHERE duplicate_of IS NULL GROUP BY preferred_language ORDER BY count DESC");
+        $stmt = $db->prepare("SELECT preferred_language, COUNT(*) as count FROM participants WHERE duplicate_of IS NULL AND session_id = ? GROUP BY preferred_language ORDER BY count DESC");
+        $stmt->execute([$sid]);
         $languageData = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         $stats['language_distribution'] = [];
         foreach ($languageData as $row) {
@@ -59,7 +74,8 @@ class ParticipantController
         }
         
         // Group distribution
-        $stmt = $db->query("SELECT group_code, COUNT(*) as count FROM participants WHERE group_code IS NOT NULL AND group_code != '' AND duplicate_of IS NULL GROUP BY group_code ORDER BY group_code");
+        $stmt = $db->prepare("SELECT group_code, COUNT(*) as count FROM participants WHERE group_code IS NOT NULL AND group_code != '' AND duplicate_of IS NULL AND session_id = ? GROUP BY group_code ORDER BY group_code");
+        $stmt->execute([$sid]);
         $groupData = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         $stats['group_distribution'] = [];
         foreach ($groupData as $row) {
@@ -67,7 +83,8 @@ class ParticipantController
         }
         
         // Recent registrations (last 10)
-        $stmt = $db->query('SELECT id, full_name, student_id, intake, programme_name, faculty, group_code, registration_type, checked_in_at FROM participants WHERE duplicate_of IS NULL ORDER BY id DESC LIMIT 10');
+        $stmt = $db->prepare('SELECT id, full_name, student_id, intake, programme_name, faculty, group_code, registration_type, checked_in_at FROM participants WHERE duplicate_of IS NULL AND session_id = ? ORDER BY id DESC LIMIT 10');
+        $stmt->execute([$sid]);
         $recentParticipants = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         $registrationSettings = SettingsController::loadRegistrationSettings($db);
  
@@ -181,9 +198,10 @@ class ParticipantController
         }
 
         // Check for duplicate student ID
+        $sid = $this->sid();
         if (!empty($studentId)) {
-            $checkStmt = $db->prepare('SELECT id, full_name FROM participants WHERE student_id = ?');
-            $checkStmt->execute([$studentId]);
+            $checkStmt = $db->prepare('SELECT id, full_name FROM participants WHERE student_id = ? AND session_id = ?');
+            $checkStmt->execute([$studentId, $sid]);
             $existing = $checkStmt->fetch(\PDO::FETCH_ASSOC);
 
             if ($existing) {
@@ -198,8 +216,8 @@ class ParticipantController
 
         // Check for duplicate email
         if (!empty($studentEmail)) {
-            $checkStmt = $db->prepare('SELECT id, full_name, student_id FROM participants WHERE student_email = ? AND duplicate_of IS NULL LIMIT 1');
-            $checkStmt->execute([$studentEmail]);
+            $checkStmt = $db->prepare('SELECT id, full_name, student_id FROM participants WHERE student_email = ? AND duplicate_of IS NULL AND session_id = ? LIMIT 1');
+            $checkStmt->execute([$studentEmail, $sid]);
             $existing = $checkStmt->fetch(\PDO::FETCH_ASSOC);
 
             if ($existing) {
@@ -214,8 +232,8 @@ class ParticipantController
         // Check for duplicate phone number
         $contactNo = $this->formatPhoneNumber($_POST['contact_no'] ?? '');
         if (!empty($contactNo)) {
-            $checkStmt = $db->prepare('SELECT id, full_name, student_id FROM participants WHERE contact_no = ? AND duplicate_of IS NULL LIMIT 1');
-            $checkStmt->execute([$contactNo]);
+            $checkStmt = $db->prepare('SELECT id, full_name, student_id FROM participants WHERE contact_no = ? AND duplicate_of IS NULL AND session_id = ? LIMIT 1');
+            $checkStmt->execute([$contactNo, $sid]);
             $existing = $checkStmt->fetch(\PDO::FETCH_ASSOC);
 
             if ($existing) {
@@ -236,6 +254,7 @@ class ParticipantController
 
         try {
             $stmt = $db->prepare('INSERT INTO participants (
+                session_id,
                 full_name,
                 ic_passport_no,
                 student_id,
@@ -251,8 +270,9 @@ class ParticipantController
                 registration_type,
                 group_code,
                 qr_code
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
             $stmt->execute([
+                $sid,
                 $_POST['full_name'] ?? '',
                 $_POST['ic_passport_no'] ?? '',
                 $studentId,
@@ -312,13 +332,16 @@ class ParticipantController
         Auth::requireRole(['advisor', 'committee']);
 
         $db = Container::get('db');
-        $recentCheckins = $db->query('
+        $sid = $this->sid();
+        $sidStmt = $db->prepare('
             SELECT id, full_name, student_id, checked_in_at, group_code, preferred_language 
             FROM participants 
-            WHERE checked_in_at IS NOT NULL 
+            WHERE checked_in_at IS NOT NULL AND session_id = ?
             ORDER BY checked_in_at DESC 
             LIMIT 5
-        ')->fetchAll(\PDO::FETCH_ASSOC);
+        ');
+        $sidStmt->execute([$sid]);
+        $recentCheckins = $sidStmt->fetchAll(\PDO::FETCH_ASSOC);
 
         $title = 'QR Check-In';
         include __DIR__ . '/../../views/layout/header.php';
@@ -333,8 +356,9 @@ class ParticipantController
         $db = Container::get('db');
         $code = $_POST['qr_code'] ?? '';
 
-        $stmt = $db->prepare('SELECT * FROM participants WHERE qr_code = ? OR student_id = ?');
-        $stmt->execute([$code, $code]);
+        $sid = $this->sid();
+        $stmt = $db->prepare('SELECT * FROM participants WHERE (qr_code = ? OR student_id = ?) AND session_id = ?');
+        $stmt->execute([$code, $code, $sid]);
         $participant = $stmt->fetch(\PDO::FETCH_ASSOC);
 
         $checkinAssignmentNotice = null;
@@ -442,11 +466,15 @@ class ParticipantController
         // Groups dashboard: prefer configured empty shells (event_groups)
         $layoutRows = [];
         try {
-            $layoutRows = $db->query('
+        $sid = $this->sid();
+        $sidStmt = $db->prepare('
                 SELECT group_code, language_pool, max_per_group
                 FROM event_groups
+                WHERE session_id = ?
                 ORDER BY sort_order ASC, CAST(group_code AS UNSIGNED), group_code
-            ')->fetchAll(\PDO::FETCH_ASSOC);
+            ');
+            $sidStmt->execute([$sid]);
+            $layoutRows = $sidStmt->fetchAll(\PDO::FETCH_ASSOC);
         } catch (\Exception $e) {
             $layoutRows = [];
         }
@@ -455,8 +483,9 @@ class ParticipantController
 
         if ($layoutRows !== []) {
             $countMap = [];
-            $stmt = $db->query("SELECT group_code, COUNT(*) AS count FROM participants WHERE group_code IS NOT NULL AND group_code != '' GROUP BY group_code");
-            foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+            $sidStmt2 = $db->prepare("SELECT group_code, COUNT(*) AS count FROM participants WHERE group_code IS NOT NULL AND group_code != '' AND session_id = ? GROUP BY group_code");
+            $sidStmt2->execute([$sid]);
+            foreach ($sidStmt2->fetchAll(\PDO::FETCH_ASSOC) as $row) {
                 $countMap[(string)$row['group_code']] = (int)$row['count'];
             }
 
@@ -474,8 +503,9 @@ class ParticipantController
                 $participantsByGroup[$gc] = [];
             }
 
-            $stmt = $db->query("SELECT id, full_name, student_id, preferred_language, registration_type, checked_in_at, group_code FROM participants WHERE group_code IS NOT NULL AND group_code != '' ORDER BY CAST(group_code AS UNSIGNED), group_code, full_name");
-            foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $p) {
+            $sidStmt3 = $db->prepare("SELECT id, full_name, student_id, preferred_language, registration_type, checked_in_at, group_code FROM participants WHERE group_code IS NOT NULL AND group_code != '' AND session_id = ? ORDER BY CAST(group_code AS UNSIGNED), group_code, full_name");
+            $sidStmt3->execute([$sid]);
+            foreach ($sidStmt3->fetchAll(\PDO::FETCH_ASSOC) as $p) {
                 $group = (string)$p['group_code'];
                 if (isset($participantsByGroup[$group])) {
                     $participantsByGroup[$group][] = $p;
@@ -483,12 +513,14 @@ class ParticipantController
             }
         } else {
             // Legacy: infer groups from participant assignments only
-            $stmt = $db->query("SELECT group_code, COUNT(*) AS count FROM participants WHERE group_code IS NOT NULL AND group_code != '' GROUP BY group_code ORDER BY CAST(group_code AS UNSIGNED), group_code");
-            $groups = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            $sidStmt4 = $db->prepare("SELECT group_code, COUNT(*) AS count FROM participants WHERE group_code IS NOT NULL AND group_code != '' AND session_id = ? GROUP BY group_code ORDER BY CAST(group_code AS UNSIGNED), group_code");
+            $sidStmt4->execute([$sid]);
+            $groups = $sidStmt4->fetchAll(\PDO::FETCH_ASSOC);
 
-            $stmt = $db->query("SELECT id, full_name, student_id, preferred_language, registration_type, checked_in_at, group_code FROM participants WHERE group_code IS NOT NULL AND group_code != '' ORDER BY CAST(group_code AS UNSIGNED), group_code, full_name");
+            $sidStmt5 = $db->prepare("SELECT id, full_name, student_id, preferred_language, registration_type, checked_in_at, group_code FROM participants WHERE group_code IS NOT NULL AND group_code != '' AND session_id = ? ORDER BY CAST(group_code AS UNSIGNED), group_code, full_name");
+            $sidStmt5->execute([$sid]);
             $participantsByGroup = [];
-            foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $p) {
+            foreach ($sidStmt5->fetchAll(\PDO::FETCH_ASSOC) as $p) {
                 $group = $p['group_code'];
                 if (!isset($participantsByGroup[$group])) {
                     $participantsByGroup[$group] = [];
@@ -523,24 +555,27 @@ class ParticipantController
         }
 
         // Get ungrouped count
-        $stmt = $db->query("SELECT COUNT(*) AS count FROM participants WHERE group_code IS NULL OR group_code = ''");
-        $ungrouped = $stmt->fetch(\PDO::FETCH_ASSOC)['count'];
+        $sidStmt6 = $db->prepare("SELECT COUNT(*) AS count FROM participants WHERE (group_code IS NULL OR group_code = '') AND session_id = ?");
+        $sidStmt6->execute([$sid]);
+        $ungrouped = $sidStmt6->fetch(\PDO::FETCH_ASSOC)['count'];
 
         // Get ungrouped participants for drag and drop editor
-        $stmt = $db->query("SELECT id, full_name, student_id, preferred_language, registration_type, checked_in_at FROM participants WHERE group_code IS NULL OR group_code = '' ORDER BY full_name");
-        $ungroupedParticipants = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $sidStmt7 = $db->prepare("SELECT id, full_name, student_id, preferred_language, registration_type, checked_in_at FROM participants WHERE (group_code IS NULL OR group_code = '') AND session_id = ? ORDER BY full_name");
+        $sidStmt7->execute([$sid]);
+        $ungroupedParticipants = $sidStmt7->fetchAll(\PDO::FETCH_ASSOC);
 
         // Facilitator data for senior buddy assignment per group
         $facilitators = [];
         $facilitatorByGroup = [];
         try {
-            $stmt = $db->query("
+            $sidStmt8 = $db->prepare("
                 SELECT id, full_name, assigned_group_code
                 FROM crew
-                WHERE is_facilitator = 1
+                WHERE is_facilitator = 1 AND session_id = ?
                 ORDER BY full_name
             ");
-            $facilitators = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            $sidStmt8->execute([$sid]);
+            $facilitators = $sidStmt8->fetchAll(\PDO::FETCH_ASSOC);
             foreach ($facilitators as $facilitator) {
                 $assignedGroup = trim((string)($facilitator['assigned_group_code'] ?? ''));
                 if ($assignedGroup !== '') {
@@ -558,7 +593,7 @@ class ParticipantController
         // Load recent persisted move logs (if migration already applied)
         $recentMoveLogs = [];
         try {
-            $stmt = $db->query("
+            $sidStmt9 = $db->prepare("
                 SELECT
                     gml.id,
                     gml.participant_id,
@@ -569,10 +604,12 @@ class ParticipantController
                     gml.action_type,
                     gml.moved_at
                 FROM group_move_logs gml
+                WHERE gml.session_id = ?
                 ORDER BY gml.id DESC
                 LIMIT 25
             ");
-            $recentMoveLogs = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            $sidStmt9->execute([$sid]);
+            $recentMoveLogs = $sidStmt9->fetchAll(\PDO::FETCH_ASSOC);
         } catch (\Exception $e) {
             // Migration might not be applied yet; keep page functional.
             $recentMoveLogs = [];
@@ -594,20 +631,23 @@ class ParticipantController
         $db = Container::get('db');
 
         // Get group shells
-        $stmt = $db->query('SELECT id, group_code, language_pool FROM event_groups ORDER BY sort_order, group_code');
-        $groups = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $sid = $this->sid();
+        $sidStmt = $db->prepare('SELECT id, group_code, language_pool FROM event_groups WHERE session_id = ? ORDER BY sort_order, group_code');
+        $sidStmt->execute([$sid]);
+        $groups = $sidStmt->fetchAll(\PDO::FETCH_ASSOC);
 
         // Get crew marked as facilitators
         $facilitators = [];
         $facilitatorByGroup = [];
         try {
-            $stmt = $db->query("
+            $sidStmt2 = $db->prepare("
                 SELECT id, full_name, assigned_group_code
                 FROM crew
-                WHERE is_facilitator = 1
+                WHERE is_facilitator = 1 AND session_id = ?
                 ORDER BY full_name
             ");
-            $facilitators = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            $sidStmt2->execute([$sid]);
+            $facilitators = $sidStmt2->fetchAll(\PDO::FETCH_ASSOC);
             foreach ($facilitators as $facilitator) {
                 $assignedGroup = trim((string)($facilitator['assigned_group_code'] ?? ''));
                 if ($assignedGroup !== '') {
@@ -653,9 +693,10 @@ class ParticipantController
             exit;
         }
 
+        $sid = $this->sid();
         if ($this->eventGroupLayoutExists($db)) {
-            $v = $db->prepare('SELECT 1 FROM event_groups WHERE group_code = ? LIMIT 1');
-            $v->execute([$groupCode]);
+            $v = $db->prepare('SELECT 1 FROM event_groups WHERE group_code = ? AND session_id = ? LIMIT 1');
+            $v->execute([$groupCode, $sid]);
             if (!$v->fetchColumn()) {
                 $_SESSION['grouping_message'] = 'That group is not part of the saved layout.';
                 $_SESSION['grouping_message_type'] = 'danger';
@@ -668,15 +709,15 @@ class ParticipantController
             $db->beginTransaction();
 
             // Ensure one facilitator per group and one group per facilitator.
-            $clearGroupStmt = $db->prepare('UPDATE crew SET assigned_group_code = NULL WHERE assigned_group_code = ? AND is_facilitator = 1');
-            $clearGroupStmt->execute([$groupCode]);
+            $clearGroupStmt = $db->prepare('UPDATE crew SET assigned_group_code = NULL WHERE assigned_group_code = ? AND is_facilitator = 1 AND session_id = ?');
+            $clearGroupStmt->execute([$groupCode, $sid]);
 
             foreach ($crewIds as $crewId) {
-                $clearCrewStmt = $db->prepare('UPDATE crew SET assigned_group_code = NULL WHERE id = ? AND is_facilitator = 1');
-                $clearCrewStmt->execute([$crewId]);
+                $clearCrewStmt = $db->prepare('UPDATE crew SET assigned_group_code = NULL WHERE id = ? AND is_facilitator = 1 AND session_id = ?');
+                $clearCrewStmt->execute([$crewId, $sid]);
 
-                $assignStmt = $db->prepare('UPDATE crew SET assigned_group_code = ? WHERE id = ? AND is_facilitator = 1');
-                $assignStmt->execute([$groupCode, $crewId]);
+                $assignStmt = $db->prepare('UPDATE crew SET assigned_group_code = ? WHERE id = ? AND is_facilitator = 1 AND session_id = ?');
+                $assignStmt->execute([$groupCode, $crewId, $sid]);
             }
 
             $db->commit();
@@ -712,8 +753,10 @@ class ParticipantController
         try {
             $db->beginTransaction();
 
-            // Clear all current assignments for facilitators
-            $db->exec('UPDATE crew SET assigned_group_code = NULL WHERE is_facilitator = 1');
+            // Clear all current assignments for facilitators in current session
+            $sid = $this->sid();
+            $clearAll = $db->prepare('UPDATE crew SET assigned_group_code = NULL WHERE is_facilitator = 1 AND session_id = ?');
+            $clearAll->execute([$sid]);
 
             $assignedCrewIds = [];
             $assignStmt = $db->prepare('UPDATE crew SET assigned_group_code = ? WHERE id = ? AND is_facilitator = 1');
@@ -829,24 +872,26 @@ class ParticipantController
 
         $groupCodes = $this->buildNumericGroupCodes($numGroups);
 
+        $sid = $this->sid();
         try {
             $db->beginTransaction();
 
-            $db->exec('DELETE FROM event_groups');
+            $delStmt = $db->prepare('DELETE FROM event_groups WHERE session_id = ?');
+            $delStmt->execute([$sid]);
 
-            $insert = $db->prepare('INSERT INTO event_groups (group_code, language_pool, sort_order) VALUES (?, ?, ?)');
+            $insert = $db->prepare('INSERT INTO event_groups (session_id, group_code, language_pool, sort_order) VALUES (?, ?, ?, ?)');
             $sort = 0;
             foreach ($groupCodes as $code) {
                 $sort++;
                 $pool = $sort <= $englishGroups ? 'english' : 'mandarin';
-                $insert->execute([(string)$code, $pool, $sort]);
+                $insert->execute([$sid, (string)$code, $pool, $sort]);
             }
 
             $settingsStmt = $db->prepare('
-                INSERT INTO event_group_settings (id, max_per_group) VALUES (1, ?)
+                INSERT INTO event_group_settings (session_id, id, max_per_group) VALUES (?, 1, ?)
                 ON DUPLICATE KEY UPDATE max_per_group = VALUES(max_per_group)
             ');
-            $settingsStmt->execute([$maxPerGroup]);
+            $settingsStmt->execute([$sid, $maxPerGroup]);
 
             $db->commit();
             $capText = $maxPerGroup > 0 ? " Max {$maxPerGroup} participants per group when assigning at check-in." : '';
@@ -871,13 +916,17 @@ class ParticipantController
         $db = Container::get('db');
 
         try {
-            $row = $db->query('
+            $sid = $this->sid();
+            $sidStmt = $db->prepare('
                 SELECT
                     COALESCE(MAX(CAST(group_code AS UNSIGNED)), 0) AS max_code,
                     COALESCE(MAX(sort_order), 0) AS max_sort,
                     COUNT(*) AS total_groups
                 FROM event_groups
-            ')->fetch(\PDO::FETCH_ASSOC);
+                WHERE session_id = ?
+            ');
+            $sidStmt->execute([$sid]);
+            $row = $sidStmt->fetch(\PDO::FETCH_ASSOC);
 
             $totalGroups = (int)($row['total_groups'] ?? 0);
             if ($totalGroups >= 99) {
@@ -891,8 +940,8 @@ class ParticipantController
             $nextSort = (int)($row['max_sort'] ?? 0) + 1;
             $pool = $totalGroups === 0 ? 'english' : 'mandarin';
 
-            $stmt = $db->prepare('INSERT INTO event_groups (group_code, language_pool, sort_order) VALUES (?, ?, ?)');
-            $stmt->execute([(string)$nextCode, $pool, $nextSort]);
+            $stmt = $db->prepare('INSERT INTO event_groups (session_id, group_code, language_pool, sort_order) VALUES (?, ?, ?, ?)');
+            $stmt->execute([$sid, (string)$nextCode, $pool, $nextSort]);
 
             $_SESSION['grouping_message'] = 'Added Group ' . $nextCode . ' to the saved layout.';
             $_SESSION['grouping_message_type'] = 'success';
@@ -913,12 +962,13 @@ class ParticipantController
         $currentMax = $this->getEventGroupMaxPerGroup($db);
         $nextMax = min(300, $currentMax + 1);
 
+        $sid = $this->sid();
         try {
             $stmt = $db->prepare('
-                INSERT INTO event_group_settings (id, max_per_group) VALUES (1, ?)
+                INSERT INTO event_group_settings (session_id, id, max_per_group) VALUES (?, 1, ?)
                 ON DUPLICATE KEY UPDATE max_per_group = VALUES(max_per_group)
             ');
-            $stmt->execute([$nextMax]);
+            $stmt->execute([$sid, $nextMax]);
 
             $_SESSION['grouping_message'] = 'Max per group increased to ' . $nextMax . '.';
             $_SESSION['grouping_message_type'] = 'success';
@@ -959,8 +1009,9 @@ class ParticipantController
 
         try {
             // Verify group exists and get current per-group max
-            $v = $db->prepare('SELECT max_per_group FROM event_groups WHERE group_code = ? LIMIT 1');
-            $v->execute([$groupCode]);
+            $sid = $this->sid();
+            $v = $db->prepare('SELECT max_per_group FROM event_groups WHERE group_code = ? AND session_id = ? LIMIT 1');
+            $v->execute([$groupCode, $sid]);
             $current = (int)$v->fetchColumn();
             if ($current === false) {
                 if ($isAjax) {
@@ -982,17 +1033,17 @@ class ParticipantController
             // When current is 0 (uses global), set it explicitly to effectiveMax + delta
             // Otherwise use atomic SQL arithmetic
             if ($current > 0) {
-                $stmt = $db->prepare('UPDATE event_groups SET max_per_group = GREATEST(0, max_per_group + ?) WHERE group_code = ?');
-                $stmt->execute([$delta, $groupCode]);
+                $stmt = $db->prepare('UPDATE event_groups SET max_per_group = GREATEST(0, max_per_group + ?) WHERE group_code = ? AND session_id = ?');
+                $stmt->execute([$delta, $groupCode, $sid]);
             } else {
                 // Group uses global max (0); set per-group override explicitly
                 $newMax = max(0, $effectiveMax + $delta);
-                $stmt = $db->prepare('UPDATE event_groups SET max_per_group = ? WHERE group_code = ?');
-                $stmt->execute([$newMax, $groupCode]);
+                $stmt = $db->prepare('UPDATE event_groups SET max_per_group = ? WHERE group_code = ? AND session_id = ?');
+                $stmt->execute([$newMax, $groupCode, $sid]);
             }
 
             // Read back the actual value to report accurately
-            $v->execute([$groupCode]);
+            $v->execute([$groupCode, $sid]);
             $newMax = (int)$v->fetchColumn();
             $label = $newMax > 0 ? (string)$newMax : 'No limit';
 
@@ -1153,7 +1204,9 @@ class ParticipantController
 
         try {
             $db->beginTransaction();
-            $db->exec('UPDATE participants SET group_code = NULL');
+            $sid = $this->sid();
+            $clearStmt = $db->prepare('UPDATE participants SET group_code = NULL WHERE session_id = ?');
+            $clearStmt->execute([$sid]);
             $db->commit();
             $_SESSION['grouping_message'] = 'All group assignments have been cleared.';
             $_SESSION['grouping_message_type'] = 'success';
@@ -1181,9 +1234,13 @@ class ParticipantController
 
         try {
             $db->beginTransaction();
-            $db->exec('DELETE FROM event_groups');
-            $db->exec('INSERT INTO event_group_settings (id, max_per_group) VALUES (1, 0) ON DUPLICATE KEY UPDATE max_per_group = 0');
-            $db->exec('UPDATE crew SET assigned_group_code = NULL WHERE is_facilitator = 1');
+            $sid = $this->sid();
+            $delShells = $db->prepare('DELETE FROM event_groups WHERE session_id = ?');
+            $delShells->execute([$sid]);
+            $resetSettings = $db->prepare('INSERT INTO event_group_settings (session_id, id, max_per_group) VALUES (?, 1, 0) ON DUPLICATE KEY UPDATE max_per_group = 0');
+            $resetSettings->execute([$sid]);
+            $clearBuddies = $db->prepare('UPDATE crew SET assigned_group_code = NULL WHERE is_facilitator = 1 AND session_id = ?');
+            $clearBuddies->execute([$sid]);
             $db->commit();
             $_SESSION['grouping_message'] = 'Group shells and senior buddy group links were removed. Participant group numbers were not changed—use “Clear participant group assignments” if you need those cleared too. Save a new layout before check-in can assign groups again.';
             $_SESSION['grouping_message_type'] = 'success';
@@ -1264,7 +1321,8 @@ class ParticipantController
         $filter = $_GET['filter'] ?? 'all';
         
         // Build query with optional filter (same as index method)
-        $query = 'SELECT id, full_name, ic_passport_no, student_id, student_email, intake, programme_name, faculty, gender, contact_no, emergency_contact_no, emergency_contact_relationship, preferred_language, registration_type, group_code, checked_in_at, created_at FROM participants WHERE duplicate_of IS NULL';
+        $sid = $this->sid();
+        $query = 'SELECT id, full_name, ic_passport_no, student_id, student_email, intake, programme_name, faculty, gender, contact_no, emergency_contact_no, emergency_contact_relationship, preferred_language, registration_type, group_code, checked_in_at, created_at FROM participants WHERE duplicate_of IS NULL AND session_id = ?';
 
         if ($filter === 'checked_in') {
             $query .= ' AND checked_in_at IS NOT NULL';
@@ -1274,7 +1332,8 @@ class ParticipantController
         
         $query .= ' ORDER BY full_name';
         
-        $stmt = $db->query($query);
+        $stmt = $db->prepare($query);
+        $stmt->execute([$sid]);
 
         // Set headers for CSV download
         $filename = 'participants_' . date('Y-m-d_His') . ($filter !== 'all' ? '_' . $filter : '') . '.csv';
@@ -1403,7 +1462,10 @@ class ParticipantController
     private function eventGroupLayoutExists(\PDO $db): bool
     {
         try {
-            return (int)$db->query('SELECT COUNT(*) FROM event_groups')->fetchColumn() > 0;
+            $sid = $this->sid();
+            $stmt = $db->prepare('SELECT COUNT(*) FROM event_groups WHERE session_id = ?');
+            $stmt->execute([$sid]);
+            return (int)$stmt->fetchColumn() > 0;
         } catch (\Exception $e) {
             return false;
         }
@@ -1412,9 +1474,10 @@ class ParticipantController
     private function getEventGroupMaxPerGroup(\PDO $db): int
     {
         try {
-            $v = $db->query('SELECT max_per_group FROM event_group_settings WHERE id = 1')->fetchColumn();
-
-            return max(0, (int)$v);
+            $sid = $this->sid();
+            $stmt = $db->prepare('SELECT max_per_group FROM event_group_settings WHERE session_id = ? AND id = 1');
+            $stmt->execute([$sid]);
+            return max(0, (int)$stmt->fetchColumn());
         } catch (\Exception $e) {
             return 0;
         }
@@ -1439,19 +1502,20 @@ class ParticipantController
 
         try {
             // Lock the event_group_settings row to serialize group assignment
-            $lockStmt = $db->prepare('SELECT max_per_group FROM event_group_settings WHERE id = 1 FOR UPDATE');
-            $lockStmt->execute();
+            $sid = $this->sid();
+            $lockStmt = $db->prepare('SELECT max_per_group FROM event_group_settings WHERE session_id = ? AND id = 1 FOR UPDATE');
+            $lockStmt->execute([$sid]);
             $globalMax = max(0, (int)$lockStmt->fetchColumn());
 
             // Lock all group rows in this language pool
             $stmt = $db->prepare('
                 SELECT group_code, max_per_group
                 FROM event_groups
-                WHERE language_pool = ?
+                WHERE language_pool = ? AND session_id = ?
                 ORDER BY sort_order ASC, CAST(group_code AS UNSIGNED), group_code
                 FOR UPDATE
             ');
-            $stmt->execute([$pool]);
+            $stmt->execute([$pool, $sid]);
             $poolRows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
             $poolCodes = [];
@@ -1486,15 +1550,16 @@ class ParticipantController
             try {
                 $log = $db->prepare('
                     INSERT INTO group_move_logs (
+                        session_id,
                         participant_id,
                         participant_name,
                         from_group_code,
                         to_group_code,
                         moved_by,
                         action_type
-                    ) VALUES (?, ?, NULL, ?, ?, ?)
+                    ) VALUES (?, ?, ?, NULL, ?, ?, ?)
                 ');
-                $log->execute([$participantId, $participantName, $chosen, 'System Check-in', 'move']);
+                $log->execute([$sid, $participantId, $participantName, $chosen, 'System Check-in', 'move']);
             } catch (\Exception $e) {
                 // Logging failure should not block check-in
             }
@@ -1580,7 +1645,9 @@ class ParticipantController
         $latestMoveLogId = 0;
         $latestMovedAt = null;
         try {
-            $stmt = $db->query('SELECT id, moved_at FROM group_move_logs ORDER BY id DESC LIMIT 1');
+            $sid = $this->sid();
+            $stmt = $db->prepare('SELECT id, moved_at FROM group_move_logs WHERE session_id = ? ORDER BY id DESC LIMIT 1');
+            $stmt->execute([$sid]);
             $row = $stmt->fetch(\PDO::FETCH_ASSOC);
             if ($row) {
                 $latestMoveLogId = (int)($row['id'] ?? 0);
@@ -1922,9 +1989,10 @@ class ParticipantController
         ];
         $orderBy = $columns[$orderColumnIndex] ?? 'full_name';
         
+        $sid = $this->sid();
         // Build base query
-        $whereClauses = ['duplicate_of IS NULL'];
-        $params = [];
+        $whereClauses = ['duplicate_of IS NULL', 'session_id = ?'];
+        $params = [$sid];
 
         // Apply tab filter (all, checked_in, not_checked_in)
         if ($currentFilter === 'checked_in') {
@@ -1946,8 +2014,8 @@ class ParticipantController
         }
 
         // Get total records in the database (without search keyword, but with custom tab filter if active)
-        $totalWhereClauses = ['duplicate_of IS NULL'];
-        $totalParams = [];
+        $totalWhereClauses = ['duplicate_of IS NULL', 'session_id = ?'];
+        $totalParams = [$sid];
         if ($currentFilter === 'checked_in') {
             $totalWhereClauses[] = 'checked_in_at IS NOT NULL';
         } elseif ($currentFilter === 'not_checked_in') {
@@ -2127,7 +2195,9 @@ class ParticipantController
             $db->commit();
             
             // Fetch the latest move log ID
-            $latestIdStmt = $db->query('SELECT MAX(id) FROM group_move_logs');
+            $sid = $this->sid();
+            $latestIdStmt = $db->prepare('SELECT MAX(id) FROM group_move_logs WHERE session_id = ?');
+            $latestIdStmt->execute([$sid]);
             $latestLogId = (int)$latestIdStmt->fetchColumn();
 
             $toLabel = $targetGroup === null ? 'Ungrouped' : 'Group ' . $targetGroup;
@@ -2148,10 +2218,12 @@ class ParticipantController
 
         $db = Container::get('db');
         $title = 'Duplicate Detection';
+        $sid = $this->sid();
 
         // Find duplicate emails
         $emailDupes = [];
-        $stmt = $db->query("SELECT student_email, COUNT(*) as cnt, GROUP_CONCAT(id) as ids FROM participants WHERE duplicate_of IS NULL AND student_email != '' GROUP BY student_email HAVING cnt > 1 ORDER BY cnt DESC");
+        $stmt = $db->prepare("SELECT student_email, COUNT(*) as cnt, GROUP_CONCAT(id) as ids FROM participants WHERE duplicate_of IS NULL AND student_email != '' AND session_id = ? GROUP BY student_email HAVING cnt > 1 ORDER BY cnt DESC");
+        $stmt->execute([$sid]);
         foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
             $ids = array_map('intval', explode(',', $row['ids']));
             $placeholders = implode(',', array_fill(0, count($ids), '?'));
@@ -2166,7 +2238,8 @@ class ParticipantController
 
         // Find duplicate phones
         $phoneDupes = [];
-        $stmt = $db->query("SELECT contact_no, COUNT(*) as cnt, GROUP_CONCAT(id) as ids FROM participants WHERE duplicate_of IS NULL AND contact_no != '' GROUP BY contact_no HAVING cnt > 1 ORDER BY cnt DESC");
+        $stmt = $db->prepare("SELECT contact_no, COUNT(*) as cnt, GROUP_CONCAT(id) as ids FROM participants WHERE duplicate_of IS NULL AND contact_no != '' AND session_id = ? GROUP BY contact_no HAVING cnt > 1 ORDER BY cnt DESC");
+        $stmt->execute([$sid]);
         foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
             $ids = array_map('intval', explode(',', $row['ids']));
             $placeholders = implode(',', array_fill(0, count($ids), '?'));
@@ -2181,7 +2254,8 @@ class ParticipantController
 
         // Find duplicate names
         $nameDupes = [];
-        $stmt = $db->query("SELECT full_name, COUNT(*) as cnt, GROUP_CONCAT(id) as ids FROM participants WHERE duplicate_of IS NULL GROUP BY full_name HAVING cnt > 1 ORDER BY cnt DESC");
+        $stmt = $db->prepare("SELECT full_name, COUNT(*) as cnt, GROUP_CONCAT(id) as ids FROM participants WHERE duplicate_of IS NULL AND session_id = ? GROUP BY full_name HAVING cnt > 1 ORDER BY cnt DESC");
+        $stmt->execute([$sid]);
         foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
             $ids = array_map('intval', explode(',', $row['ids']));
             $placeholders = implode(',', array_fill(0, count($ids), '?'));
@@ -2195,7 +2269,9 @@ class ParticipantController
         }
 
         // Already flagged duplicates
-        $flagged = $db->query("SELECT p.*, c.full_name as canonical_name, c.student_id as canonical_student_id FROM participants p LEFT JOIN participants c ON p.duplicate_of = c.id WHERE p.duplicate_of IS NOT NULL ORDER BY p.created_at DESC")->fetchAll(\PDO::FETCH_ASSOC);
+        $flaggedStmt = $db->prepare("SELECT p.*, c.full_name as canonical_name, c.student_id as canonical_student_id FROM participants p LEFT JOIN participants c ON p.duplicate_of = c.id WHERE p.duplicate_of IS NOT NULL AND p.session_id = ? ORDER BY p.created_at DESC");
+        $flaggedStmt->execute([$sid]);
+        $flagged = $flaggedStmt->fetchAll(\PDO::FETCH_ASSOC);
 
         $totalGroups = count($emailDupes) + count($phoneDupes) + count($nameDupes);
 

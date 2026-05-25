@@ -1,7 +1,19 @@
 -- Base SQL schema for Camp Management System (MySQL-compatible)
 
+CREATE TABLE IF NOT EXISTS sessions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+INSERT IGNORE INTO sessions (id, name, description, is_active) VALUES
+    (1, 'Default Session', 'Auto-created session for existing data', 1);
+
 CREATE TABLE IF NOT EXISTS participants (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    session_id INT NOT NULL DEFAULT 1,
     full_name VARCHAR(255) NOT NULL,
     ic_passport_no VARCHAR(50),
     student_id VARCHAR(50),
@@ -21,7 +33,9 @@ CREATE TABLE IF NOT EXISTS participants (
     duplicate_of INT NULL,
     checked_in_at DATETIME NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY idx_unique_student_id (student_id)
+    UNIQUE KEY idx_unique_student_id (student_id),
+    INDEX idx_participants_session_id (session_id),
+    CONSTRAINT fk_participants_session FOREIGN KEY (session_id) REFERENCES sessions(id)
 );
 
 CREATE TABLE IF NOT EXISTS feedback (
@@ -104,7 +118,10 @@ VALUES (1, 1, 1, 'violet');
 
 CREATE TABLE IF NOT EXISTS event_groups (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    session_id INT NOT NULL DEFAULT 1,
     group_code VARCHAR(20) NOT NULL,
+    INDEX idx_event_groups_session_id (session_id),
+    CONSTRAINT fk_event_groups_session FOREIGN KEY (session_id) REFERENCES sessions(id),
     language_pool ENUM('english', 'mandarin') NOT NULL,
     sort_order INT NOT NULL DEFAULT 0,
     max_per_group INT NOT NULL DEFAULT 0,
@@ -112,16 +129,22 @@ CREATE TABLE IF NOT EXISTS event_groups (
 );
 
 CREATE TABLE IF NOT EXISTS event_group_settings (
-    id TINYINT UNSIGNED PRIMARY KEY DEFAULT 1,
-    max_per_group INT NOT NULL DEFAULT 0
+    session_id INT NOT NULL DEFAULT 1,
+    id TINYINT UNSIGNED DEFAULT 1,
+    max_per_group INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (session_id, id),
+    CONSTRAINT fk_event_group_settings_session FOREIGN KEY (session_id) REFERENCES sessions(id)
 );
 
 INSERT IGNORE INTO event_group_settings (id, max_per_group) VALUES (1, 0);
 
 CREATE TABLE IF NOT EXISTS crew (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    session_id INT NOT NULL DEFAULT 1,
     full_name VARCHAR(255) NOT NULL,
     email VARCHAR(255),
+    INDEX idx_crew_session_id (session_id),
+    CONSTRAINT fk_crew_session FOREIGN KEY (session_id) REFERENCES sessions(id),
     role VARCHAR(100),
     assigned_group_code VARCHAR(20),
     is_medic TINYINT(1) NOT NULL DEFAULT 0,
@@ -130,7 +153,10 @@ CREATE TABLE IF NOT EXISTS crew (
 
 CREATE TABLE IF NOT EXISTS crew_attendance (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    session_id INT NOT NULL DEFAULT 1,
     crew_id INT NOT NULL,
+    INDEX idx_crew_attendance_session_id (session_id),
+    CONSTRAINT fk_crew_attendance_session FOREIGN KEY (session_id) REFERENCES sessions(id),
     session_label VARCHAR(100) NOT NULL,
     attended TINYINT(1) NOT NULL DEFAULT 0,
     marked_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -311,7 +337,10 @@ CREATE TABLE IF NOT EXISTS incidents (
 
 CREATE TABLE IF NOT EXISTS group_move_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    session_id INT NOT NULL DEFAULT 1,
     participant_id INT NOT NULL,
+    INDEX idx_group_move_logs_session_id (session_id),
+    CONSTRAINT fk_group_move_logs_session FOREIGN KEY (session_id) REFERENCES sessions(id),
     participant_name VARCHAR(255) NOT NULL,
     from_group_code VARCHAR(20) NULL,
     to_group_code VARCHAR(20) NULL,

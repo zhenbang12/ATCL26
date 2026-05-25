@@ -5,9 +5,15 @@ namespace App\Controller;
 
 use App\Core\Auth;
 use App\Core\Container;
+use App\Core\SessionHelper;
 
 class HomeController
 {
+    /** Return active session_id shortcut */
+    private function sid(): int
+    {
+        return SessionHelper::currentSessionId();
+    }
     public function index(): void
     {
         if (Auth::check()) {
@@ -72,9 +78,11 @@ class HomeController
         $db = Container::get('db');
         $stats = [];
 
-        $stmt = $db->query('SELECT COUNT(*) as total,
+        $sid = $this->sid();
+        $stmt = $db->prepare('SELECT COUNT(*) as total,
             SUM(CASE WHEN checked_in_at IS NOT NULL THEN 1 ELSE 0 END) as checked_in
-            FROM participants WHERE duplicate_of IS NULL');
+            FROM participants WHERE duplicate_of IS NULL AND session_id = ?');
+        $stmt->execute([$sid]);
         $participantStats = $stmt->fetch(\PDO::FETCH_ASSOC);
         $stats['participants'] = [
             'total' => (int)($participantStats['total'] ?? 0),

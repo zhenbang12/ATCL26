@@ -5,9 +5,16 @@ namespace App\Controller;
 
 use App\Core\Container;
 use App\Core\Auth;
+use App\Core\SessionHelper;
 
 class OperationsController
 {
+    /** Return active session_id shortcut */
+    private function sid(): int
+    {
+        return SessionHelper::currentSessionId();
+    }
+
     public function index(): void
     {
         Auth::requireRole(['advisor', 'committee']);
@@ -24,7 +31,9 @@ class OperationsController
 
         $title = 'Crew Management';
         $db = Container::get('db');
-        $stmt = $db->query('SELECT id, full_name, role, assigned_group_code, is_facilitator FROM crew ORDER BY full_name');
+        $sid = $this->sid();
+        $stmt = $db->prepare('SELECT id, full_name, role, assigned_group_code, is_facilitator FROM crew WHERE session_id = ? ORDER BY full_name');
+        $stmt->execute([$sid]);
         $crew = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         include __DIR__ . '/../../views/layout/header.php';
@@ -60,11 +69,12 @@ class OperationsController
         }
 
         try {
+            $sid = $this->sid();
             $stmt = $db->prepare('
-                INSERT INTO crew (full_name, email, role, assigned_group_code, is_medic, is_facilitator)
-                VALUES (?, ?, ?, NULL, 0, ?)
+                INSERT INTO crew (session_id, full_name, email, role, assigned_group_code, is_medic, is_facilitator)
+                VALUES (?, ?, ?, ?, NULL, 0, ?)
             ');
-            $stmt->execute([$fullName, $email, $role, $isFacilitator]);
+            $stmt->execute([$sid, $fullName, $email, $role, $isFacilitator]);
 
             $_SESSION['crew_message'] = 'Crew added successfully.';
             $_SESSION['crew_message_type'] = 'success';

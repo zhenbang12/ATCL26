@@ -119,5 +119,12 @@ $router->get('/governance', 'GovernanceController@index');
 $router->get('/governance/tasks', 'GovernanceController@tasks');
 $router->get('/governance/proposals', 'GovernanceController@proposals');
 
+// Session management
+$router->get('/sessions', 'SessionController@index');
+$router->get('/sessions/create', 'SessionController@create');
+$router->post('/sessions/store', 'SessionController@store');
+$router->post('/sessions/activate', 'SessionController@activate');
+$router->post('/sessions/set-default', 'SessionController@setDefault');
+
 // Dispatch
 $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
