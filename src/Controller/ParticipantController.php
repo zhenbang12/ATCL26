@@ -1308,6 +1308,93 @@ class ParticipantController
     }
 
     /**
+     * Export group assignments with participant info to CSV.
+     */
+    public function exportGroups(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db = Container::get('db');
+        $sid = $this->sid();
+
+        // Get all participants with group info, ordered by group then name
+        $stmt = $db->prepare('
+            SELECT 
+                p.group_code,
+                p.full_name,
+                p.student_id,
+                p.student_email,
+                p.faculty,
+                p.programme_name,
+                p.preferred_language,
+                p.registration_type,
+                p.contact_no,
+                p.checked_in_at
+            FROM participants p
+            WHERE p.duplicate_of IS NULL AND p.session_id = ?
+            ORDER BY 
+                CASE WHEN p.group_code IS NULL OR p.group_code = "" THEN 1 ELSE 0 END,
+                CAST(p.group_code AS UNSIGNED),
+                p.group_code,
+                p.full_name
+        ');
+        $stmt->execute([$sid]);
+
+        // Get session name for filename
+        $sessionInfo = SessionHelper::currentSession();
+        $sessionName = $sessionInfo ? preg_replace('/[^a-zA-Z0-9_-]/', '_', $sessionInfo['name']) : 'session';
+
+        // Set headers for CSV download
+        $filename = 'grouping_' . $sessionName . '_' . date('Y-m-d_His') . '.csv';
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        $output = fopen('php://output', 'w');
+
+        // UTF-8 BOM for Excel compatibility
+        fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+        // CSV headers
+        $headers = [
+            'Group',
+            'Name',
+            'Student ID',
+            'Email',
+            'Faculty',
+            'Programme',
+            'Language',
+            'Registration Type',
+            'Contact No',
+            'Checked In',
+            'Checked In At',
+        ];
+        fputcsv($output, $headers);
+
+        // Write data rows
+        while ($p = $stmt->fetch(\PDO::FETCH_ASSOC)) {
+            $row = [
+                $p['group_code'] ?? 'Ungrouped',
+                $p['full_name'] ?? '',
+                $p['student_id'] ?? '',
+                $p['student_email'] ?? '',
+                $p['faculty'] ?? '',
+                $p['programme_name'] ?? '',
+                $p['preferred_language'] ?? '',
+                ($p['registration_type'] ?? 'pre_register') === 'walk_in' ? 'Walk-in' : 'Pre-register',
+                $p['contact_no'] ?? '',
+                !empty($p['checked_in_at']) ? 'Yes' : 'No',
+                $p['checked_in_at'] ?? '',
+            ];
+            fputcsv($output, $row);
+        }
+
+        fclose($output);
+        exit;
+    }
+
+    /**
      * Export participants to CSV file
      */
     public function export(): void

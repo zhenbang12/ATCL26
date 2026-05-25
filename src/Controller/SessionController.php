@@ -120,6 +120,109 @@ class SessionController
     }
 
     /**
+     * Delete a session and all its associated data (superuser only, requires password).
+     */
+    public function delete(): void
+    {
+        Auth::requireRole(['superuser']);
+
+        $sessionId = (int)($_POST['session_id'] ?? 0);
+        $password = trim((string)($_POST['password'] ?? ''));
+
+        if ($sessionId <= 0) {
+            $_SESSION['session_message'] = 'Invalid session.';
+            $_SESSION['session_message_type'] = 'danger';
+            header('Location: /sessions');
+            exit;
+        }
+
+        if ($password === '') {
+            $_SESSION['session_message'] = 'Password is required to delete a session.';
+            $_SESSION['session_message_type'] = 'danger';
+            header('Location: /sessions');
+            exit;
+        }
+
+        // Verify password
+        $user = Auth::user();
+        $db = Container::get('db');
+        $userStmt = $db->prepare('SELECT password_hash FROM users WHERE id = ?');
+        $userStmt->execute([(int)$user['id']]);
+        $userRow = $userStmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$userRow || !password_verify($password, $userRow['password_hash'])) {
+            $_SESSION['session_message'] = 'Incorrect password. Session was not deleted.';
+            $_SESSION['session_message_type'] = 'danger';
+            header('Location: /sessions');
+            exit;
+        }
+
+        // Prevent deleting the global default session
+        $sessStmt = $db->prepare('SELECT id, name, is_active FROM sessions WHERE id = ?');
+        $sessStmt->execute([$sessionId]);
+        $session = $sessStmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$session) {
+            $_SESSION['session_message'] = 'Session not found.';
+            $_SESSION['session_message_type'] = 'danger';
+            header('Location: /sessions');
+            exit;
+        }
+
+        if ((int)$session['id'] === 1) {
+            $_SESSION['session_message'] = 'The default session cannot be deleted.';
+            $_SESSION['session_message_type'] = 'danger';
+            header('Location: /sessions');
+            exit;
+        }
+
+        // Check if this is the current user's active session
+        $currentActive = SessionHelper::currentSessionId();
+        if ($currentActive === $sessionId) {
+            $_SESSION['session_message'] = 'Cannot delete the session you are currently viewing. Switch to another session first.';
+            $_SESSION['session_message_type'] = 'danger';
+            header('Location: /sessions');
+            exit;
+        }
+
+        try {
+            $db->beginTransaction();
+
+            // Delete all data associated with this session (in FK order)
+            $tables = [
+                'group_move_logs',
+                'crew_attendance',
+                'crew',
+                'event_group_settings',
+                'event_groups',
+                'participants',
+            ];
+            foreach ($tables as $table) {
+                $delStmt = $db->prepare("DELETE FROM {$table} WHERE session_id = ?");
+                $delStmt->execute([$sessionId]);
+            }
+
+            // Delete the session itself
+            $delSession = $db->prepare('DELETE FROM sessions WHERE id = ?');
+            $delSession->execute([$sessionId]);
+
+            $db->commit();
+
+            $_SESSION['session_message'] = 'Session "' . htmlspecialchars($session['name']) . '" and all its data have been permanently deleted.';
+            $_SESSION['session_message_type'] = 'success';
+        } catch (\Exception $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            $_SESSION['session_message'] = 'Could not delete session: ' . $e->getMessage();
+            $_SESSION['session_message_type'] = 'danger';
+        }
+
+        header('Location: /sessions');
+        exit;
+    }
+
+    /**
      * Set a session as the global default (superuser only).
      * This determines which session public pages and new logins use.
      */

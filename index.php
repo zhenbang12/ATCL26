@@ -60,6 +60,7 @@ $router->get('/participants/groups/state', 'ParticipantController@groupsState');
 $router->post('/participants/clear-groups', 'ParticipantController@clearGroups');
 $router->post('/participants/clear-group-shells', 'ParticipantController@clearGroupShells');
 $router->get('/participants/export', 'ParticipantController@export');
+$router->get('/participants/export-groups', 'ParticipantController@exportGroups');
 $router->get('/participants/duplicates', 'ParticipantController@duplicates');
 $router->post('/participants/duplicates/resolve', 'ParticipantController@resolveDuplicate');
 $router->post('/participants/duplicates/unresolve', 'ParticipantController@unresolveDuplicate');
@@ -125,6 +126,7 @@ $router->get('/sessions/create', 'SessionController@create');
 $router->post('/sessions/store', 'SessionController@store');
 $router->post('/sessions/activate', 'SessionController@activate');
 $router->post('/sessions/set-default', 'SessionController@setDefault');
+$router->post('/sessions/delete', 'SessionController@delete');
 
 // Dispatch
 $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);

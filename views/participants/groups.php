@@ -35,7 +35,12 @@ usort($allParticipants, function($a, $b) {
     return strcmp(strtolower($a['full_name'] ?? ''), strtolower($b['full_name'] ?? ''));
 });
 ?>
-<h2>Grouping Overview</h2>
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h2 class="mb-0">Grouping Overview</h2>
+    <a href="/participants/export-groups" class="btn btn-success btn-sm" style="border-radius: 100px;">
+        <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: text-bottom;">download</span> Export Grouping to CSV
+    </a>
+</div>
 
 <?php if ($message): ?>
     <div class="alert alert-<?= $messageType ?> alert-dismissible fade show" role="alert">

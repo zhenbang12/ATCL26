@@ -151,6 +151,44 @@ $currentSession = SessionHelper::currentSession();
                                         </button>
                                     </form>
                                     <?php endif; ?>
+                                    <?php if (\App\Core\Auth::isSuperuser() && (int)$s['id'] !== 1 && !$isActive): ?>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" style="border-radius: 100px; font-size: 0.75rem; padding: 4px 14px;" data-bs-toggle="modal" data-bs-target="#deleteSessionModal<?= (int)$s['id'] ?>" title="Permanently delete this session and all its data">
+                                        <span class="material-symbols-outlined" style="font-size: 15px; vertical-align: text-bottom;">delete</span> Delete
+                                    </button>
+                                    <!-- Delete Confirmation Modal -->
+                                    <div class="modal fade" id="deleteSessionModal<?= (int)$s['id'] ?>" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content" style="border-radius: 20px; border: 1px solid var(--md-sys-color-outline-variant);">
+                                                <div class="modal-header border-0 pb-0">
+                                                    <h5 class="modal-title fw-bold d-flex align-items-center gap-2" style="color: var(--md-sys-color-error);">
+                                                        <span class="material-symbols-outlined">warning</span>
+                                                        Delete Session
+                                                    </h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body pt-2">
+                                                    <p class="mb-3" style="color: var(--md-sys-color-on-surface);">
+                                                        You are about to permanently delete <strong>"<?= htmlspecialchars($s['name']) ?>"</strong> and <strong>all of its data</strong> (participants, groups, crew, check-ins, move logs).
+                                                    </p>
+                                                    <p class="mb-3 text-danger fw-semibold" style="font-size: 0.85rem;">This action cannot be undone.</p>
+                                                    <form method="POST" action="/sessions/delete">
+                                                        <input type="hidden" name="session_id" value="<?= (int)$s['id'] ?>">
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-semibold" style="color: var(--md-sys-color-on-surface-variant);">Enter your password to confirm</label>
+                                                            <input type="password" class="form-control" name="password" required placeholder="Your login password" style="border-radius: 12px; border: 1px solid var(--md-sys-color-outline-variant);">
+                                                        </div>
+                                                        <div class="d-flex gap-2 justify-content-end">
+                                                            <button type="button" class="btn btn-sm" data-bs-dismiss="modal" style="border-radius: 100px; border: 1px solid var(--md-sys-color-outline); color: var(--md-sys-color-on-surface);">Cancel</button>
+                                                            <button type="submit" class="btn btn-danger btn-sm" style="border-radius: 100px;">
+                                                                <span class="material-symbols-outlined" style="font-size: 15px; vertical-align: text-bottom;">delete_forever</span> Delete Permanently
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>
