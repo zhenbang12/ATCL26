@@ -12,8 +12,17 @@ if (session_status() === PHP_SESSION_NONE) {
     $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
     ini_set('session.cookie_secure', $https ? '1' : '0');
+    ini_set('session.cookie_httponly', '1');
     ini_set('session.cookie_samesite', 'Lax');
     session_start();
+}
+
+// Send HTTP Security Headers to prevent Clickjacking, XSS, and MIME-sniffing
+if (!headers_sent()) {
+    header("X-Frame-Options: DENY");
+    header("X-Content-Type-Options: nosniff");
+    header("X-XSS-Protection: 1; mode=block");
+    header("Referrer-Policy: strict-origin-when-cross-origin");
 }
 
 spl_autoload_register(function (string $class): void {

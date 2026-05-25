@@ -21,15 +21,11 @@ class ParticipantController
         // Calculate statistics
         $stats = [];
         
-        // Total participants
-        $stmt = $db->query('SELECT COUNT(*) as total FROM participants');
-        $stats['total'] = (int)$stmt->fetch(\PDO::FETCH_ASSOC)['total'];
-        
-        // Checked in count
-        $stmt = $db->query('SELECT COUNT(*) as count FROM participants WHERE checked_in_at IS NOT NULL');
-        $stats['checked_in'] = (int)$stmt->fetch(\PDO::FETCH_ASSOC)['count'];
-        
-        // Not checked in count
+        // Fetch total and checked-in counts in a single query (excluding duplicates)
+        $statsStmt = $db->query('SELECT COUNT(*) as total, COUNT(checked_in_at) as checked_in FROM participants WHERE duplicate_of IS NULL');
+        $statsData = $statsStmt->fetch(\PDO::FETCH_ASSOC);
+        $stats['total'] = (int)($statsData['total'] ?? 0);
+        $stats['checked_in'] = (int)($statsData['checked_in'] ?? 0);
         $stats['not_checked_in'] = $stats['total'] - $stats['checked_in'];
         
         // Groups: configured shells if present, else distinct assignments
@@ -38,16 +34,16 @@ class ParticipantController
             if ($shellCount > 0) {
                 $stats['groups'] = $shellCount;
             } else {
-                $stmt = $db->query("SELECT COUNT(DISTINCT group_code) as count FROM participants WHERE group_code IS NOT NULL AND group_code != ''");
+                $stmt = $db->query("SELECT COUNT(DISTINCT group_code) as count FROM participants WHERE group_code IS NOT NULL AND group_code != '' AND duplicate_of IS NULL");
                 $stats['groups'] = (int)$stmt->fetch(\PDO::FETCH_ASSOC)['count'];
             }
         } catch (\Exception $e) {
-            $stmt = $db->query("SELECT COUNT(DISTINCT group_code) as count FROM participants WHERE group_code IS NOT NULL AND group_code != ''");
+            $stmt = $db->query("SELECT COUNT(DISTINCT group_code) as count FROM participants WHERE group_code IS NOT NULL AND group_code != '' AND duplicate_of IS NULL");
             $stats['groups'] = (int)$stmt->fetch(\PDO::FETCH_ASSOC)['count'];
         }
         
         // Faculty distribution
-        $stmt = $db->query("SELECT faculty, COUNT(*) as count FROM participants GROUP BY faculty ORDER BY count DESC");
+        $stmt = $db->query("SELECT faculty, COUNT(*) as count FROM participants WHERE duplicate_of IS NULL GROUP BY faculty ORDER BY count DESC");
         $facultyData = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         $stats['faculty_distribution'] = [];
         foreach ($facultyData as $row) {
@@ -55,7 +51,7 @@ class ParticipantController
         }
         
         // Language distribution
-        $stmt = $db->query("SELECT preferred_language, COUNT(*) as count FROM participants GROUP BY preferred_language ORDER BY count DESC");
+        $stmt = $db->query("SELECT preferred_language, COUNT(*) as count FROM participants WHERE duplicate_of IS NULL GROUP BY preferred_language ORDER BY count DESC");
         $languageData = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         $stats['language_distribution'] = [];
         foreach ($languageData as $row) {
@@ -63,7 +59,7 @@ class ParticipantController
         }
         
         // Group distribution
-        $stmt = $db->query("SELECT group_code, COUNT(*) as count FROM participants WHERE group_code IS NOT NULL AND group_code != '' GROUP BY group_code ORDER BY group_code");
+        $stmt = $db->query("SELECT group_code, COUNT(*) as count FROM participants WHERE group_code IS NOT NULL AND group_code != '' AND duplicate_of IS NULL GROUP BY group_code ORDER BY group_code");
         $groupData = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         $stats['group_distribution'] = [];
         foreach ($groupData as $row) {
@@ -71,24 +67,13 @@ class ParticipantController
         }
         
         // Recent registrations (last 10)
-        $stmt = $db->query('SELECT id, full_name, student_id, intake, programme_name, faculty, group_code, registration_type, checked_in_at FROM participants ORDER BY id DESC LIMIT 10');
+        $stmt = $db->query('SELECT id, full_name, student_id, intake, programme_name, faculty, group_code, registration_type, checked_in_at FROM participants WHERE duplicate_of IS NULL ORDER BY id DESC LIMIT 10');
         $recentParticipants = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         $registrationSettings = SettingsController::loadRegistrationSettings($db);
-
-        // Fetch participants list for the table with filter
+ 
+        // NOTE: The main table list is loaded dynamically via DataTables AJAX endpoint (/participants/data).
+        // Statically query-loading all participants here is redundant and has been removed to conserve database resources and memory.
         $currentFilter = $_GET['filter'] ?? 'all';
-        $query = 'SELECT id, full_name, student_id, student_email, intake, programme_name, faculty, contact_no, preferred_language, group_code, registration_type, checked_in_at FROM participants';
-        
-        if ($currentFilter === 'checked_in') {
-            $query .= ' WHERE checked_in_at IS NOT NULL';
-        } elseif ($currentFilter === 'not_checked_in') {
-            $query .= ' WHERE checked_in_at IS NULL';
-        }
-        
-        $query .= ' ORDER BY full_name';
-        
-        $stmt = $db->query($query);
-        $participants = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/participants/index.php';
@@ -200,7 +185,7 @@ class ParticipantController
             $checkStmt = $db->prepare('SELECT id, full_name FROM participants WHERE student_id = ?');
             $checkStmt->execute([$studentId]);
             $existing = $checkStmt->fetch(\PDO::FETCH_ASSOC);
-            
+
             if ($existing) {
                 // Student ID already exists - redirect back with edit details prompt
                 $_SESSION['registration_error'] = 'This Student ID is already registered.';
@@ -211,11 +196,41 @@ class ParticipantController
             }
         }
 
+        // Check for duplicate email
+        if (!empty($studentEmail)) {
+            $checkStmt = $db->prepare('SELECT id, full_name, student_id FROM participants WHERE student_email = ? AND duplicate_of IS NULL LIMIT 1');
+            $checkStmt->execute([$studentEmail]);
+            $existing = $checkStmt->fetch(\PDO::FETCH_ASSOC);
+
+            if ($existing) {
+                $_SESSION['registration_error'] = 'This email is already registered.';
+                $_SESSION['registration_duplicate_id'] = $existing['student_id'];
+                $_SESSION['registration_input'] = $_POST;
+                header('Location: ' . $returnPath);
+                exit;
+            }
+        }
+
+        // Check for duplicate phone number
+        $contactNo = $this->formatPhoneNumber($_POST['contact_no'] ?? '');
+        if (!empty($contactNo)) {
+            $checkStmt = $db->prepare('SELECT id, full_name, student_id FROM participants WHERE contact_no = ? AND duplicate_of IS NULL LIMIT 1');
+            $checkStmt->execute([$contactNo]);
+            $existing = $checkStmt->fetch(\PDO::FETCH_ASSOC);
+
+            if ($existing) {
+                $_SESSION['registration_error'] = 'This phone number is already registered.';
+                $_SESSION['registration_duplicate_id'] = $existing['student_id'];
+                $_SESSION['registration_input'] = $_POST;
+                header('Location: ' . $returnPath);
+                exit;
+            }
+        }
+
         // Generate a unique QR code value for this participant
         $qrCode = bin2hex(random_bytes(8));
 
-        // Convert phone numbers from 0XXXXXXXXX to 60XXXXXXXXX format
-        $contactNo = $this->formatPhoneNumber($_POST['contact_no'] ?? '');
+        // Convert emergency phone number from 0XXXXXXXXX to 60XXXXXXXXX format
         $emergencyContactNo = $this->formatPhoneNumber($_POST['emergency_contact_no'] ?? '');
         $preferredLanguage = trim((string)($_POST['preferred_language'] ?? ''));
 
@@ -329,6 +344,14 @@ class ParticipantController
             if ((int)($participant['blacklisted'] ?? 0) === 1) {
                 $checkinCriticalError = 'Participant is blacklisted and cannot be checked in.';
             } else {
+                if (!empty($participant['duplicate_of'])) {
+                    $canonStmt = $db->prepare('SELECT full_name, student_id FROM participants WHERE id = ?');
+                    $canonStmt->execute([(int)$participant['duplicate_of']]);
+                    $canonical = $canonStmt->fetch(\PDO::FETCH_ASSOC);
+                    if ($canonical) {
+                        $checkinAssignmentNotice = 'This record is flagged as a duplicate of ' . htmlspecialchars($canonical['full_name']) . ' (' . htmlspecialchars($canonical['student_id']) . '). Consider checking in the original record instead.';
+                    }
+                }
                 $participantId = (int)$participant['id'];
                 $hadGroup = trim((string)($participant['group_code'] ?? '')) !== '';
 
@@ -557,6 +580,50 @@ class ParticipantController
     }
 
     /**
+     * View for assigning senior buddies (facilitators) to group shells.
+     */
+    public function assignBuddy(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db = Container::get('db');
+
+        // Get group shells
+        $stmt = $db->query('SELECT id, group_code, language_pool FROM event_groups ORDER BY sort_order, group_code');
+        $groups = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        // Get crew marked as facilitators
+        $facilitators = [];
+        $facilitatorByGroup = [];
+        try {
+            $stmt = $db->query("
+                SELECT id, full_name, assigned_group_code
+                FROM crew
+                WHERE is_facilitator = 1
+                ORDER BY full_name
+            ");
+            $facilitators = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            foreach ($facilitators as $facilitator) {
+                $assignedGroup = trim((string)($facilitator['assigned_group_code'] ?? ''));
+                if ($assignedGroup !== '') {
+                    if (!isset($facilitatorByGroup[$assignedGroup])) {
+                        $facilitatorByGroup[$assignedGroup] = [];
+                    }
+                    $facilitatorByGroup[$assignedGroup][] = $facilitator;
+                }
+            }
+        } catch (\Exception $e) {
+            $facilitators = [];
+            $facilitatorByGroup = [];
+        }
+
+        $title = 'Assign Senior Buddies';
+        include __DIR__ . '/../../views/layout/header.php';
+        include __DIR__ . '/../../views/participants/assign_buddy.php';
+        include __DIR__ . '/../../views/layout/footer.php';
+    }
+
+    /**
      * Assign one facilitator (senior buddy) to a specific group.
      */
     public function assignFacilitatorToGroup(): void
@@ -577,7 +644,7 @@ class ParticipantController
         if (!preg_match('/^\d{1,2}$/', $groupCode)) {
             $_SESSION['grouping_message'] = 'Invalid group code for facilitator assignment.';
             $_SESSION['grouping_message_type'] = 'danger';
-            header('Location: /participants/groups');
+            header('Location: /participants/assign-buddy');
             exit;
         }
 
@@ -587,7 +654,7 @@ class ParticipantController
             if (!$v->fetchColumn()) {
                 $_SESSION['grouping_message'] = 'That group is not part of the saved layout.';
                 $_SESSION['grouping_message_type'] = 'danger';
-                header('Location: /participants/groups');
+                header('Location: /participants/assign-buddy');
                 exit;
             }
         }
@@ -616,7 +683,80 @@ class ParticipantController
             $_SESSION['grouping_message_type'] = 'danger';
         }
 
-        header('Location: /participants/groups');
+        header('Location: /participants/assign-buddy');
+        exit;
+    }
+
+    /**
+     * Bulk assign senior buddies to groups.
+     */
+    public function assignFacilitatorsBulk(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db = Container::get('db');
+        $assignments = $_POST['assignments'] ?? [];
+
+        if (!is_array($assignments)) {
+            $_SESSION['grouping_message'] = 'Invalid request parameters.';
+            $_SESSION['grouping_message_type'] = 'danger';
+            header('Location: /participants/assign-buddy');
+            exit;
+        }
+
+        try {
+            $db->beginTransaction();
+
+            // Clear all current assignments for facilitators
+            $db->exec('UPDATE crew SET assigned_group_code = NULL WHERE is_facilitator = 1');
+
+            $assignedCrewIds = [];
+            $assignStmt = $db->prepare('UPDATE crew SET assigned_group_code = ? WHERE id = ? AND is_facilitator = 1');
+
+            foreach ($assignments as $groupCode => $crewIds) {
+                $groupCode = trim((string)$groupCode);
+                if ($groupCode === '') {
+                    continue;
+                }
+
+                if (!is_array($crewIds)) {
+                    $crewIds = [];
+                }
+
+                // Filter and unique crew IDs, ignoring 0 (unassigned)
+                $crewIds = array_values(array_unique(array_filter(array_map('intval', $crewIds), static function ($id) {
+                    return $id > 0;
+                })));
+
+                // Limit to 2 facilitators per group max
+                $crewIds = array_slice($crewIds, 0, 2);
+
+                foreach ($crewIds as $crewId) {
+                    // Check for duplicate assignments across different groups
+                    if (isset($assignedCrewIds[$crewId])) {
+                        $q = $db->prepare('SELECT full_name FROM crew WHERE id = ? LIMIT 1');
+                        $q->execute([$crewId]);
+                        $name = $q->fetchColumn() ?: 'Facilitator (ID ' . $crewId . ')';
+                        throw new \Exception('Senior buddy "' . $name . '" cannot be assigned to multiple groups.');
+                    }
+
+                    $assignedCrewIds[$crewId] = $groupCode;
+
+                    // Update assignment in database
+                    $assignStmt->execute([$groupCode, $crewId]);
+                }
+            }
+
+            $db->commit();
+            $_SESSION['grouping_message'] = 'All senior buddy assignments updated successfully.';
+            $_SESSION['grouping_message_type'] = 'success';
+        } catch (\Exception $e) {
+            $db->rollBack();
+            $_SESSION['grouping_message'] = 'Failed to save assignments: ' . $e->getMessage();
+            $_SESSION['grouping_message_type'] = 'danger';
+        }
+
+        header('Location: /participants/assign-buddy');
         exit;
     }
 
@@ -1021,18 +1161,17 @@ class ParticipantController
         $filter = $_GET['filter'] ?? 'all';
         
         // Build query with optional filter (same as index method)
-        $query = 'SELECT id, full_name, ic_passport_no, student_id, student_email, intake, programme_name, faculty, gender, contact_no, emergency_contact_no, emergency_contact_relationship, preferred_language, registration_type, group_code, checked_in_at, created_at FROM participants';
-        
+        $query = 'SELECT id, full_name, ic_passport_no, student_id, student_email, intake, programme_name, faculty, gender, contact_no, emergency_contact_no, emergency_contact_relationship, preferred_language, registration_type, group_code, checked_in_at, created_at FROM participants WHERE duplicate_of IS NULL';
+
         if ($filter === 'checked_in') {
-            $query .= ' WHERE checked_in_at IS NOT NULL';
+            $query .= ' AND checked_in_at IS NOT NULL';
         } elseif ($filter === 'not_checked_in') {
-            $query .= ' WHERE checked_in_at IS NULL';
+            $query .= ' AND checked_in_at IS NULL';
         }
         
         $query .= ' ORDER BY full_name';
         
         $stmt = $db->query($query);
-        $participants = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         // Set headers for CSV download
         $filename = 'participants_' . date('Y-m-d_His') . ($filter !== 'all' ? '_' . $filter : '') . '.csv';
@@ -1070,8 +1209,8 @@ class ParticipantController
         ];
         fputcsv($output, $headers);
 
-        // Write data rows
-        foreach ($participants as $p) {
+        // Write data rows by streaming each database record to output
+        while ($p = $stmt->fetch(\PDO::FETCH_ASSOC)) {
             $row = [
                 $p['id'] ?? '',
                 $p['full_name'] ?? '',
@@ -1602,5 +1741,396 @@ class ParticipantController
             header('Location: /participants/edit-public');
             exit;
         }
+    }
+
+    /**
+     * AJAX endpoint for server-side paginated DataTables.
+     */
+    public function tableData(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db = Container::get('db');
+
+        // Parameters from DataTables
+        $draw = (int)($_GET['draw'] ?? 1);
+        $start = (int)($_GET['start'] ?? 0);
+        $length = (int)($_GET['length'] ?? 10);
+        $search = trim((string)($_GET['search']['value'] ?? ''));
+        $currentFilter = $_GET['filter'] ?? 'all';
+
+        // Sorting
+        $orderColumnIndex = (int)($_GET['order'][0]['column'] ?? 1);
+        $orderDir = strtolower(trim((string)($_GET['order'][0]['dir'] ?? 'asc')));
+        if ($orderDir !== 'desc') {
+            $orderDir = 'asc';
+        }
+
+        // Map column index to database column name
+        $columns = [
+            0 => 'id',
+            1 => 'full_name',
+            2 => 'student_id',
+            3 => 'student_email',
+            4 => 'programme_name',
+            5 => 'faculty',
+            6 => 'contact_no',
+            7 => 'preferred_language',
+            8 => 'registration_type',
+            9 => 'group_code',
+            10 => 'checked_in_at'
+        ];
+        $orderBy = $columns[$orderColumnIndex] ?? 'full_name';
+        
+        // Build base query
+        $whereClauses = ['duplicate_of IS NULL'];
+        $params = [];
+
+        // Apply tab filter (all, checked_in, not_checked_in)
+        if ($currentFilter === 'checked_in') {
+            $whereClauses[] = 'checked_in_at IS NOT NULL';
+        } elseif ($currentFilter === 'not_checked_in') {
+            $whereClauses[] = 'checked_in_at IS NULL';
+        }
+
+        // Apply search keyword
+        if ($search !== '') {
+            $searchWildcard = '%' . $search . '%';
+            $whereClauses[] = '(full_name LIKE ? OR student_id LIKE ? OR student_email LIKE ? OR programme_name LIKE ? OR faculty LIKE ? OR group_code LIKE ?)';
+            array_push($params, $searchWildcard, $searchWildcard, $searchWildcard, $searchWildcard, $searchWildcard, $searchWildcard);
+        }
+
+        $whereSql = '';
+        if ($whereClauses !== []) {
+            $whereSql = ' WHERE ' . implode(' AND ', $whereClauses);
+        }
+
+        // Get total records in the database (without search keyword, but with custom tab filter if active)
+        $totalWhereClauses = ['duplicate_of IS NULL'];
+        $totalParams = [];
+        if ($currentFilter === 'checked_in') {
+            $totalWhereClauses[] = 'checked_in_at IS NOT NULL';
+        } elseif ($currentFilter === 'not_checked_in') {
+            $totalWhereClauses[] = 'checked_in_at IS NULL';
+        }
+        $totalWhereSql = ' WHERE ' . implode(' AND ', $totalWhereClauses);
+        $countTotalStmt = $db->prepare('SELECT COUNT(*) FROM participants' . $totalWhereSql);
+        $countTotalStmt->execute($totalParams);
+        $recordsTotal = (int)$countTotalStmt->fetchColumn();
+
+        // Get filtered records count
+        $countFilteredStmt = $db->prepare('SELECT COUNT(*) FROM participants' . $whereSql);
+        $countFilteredStmt->execute($params);
+        $recordsFiltered = (int)$countFilteredStmt->fetchColumn();
+
+        // Fetch records
+        $orderBySafe = $orderBy; 
+        $orderDirSafe = $orderDir; 
+
+        $querySql = 'SELECT id, full_name, student_id, student_email, intake, programme_name, faculty, contact_no, preferred_language, group_code, registration_type, checked_in_at FROM participants' . $whereSql;
+        
+        // Add ordering
+        if ($orderBySafe === 'group_code') {
+            $querySql .= ' ORDER BY CAST(group_code AS UNSIGNED) ' . $orderDirSafe . ', group_code ' . $orderDirSafe;
+        } else {
+            $querySql .= ' ORDER BY ' . $orderBySafe . ' ' . $orderDirSafe;
+        }
+        
+        // Add limit and offset
+        $querySql .= ' LIMIT ' . (int)$length . ' OFFSET ' . (int)$start;
+
+        $stmt = $db->prepare($querySql);
+        $stmt->execute($params);
+        $participants = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $isLoggedIn = Auth::check();
+        $data = [];
+        $counter = $start + 1;
+
+        foreach ($participants as $p) {
+            $actionsHtml = '';
+            if ($isLoggedIn) {
+                $actionsHtml = '<div class="d-flex align-items-center">' .
+                    '<a href="/participants/edit?id=' . (int)$p['id'] . '" class="btn btn-sm btn-outline-primary py-1 px-3 me-2" style="border-radius: 8px !important; font-size: 0.75rem !important;">Edit</a>' .
+                    '<form method="post" action="/participants/delete" class="d-inline m-0" onsubmit="return confirm(\'Are you sure you want to delete this participant?\');">' .
+                    '<input type="hidden" name="id" value="' . (int)$p['id'] . '">' .
+                    '<button type="submit" class="btn btn-sm btn-outline-danger py-1 px-3" style="border-radius: 8px !important; font-size: 0.75rem !important;">Delete</button>' .
+                    '</form>' .
+                    '</div>';
+            }
+
+            $langBadge = '<span class="badge bg-secondary" style="font-size: 10px;">' . htmlspecialchars($p['preferred_language'] ?? '') . '</span>';
+            
+            $regBadge = (($p['registration_type'] ?? 'pre_register') === 'walk_in')
+                ? '<span class="badge bg-dark" style="font-size: 10px;">Walk-in</span>'
+                : '<span class="badge bg-secondary" style="font-size: 10px;">Pre-register</span>';
+
+            $checkedInBadge = !empty($p['checked_in_at'])
+                ? '<span class="badge bg-success" style="font-size: 10px;">Yes</span>'
+                : '<span class="badge bg-warning text-dark" style="font-size: 10px;">No</span>';
+
+            $row = [
+                $counter++,
+                htmlspecialchars($p['full_name'] ?? ''),
+                htmlspecialchars($p['student_id'] ?? ''),
+                htmlspecialchars($p['student_email'] ?? ''),
+                htmlspecialchars($p['programme_name'] ?? ''),
+                htmlspecialchars($p['faculty'] ?? ''),
+                htmlspecialchars($p['contact_no'] ?? ''),
+                $langBadge,
+                $regBadge,
+                '<span class="fw-bold text-primary">' . htmlspecialchars($p['group_code'] ?: '-') . '</span>',
+                $checkedInBadge,
+            ];
+
+            if ($isLoggedIn) {
+                $row[] = $actionsHtml;
+            }
+
+            $data[] = $row;
+        }
+
+        header('Content-Type: application/json');
+        echo json_encode([
+            'draw' => $draw,
+            'recordsTotal' => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data' => $data
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    /**
+     * Move multiple participants to another group at once (POST).
+     */
+    public function bulkMoveParticipantGroup(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db = Container::get('db');
+        $participantIds = $_POST['participant_ids'] ?? [];
+        if (!is_array($participantIds)) {
+            $participantIds = [];
+        }
+        $participantIds = array_map('intval', $participantIds);
+        $participantIds = array_values(array_filter($participantIds, function($id) { return $id > 0; }));
+
+        $targetGroup = trim((string)($_POST['target_group'] ?? ''));
+        if ($targetGroup !== '') {
+            if (!preg_match('/^\d{1,2}$/', $targetGroup)) {
+                $this->respondGroupMove(false, 'Invalid target group.');
+                return;
+            }
+            $targetGroup = (string)((int)$targetGroup);
+        } else {
+            $targetGroup = null;
+        }
+
+        if ($participantIds === []) {
+            $this->respondGroupMove(false, 'No participants selected.');
+            return;
+        }
+
+        if ($targetGroup !== null && $this->eventGroupLayoutExists($db)) {
+            $v = $db->prepare('SELECT 1 FROM event_groups WHERE group_code = ? LIMIT 1');
+            $v->execute([$targetGroup]);
+            if (!$v->fetchColumn()) {
+                $this->respondGroupMove(false, 'Target group is not in the saved layout.');
+                return;
+            }
+        }
+
+        try {
+            $db->beginTransaction();
+
+            $movedBy = (string)(Auth::user()['username'] ?? 'Unknown');
+            $logInsert = $db->prepare('
+                INSERT INTO group_move_logs (
+                    participant_id,
+                    participant_name,
+                    from_group_code,
+                    to_group_code,
+                    moved_by,
+                    action_type
+                ) VALUES (?, ?, ?, ?, ?, "move")
+            ');
+
+            $update = $db->prepare('UPDATE participants SET group_code = ? WHERE id = ?');
+            
+            $movedCount = 0;
+            foreach ($participantIds as $id) {
+                // Get current group and name
+                $stmt = $db->prepare('SELECT full_name, group_code FROM participants WHERE id = ?');
+                $stmt->execute([$id]);
+                $p = $stmt->fetch(\PDO::FETCH_ASSOC);
+                if (!$p) {
+                    continue;
+                }
+
+                $fromGroup = $p['group_code'] ?? null;
+                $fromGroup = $fromGroup === '' ? null : $fromGroup;
+
+                // Update group code
+                $update->execute([$targetGroup, $id]);
+
+                // Log entry
+                $logInsert->execute([
+                    $id,
+                    $p['full_name'],
+                    $fromGroup,
+                    $targetGroup,
+                    $movedBy
+                ]);
+                $movedCount++;
+            }
+
+            $db->commit();
+            
+            // Fetch the latest move log ID
+            $latestIdStmt = $db->query('SELECT MAX(id) FROM group_move_logs');
+            $latestLogId = (int)$latestIdStmt->fetchColumn();
+
+            $toLabel = $targetGroup === null ? 'Ungrouped' : 'Group ' . $targetGroup;
+            $this->respondGroupMove(true, "Successfully moved {$movedCount} participants to {$toLabel}.", [
+                'latest_move_log_id' => $latestLogId
+            ]);
+        } catch (\Exception $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            $this->respondGroupMove(false, 'Failed to perform bulk move: ' . $e->getMessage());
+        }
+    }
+
+    public function duplicates(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db = Container::get('db');
+        $title = 'Duplicate Detection';
+
+        // Find duplicate emails
+        $emailDupes = [];
+        $stmt = $db->query("SELECT student_email, COUNT(*) as cnt, GROUP_CONCAT(id) as ids FROM participants WHERE duplicate_of IS NULL AND student_email != '' GROUP BY student_email HAVING cnt > 1 ORDER BY cnt DESC");
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+            $ids = array_map('intval', explode(',', $row['ids']));
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $pStmt = $db->prepare("SELECT * FROM participants WHERE id IN ($placeholders) ORDER BY created_at ASC");
+            $pStmt->execute($ids);
+            $emailDupes[] = [
+                'match_value' => $row['student_email'],
+                'count' => (int)$row['cnt'],
+                'participants' => $pStmt->fetchAll(\PDO::FETCH_ASSOC)
+            ];
+        }
+
+        // Find duplicate phones
+        $phoneDupes = [];
+        $stmt = $db->query("SELECT contact_no, COUNT(*) as cnt, GROUP_CONCAT(id) as ids FROM participants WHERE duplicate_of IS NULL AND contact_no != '' GROUP BY contact_no HAVING cnt > 1 ORDER BY cnt DESC");
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+            $ids = array_map('intval', explode(',', $row['ids']));
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $pStmt = $db->prepare("SELECT * FROM participants WHERE id IN ($placeholders) ORDER BY created_at ASC");
+            $pStmt->execute($ids);
+            $phoneDupes[] = [
+                'match_value' => $row['contact_no'],
+                'count' => (int)$row['cnt'],
+                'participants' => $pStmt->fetchAll(\PDO::FETCH_ASSOC)
+            ];
+        }
+
+        // Find duplicate names
+        $nameDupes = [];
+        $stmt = $db->query("SELECT full_name, COUNT(*) as cnt, GROUP_CONCAT(id) as ids FROM participants WHERE duplicate_of IS NULL GROUP BY full_name HAVING cnt > 1 ORDER BY cnt DESC");
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+            $ids = array_map('intval', explode(',', $row['ids']));
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $pStmt = $db->prepare("SELECT * FROM participants WHERE id IN ($placeholders) ORDER BY created_at ASC");
+            $pStmt->execute($ids);
+            $nameDupes[] = [
+                'match_value' => $row['full_name'],
+                'count' => (int)$row['cnt'],
+                'participants' => $pStmt->fetchAll(\PDO::FETCH_ASSOC)
+            ];
+        }
+
+        // Already flagged duplicates
+        $flagged = $db->query("SELECT p.*, c.full_name as canonical_name, c.student_id as canonical_student_id FROM participants p LEFT JOIN participants c ON p.duplicate_of = c.id WHERE p.duplicate_of IS NOT NULL ORDER BY p.created_at DESC")->fetchAll(\PDO::FETCH_ASSOC);
+
+        $totalGroups = count($emailDupes) + count($phoneDupes) + count($nameDupes);
+
+        include __DIR__ . '/../../views/layout/header.php';
+        include __DIR__ . '/../../views/participants/duplicates.php';
+        include __DIR__ . '/../../views/layout/footer.php';
+    }
+
+    public function resolveDuplicate(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db = Container::get('db');
+        $duplicateIdsRaw = trim((string)($_POST['duplicate_id'] ?? ''));
+        $canonicalId = (int)($_POST['canonical_id'] ?? 0);
+
+        if ($duplicateIdsRaw === '' || $canonicalId <= 0) {
+            $_SESSION['participants_message'] = 'Invalid selection. Please select one record as the original.';
+            $_SESSION['participants_message_type'] = 'danger';
+            header('Location: /participants/duplicates');
+            exit;
+        }
+
+        $duplicateIds = array_filter(array_map('intval', explode(',', $duplicateIdsRaw)), fn($id) => $id > 0 && $id !== $canonicalId);
+
+        if (empty($duplicateIds)) {
+            $_SESSION['participants_message'] = 'No valid duplicate records to flag.';
+            $_SESSION['participants_message_type'] = 'danger';
+            header('Location: /participants/duplicates');
+            exit;
+        }
+
+        try {
+            $stmt = $db->prepare('UPDATE participants SET duplicate_of = ? WHERE id = ?');
+            $flagged = 0;
+            foreach ($duplicateIds as $dupId) {
+                $stmt->execute([$canonicalId, $dupId]);
+                $flagged += $stmt->rowCount();
+            }
+            $_SESSION['participants_message'] = "Flagged {$flagged} record(s) as duplicate of #{$canonicalId}.";
+            $_SESSION['participants_message_type'] = 'success';
+        } catch (\Exception $e) {
+            $_SESSION['participants_message'] = 'Error: ' . $e->getMessage();
+            $_SESSION['participants_message_type'] = 'danger';
+        }
+
+        header('Location: /participants/duplicates');
+        exit;
+    }
+
+    public function unresolveDuplicate(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db = Container::get('db');
+        $id = (int)($_POST['id'] ?? 0);
+
+        if ($id <= 0) {
+            $_SESSION['participants_message'] = 'Invalid participant ID.';
+            $_SESSION['participants_message_type'] = 'danger';
+            header('Location: /participants/duplicates');
+            exit;
+        }
+
+        try {
+            $stmt = $db->prepare('UPDATE participants SET duplicate_of = NULL WHERE id = ?');
+            $stmt->execute([$id]);
+            $_SESSION['participants_message'] = 'Record #' . $id . ' has been unflagged.';
+            $_SESSION['participants_message_type'] = 'success';
+        } catch (\Exception $e) {
+            $_SESSION['participants_message'] = 'Error: ' . $e->getMessage();
+            $_SESSION['participants_message_type'] = 'danger';
+        }
+
+        header('Location: /participants/duplicates');
+        exit;
     }
 }

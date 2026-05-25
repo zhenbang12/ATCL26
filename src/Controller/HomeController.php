@@ -74,7 +74,7 @@ class HomeController
 
         $stmt = $db->query('SELECT COUNT(*) as total,
             SUM(CASE WHEN checked_in_at IS NOT NULL THEN 1 ELSE 0 END) as checked_in
-            FROM participants');
+            FROM participants WHERE duplicate_of IS NULL');
         $participantStats = $stmt->fetch(\PDO::FETCH_ASSOC);
         $stats['participants'] = [
             'total' => (int)($participantStats['total'] ?? 0),

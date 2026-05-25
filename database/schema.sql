@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS participants (
     qr_code VARCHAR(64) UNIQUE,
     group_code VARCHAR(20),
     blacklisted TINYINT(1) NOT NULL DEFAULT 0,
+    duplicate_of INT NULL,
     checked_in_at DATETIME NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY idx_unique_student_id (student_id)

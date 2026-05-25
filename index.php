@@ -23,7 +23,9 @@ $router->post('/settings/registration/save', 'SettingsController@registrationSet
 
 // User management (superuser only)
 $router->get('/users', 'UserController@index');
+$router->post('/users/create', 'UserController@create');
 $router->post('/users/reset-password', 'UserController@resetPassword');
+$router->post('/users/delete', 'UserController@delete');
 
 // Auth
 $router->get('/login', 'AuthController@showLogin');
@@ -33,6 +35,7 @@ $router->get('/logout', 'AuthController@logout');
 // 1. Participant & Admission Management
 $router->get('/participants', 'ParticipantController@index');
 $router->get('/participants/list', 'ParticipantController@list');
+$router->get('/participants/data', 'ParticipantController@tableData');
 $router->get('/participants/create', 'ParticipantController@create');
 $router->get('/participants/create-walkin', 'ParticipantController@createWalkIn');
 $router->post('/participants/store', 'ParticipantController@store');
@@ -48,11 +51,17 @@ $router->post('/participants/groups/save-layout', 'ParticipantController@saveGro
 $router->post('/participants/groups/add-group', 'ParticipantController@addGroupShell');
 $router->post('/participants/groups/add-slot', 'ParticipantController@addGroupSlot');
 $router->post('/participants/groups/move', 'ParticipantController@moveParticipantGroup');
+$router->post('/participants/groups/bulk-move', 'ParticipantController@bulkMoveParticipantGroup');
 $router->post('/participants/groups/assign-facilitator', 'ParticipantController@assignFacilitatorToGroup');
+$router->post('/participants/groups/assign-facilitators-bulk', 'ParticipantController@assignFacilitatorsBulk');
+$router->get('/participants/assign-buddy', 'ParticipantController@assignBuddy');
 $router->get('/participants/groups/state', 'ParticipantController@groupsState');
 $router->post('/participants/clear-groups', 'ParticipantController@clearGroups');
 $router->post('/participants/clear-group-shells', 'ParticipantController@clearGroupShells');
 $router->get('/participants/export', 'ParticipantController@export');
+$router->get('/participants/duplicates', 'ParticipantController@duplicates');
+$router->post('/participants/duplicates/resolve', 'ParticipantController@resolveDuplicate');
+$router->post('/participants/duplicates/unresolve', 'ParticipantController@unresolveDuplicate');
 $router->get('/participants/edit', 'ParticipantController@edit');
 $router->post('/participants/update', 'ParticipantController@update');
 $router->post('/participants/delete', 'ParticipantController@delete');
@@ -95,6 +104,8 @@ $router->get('/operations', 'OperationsController@index');
 $router->get('/operations/crew', 'OperationsController@crew');
 $router->get('/operations/crew/create', 'OperationsController@createCrew');
 $router->post('/operations/crew/store', 'OperationsController@storeCrew');
+$router->get('/operations/crew/edit', 'OperationsController@editCrew');
+$router->post('/operations/crew/update', 'OperationsController@updateCrew');
 $router->post('/operations/crew/update-facilitator', 'OperationsController@updateFacilitator');
 $router->post('/operations/crew/delete', 'OperationsController@deleteCrew');
 $router->get('/operations/games', 'OperationsController@games');

@@ -18,6 +18,7 @@ $modules = [
     ['title' => 'Participants List', 'caption' => 'View all registered participants, edit details, and export CSV data.', 'href' => '/participants'],
     ['title' => 'QR Check-in Scanner', 'caption' => 'Scan participant QR codes or search manually for immediate check-in.', 'href' => '/participants/checkin'],
     ['title' => 'Grouping Overview', 'caption' => 'Manage participant groups, auto-allocate lanes, and assign buddies.', 'href' => '/participants/groups'],
+    ['title' => 'Duplicate Detection', 'caption' => 'Review and resolve duplicate registrations by email, phone, or name.', 'href' => '/participants/duplicates'],
 ];
 ?>
 

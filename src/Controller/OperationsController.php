@@ -78,6 +78,82 @@ class OperationsController
         }
     }
 
+    public function editCrew(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db  = Container::get('db');
+        $id  = (int)($_GET['id'] ?? 0);
+
+        if ($id <= 0) {
+            $_SESSION['crew_message'] = 'Invalid crew member.';
+            $_SESSION['crew_message_type'] = 'danger';
+            header('Location: /operations/crew');
+            exit;
+        }
+
+        $stmt = $db->prepare('SELECT id, full_name, email, role, is_facilitator, assigned_group_code FROM crew WHERE id = ?');
+        $stmt->execute([$id]);
+        $crewMember = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$crewMember) {
+            $_SESSION['crew_message'] = 'Crew member not found.';
+            $_SESSION['crew_message_type'] = 'danger';
+            header('Location: /operations/crew');
+            exit;
+        }
+
+        $title = 'Edit Crew Member';
+        include __DIR__ . '/../../views/layout/header.php';
+        include __DIR__ . '/../../views/operations/crew_edit.php';
+        include __DIR__ . '/../../views/layout/footer.php';
+    }
+
+    public function updateCrew(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db           = Container::get('db');
+        $id           = (int)($_POST['id'] ?? 0);
+        $fullName     = trim((string)($_POST['full_name'] ?? ''));
+        $email        = trim((string)($_POST['email'] ?? ''));
+        $role         = trim((string)($_POST['role'] ?? ''));
+        $isFacilitator = isset($_POST['is_facilitator']) ? 1 : 0;
+
+        if ($id <= 0 || $fullName === '') {
+            $_SESSION['crew_message'] = 'Name is required.';
+            $_SESSION['crew_message_type'] = 'danger';
+            header('Location: /operations/crew/edit?id=' . $id);
+            exit;
+        }
+
+        try {
+            if ($isFacilitator === 0) {
+                // Removing facilitator role clears the group assignment too
+                $stmt = $db->prepare('UPDATE crew SET full_name = ?, email = ?, role = ?, is_facilitator = 0, assigned_group_code = NULL WHERE id = ?');
+                $stmt->execute([$fullName, $email, $role, $id]);
+            } else {
+                $stmt = $db->prepare('UPDATE crew SET full_name = ?, email = ?, role = ?, is_facilitator = 1 WHERE id = ?');
+                $stmt->execute([$fullName, $email, $role, $id]);
+            }
+
+            if ($stmt->rowCount() === 0) {
+                $_SESSION['crew_message'] = 'Crew member not found.';
+                $_SESSION['crew_message_type'] = 'danger';
+            } else {
+                $_SESSION['crew_message'] = 'Crew member updated successfully.';
+                $_SESSION['crew_message_type'] = 'success';
+            }
+        } catch (\Exception $e) {
+            $_SESSION['crew_message'] = 'Failed to update crew: ' . $e->getMessage();
+            $_SESSION['crew_message_type'] = 'danger';
+        }
+
+        header('Location: /operations/crew');
+        exit;
+    }
+
+
     public function updateFacilitator(): void
     {
         Auth::requireRole(['advisor', 'committee']);

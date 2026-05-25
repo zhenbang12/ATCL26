@@ -33,6 +33,10 @@ document.addEventListener('DOMContentLoaded', function() {
         sidebarCollapseBtn.addEventListener('click', function() {
             document.documentElement.classList.add('sidebar-collapsed');
             localStorage.setItem('sidebar-collapsed', 'true');
+            // Wait for the 250ms CSS slide-out transition, then reflow layouts
+            setTimeout(function() {
+                window.dispatchEvent(new Event('resize'));
+            }, 260);
         });
     }
 
@@ -40,6 +44,10 @@ document.addEventListener('DOMContentLoaded', function() {
         sidebarExpandBtn.addEventListener('click', function() {
             document.documentElement.classList.remove('sidebar-collapsed');
             localStorage.setItem('sidebar-collapsed', 'false');
+            // Wait for the 250ms CSS slide-in transition, then reflow layouts
+            setTimeout(function() {
+                window.dispatchEvent(new Event('resize'));
+            }, 260);
         });
     }
 

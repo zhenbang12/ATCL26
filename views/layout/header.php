@@ -57,9 +57,39 @@ $theme = $registrationSettings['theme'] ?? 'violet';
                     </a>
                 </li>
                 <li>
-                    <a href="/participants" class="m3-nav-item <?= ($title ?? '') === 'Participants & Admission' || ($title ?? '') === 'Participants List' || strpos($_SERVER['REQUEST_URI'], '/participants') !== false ? 'active' : '' ?>">
+                    <a href="/participants" class="m3-nav-item <?= ($title ?? '') === 'Participants & Admission' || ($title ?? '') === 'Participants List' || (strpos($_SERVER['REQUEST_URI'], '/participants') !== false && strpos($_SERVER['REQUEST_URI'], '/participants/groups') === false && strpos($_SERVER['REQUEST_URI'], '/participants/checkin') === false && strpos($_SERVER['REQUEST_URI'], '/participants/assign-buddy') === false && strpos($_SERVER['REQUEST_URI'], '/participants/duplicates') === false) ? 'active' : '' ?>">
                         <span class="material-symbols-outlined">group</span>
                         Participants
+                    </a>
+                </li>
+                <li>
+                    <a href="/participants/groups" class="m3-nav-item <?= ($title ?? '') === 'Grouping Overview' || (strpos($_SERVER['REQUEST_URI'], '/participants/groups') !== false && strpos($_SERVER['REQUEST_URI'], '/participants/groups/assign-facilitator') === false) ? 'active' : '' ?>">
+                        <span class="material-symbols-outlined">group_work</span>
+                        Grouping
+                    </a>
+                </li>
+                <li>
+                    <a href="/operations/crew" class="m3-nav-item <?= ($title ?? '') === 'Crew Management' || ($title ?? '') === 'Add Crew' || ($title ?? '') === 'Edit Crew Member' || strpos($_SERVER['REQUEST_URI'], '/operations/crew') !== false ? 'active' : '' ?>">
+                        <span class="material-symbols-outlined">supervisor_account</span>
+                        Senior Buddies
+                    </a>
+                </li>
+                <li>
+                    <a href="/participants/assign-buddy" class="m3-nav-item <?= ($title ?? '') === 'Assign Senior Buddies' || strpos($_SERVER['REQUEST_URI'], '/participants/assign-buddy') !== false ? 'active' : '' ?>">
+                        <span class="material-symbols-outlined">assignment_ind</span>
+                        Buddy Assignment
+                    </a>
+                </li>
+                <li>
+                    <a href="/participants/checkin" class="m3-nav-item <?= ($title ?? '') === 'QR Check-in' || strpos($_SERVER['REQUEST_URI'], '/participants/checkin') !== false ? 'active' : '' ?>">
+                        <span class="material-symbols-outlined">qr_code_scanner</span>
+                        QR Check-in
+                    </a>
+                </li>
+                <li>
+                    <a href="/participants/duplicates" class="m3-nav-item <?= ($title ?? '') === 'Duplicate Detection' || strpos($_SERVER['REQUEST_URI'], '/participants/duplicates') !== false ? 'active' : '' ?>">
+                        <span class="material-symbols-outlined">content_copy</span>
+                        Duplicates
                     </a>
                 </li>
                 <?php /*

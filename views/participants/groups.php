@@ -18,6 +18,21 @@ if (isset($_SESSION['grouping_message'])) {
     unset($_SESSION['grouping_message'], $_SESSION['grouping_message_type']);
 }
 $maxPerGroupLabel = $currentMaxPerGroup > 0 ? (string)$currentMaxPerGroup : 'No limit';
+
+$allParticipants = [];
+foreach ($participantsByGroup as $gCode => $list) {
+    foreach ($list as $p) {
+        $p['group_code'] = (string)$gCode;
+        $allParticipants[] = $p;
+    }
+}
+foreach ($ungroupedParticipants as $p) {
+    $p['group_code'] = '';
+    $allParticipants[] = $p;
+}
+usort($allParticipants, function($a, $b) {
+    return strcmp(strtolower($a['full_name'] ?? ''), strtolower($b['full_name'] ?? ''));
+});
 ?>
 <h2>Grouping Overview</h2>
 
@@ -49,7 +64,7 @@ $maxPerGroupLabel = $currentMaxPerGroup > 0 ? (string)$currentMaxPerGroup : 'No 
                 <div class="card-body pt-3">
                     <h5 class="card-title d-none">Grouping Options</h5>
                 <div class="card card-body bg-light border mb-2">
-                    <h6 class="mb-2">1. Save empty group shells</h6>
+                    <h6 class="mb-2">Save empty group shells</h6>
                     <form method="post" action="/participants/groups/save-layout" class="d-flex flex-wrap align-items-end gap-2 mb-0">
                         <div>
                             <label for="num_groups_custom" class="form-label form-label-sm mb-1">Total groups</label>
@@ -80,59 +95,6 @@ $maxPerGroupLabel = $currentMaxPerGroup > 0 ? (string)$currentMaxPerGroup : 'No 
                         This only creates empty group shells (Group 1, Group 2, …). Participants stay ungrouped until they check in;
                         then they are placed round-robin into the English or Mandarin pool matching their preferred language.
                     </p>
-                </div>
-                <div class="card card-body bg-light border mb-2">
-                    <h6 class="mb-2">2. Crew list by group (senior buddies)</h6>
-                    <div class="row g-2">
-                        <?php foreach ($groups as $groupRow): ?>
-                            <?php $groupCode = (string)($groupRow['group_code'] ?? ''); ?>
-                            <?php if ($groupCode === '') { continue; } ?>
-                            <?php
-                            $assignedBuddies = $facilitatorByGroup[$groupCode] ?? [];
-                            $slot1Id = isset($assignedBuddies[0]['id']) ? (int)$assignedBuddies[0]['id'] : 0;
-                            $slot2Id = isset($assignedBuddies[1]['id']) ? (int)$assignedBuddies[1]['id'] : 0;
-                            ?>
-                            <div class="col-md-4 col-sm-6">
-                                <form method="post" action="/participants/groups/assign-facilitator" class="d-flex align-items-end gap-2">
-                                    <input type="hidden" name="group_code" value="<?= htmlspecialchars($groupCode) ?>">
-                                    <div class="flex-grow-1">
-                                        <label class="form-label form-label-sm mb-1">Group <?= htmlspecialchars($groupCode) ?></label>
-                                        <select name="crew_ids[]" class="form-select form-select-sm mb-1">
-                                            <option value="0">Unassigned</option>
-                                            <?php foreach ($facilitators as $facilitator): ?>
-                                                <?php
-                                                $facilitatorId = (int)$facilitator['id'];
-                                                $assignedGroup = trim((string)($facilitator['assigned_group_code'] ?? ''));
-                                                if ($assignedGroup !== '' && $assignedGroup !== $groupCode && $slot1Id !== $facilitatorId) {
-                                                    continue;
-                                                }
-                                                ?>
-                                                <option value="<?= $facilitatorId ?>" <?= $slot1Id === $facilitatorId ? 'selected' : '' ?>>
-                                                    <?= htmlspecialchars($facilitator['full_name']) ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                        <select name="crew_ids[]" class="form-select form-select-sm">
-                                            <option value="0">Unassigned</option>
-                                            <?php foreach ($facilitators as $facilitator): ?>
-                                                <?php
-                                                $facilitatorId = (int)$facilitator['id'];
-                                                $assignedGroup = trim((string)($facilitator['assigned_group_code'] ?? ''));
-                                                if ($assignedGroup !== '' && $assignedGroup !== $groupCode && $slot2Id !== $facilitatorId) {
-                                                    continue;
-                                                }
-                                                ?>
-                                                <option value="<?= $facilitatorId ?>" <?= $slot2Id === $facilitatorId ? 'selected' : '' ?>>
-                                                    <?= htmlspecialchars($facilitator['full_name']) ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                    <button type="submit" class="btn btn-outline-primary btn-sm">Set</button>
-                                </form>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
                 </div>
                 <div class="d-flex flex-wrap gap-3 small text-muted mb-2">
                     <span><strong>Total Groups:</strong> <?= count($groups) ?></span>
@@ -284,19 +246,220 @@ $maxPerGroupLabel = $currentMaxPerGroup > 0 ? (string)$currentMaxPerGroup : 'No 
 
 <ul class="nav nav-tabs mb-3" id="groupingTabs" role="tablist">
     <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="tab-workspace-tab" data-bs-toggle="tab" data-bs-target="#tab-workspace" type="button" role="tab" aria-controls="tab-workspace" aria-selected="true">
-            Group Workspace
+        <button class="nav-link active" id="tab-bulk-table-tab" data-bs-toggle="tab" data-bs-target="#tab-bulk-table" type="button" role="tab" aria-controls="tab-bulk-table" aria-selected="true">
+            Bulk Assign Table
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-workspace-tab" data-bs-toggle="tab" data-bs-target="#tab-workspace" type="button" role="tab" aria-controls="tab-workspace" aria-selected="false">
+            Drag &amp; Drop Workspace
         </button>
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="tab-reports-tab" data-bs-toggle="tab" data-bs-target="#tab-reports" type="button" role="tab" aria-controls="tab-reports" aria-selected="false">
-            Distribution & Lists
+            Distribution &amp; Lists
         </button>
     </li>
 </ul>
 
 <div class="tab-content">
-    <div class="tab-pane fade show active" id="tab-workspace" role="tabpanel" aria-labelledby="tab-workspace-tab">
+    <!-- 1. Bulk Assign Table Pane -->
+    <div class="tab-pane fade show active" id="tab-bulk-table" role="tabpanel" aria-labelledby="tab-bulk-table-tab">
+        <div class="card p-3 border-0 mb-4" style="border: 1px solid var(--md-sys-color-outline-variant) !important; border-radius: 20px !important;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0">Bulk Assignment Console</h5>
+            </div>
+
+            <!-- Toolbar -->
+            <div class="row g-3 mb-3 align-items-center">
+                <div class="col-md-3">
+                    <input type="text" id="bulkSearchInput" class="form-control form-control-sm" placeholder="Search name or ID..." style="border-radius: 8px !important;">
+                </div>
+                <div class="col-md-2">
+                    <select id="bulkLanguageFilter" class="form-select form-select-sm" style="border-radius: 8px !important;">
+                        <option value="all">All Languages</option>
+                        <option value="english">English</option>
+                        <option value="mandarin">Mandarin</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select id="bulkGroupFilter" class="form-select form-select-sm" style="border-radius: 8px !important;">
+                        <option value="all">All Groups</option>
+                        <option value="ungrouped">Ungrouped</option>
+                        <?php foreach ($participantsByGroup as $gCode => $unused): ?>
+                            <option value="<?= htmlspecialchars($gCode) ?>">Group <?= htmlspecialchars($gCode) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <!-- Action Controls -->
+                <div class="col-md-5 d-flex gap-2 justify-content-md-end align-items-center flex-wrap">
+                    <span class="small text-muted fw-semibold" id="bulkSelectedCount">0 selected</span>
+                    <select id="bulkTargetGroup" class="form-select form-select-sm" style="width: 140px; border-radius: 8px !important;">
+                        <option value="">Move to group…</option>
+                        <option value="ungrouped">Ungrouped</option>
+                        <?php foreach ($participantsByGroup as $gCode => $unused): ?>
+                            <option value="<?= htmlspecialchars($gCode) ?>">Group <?= htmlspecialchars($gCode) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button id="bulkMoveBtn" class="btn btn-primary btn-sm" disabled style="border-radius: 8px;">Move Selected</button>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0" id="bulkTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 36px;">
+                                <input type="checkbox" id="bulkSelectAll" class="form-check-input">
+                            </th>
+                            <th>Name</th>
+                            <th>Student ID</th>
+                            <th>Language</th>
+                            <th>Current Group</th>
+                            <th>Checked In?</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bulkTableBody">
+                        <?php foreach ($allParticipants as $p): ?>
+                            <tr
+                                data-id="<?= (int)$p['id'] ?>"
+                                data-name="<?= htmlspecialchars(strtolower($p['full_name'] ?? '')) ?>"
+                                data-student-id="<?= htmlspecialchars(strtolower($p['student_id'] ?? '')) ?>"
+                                data-language="<?= htmlspecialchars(strtolower($p['preferred_language'] ?? '')) ?>"
+                                data-group="<?= htmlspecialchars($p['group_code'] ?? '') ?>"
+                            >
+                                <td><input type="checkbox" class="form-check-input bulk-checkbox" value="<?= (int)$p['id'] ?>"></td>
+                                <td class="fw-semibold"><?= htmlspecialchars($p['full_name'] ?? '') ?></td>
+                                <td class="text-muted small"><?= htmlspecialchars($p['student_id'] ?? '—') ?></td>
+                                <td>
+                                    <?php
+                                        $lang = strtolower($p['preferred_language'] ?? '');
+                                        $langClass = $lang === 'mandarin' ? 'bg-tertiary' : 'bg-secondary';
+                                    ?>
+                                    <span class="badge <?= $langClass ?>" style="font-size:0.72rem"><?= htmlspecialchars($p['preferred_language'] ?? '—') ?></span>
+                                </td>
+                                <td>
+                                    <?php if (!empty($p['group_code'])): ?>
+                                        <span class="badge bg-primary" style="font-size:0.72rem">Group <?= htmlspecialchars($p['group_code']) ?></span>
+                                    <?php else: ?>
+                                        <span class="badge bg-surface" style="font-size:0.72rem">Ungrouped</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if (!empty($p['checked_in_at'])): ?>
+                                        <span class="badge bg-success" style="font-size:0.72rem">✓ Checked In</span>
+                                    <?php else: ?>
+                                        <span class="text-muted small">—</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <script>
+        (function() {
+            const searchInput   = document.getElementById('bulkSearchInput');
+            const langFilter    = document.getElementById('bulkLanguageFilter');
+            const groupFilter   = document.getElementById('bulkGroupFilter');
+            const targetGroup   = document.getElementById('bulkTargetGroup');
+            const moveBtn       = document.getElementById('bulkMoveBtn');
+            const selectAll     = document.getElementById('bulkSelectAll');
+            const countLabel    = document.getElementById('bulkSelectedCount');
+            const tableBody     = document.getElementById('bulkTableBody');
+
+            function visibleRows() {
+                return Array.from(tableBody.querySelectorAll('tr')).filter(r => r.style.display !== 'none');
+            }
+
+            function updateSelectAllState() {
+                const vr = visibleRows();
+                const checked = vr.filter(r => r.querySelector('.bulk-checkbox').checked);
+                selectAll.checked = vr.length > 0 && checked.length === vr.length;
+                selectAll.indeterminate = checked.length > 0 && checked.length < vr.length;
+                const totalChecked = tableBody.querySelectorAll('.bulk-checkbox:checked').length;
+                countLabel.textContent = totalChecked + ' selected';
+                moveBtn.disabled = totalChecked === 0 || !targetGroup.value;
+            }
+
+            function applyFilters() {
+                const q  = searchInput.value.toLowerCase().trim();
+                const lg = langFilter.value;
+                const gf = groupFilter.value;
+
+                Array.from(tableBody.querySelectorAll('tr')).forEach(row => {
+                    const name   = row.dataset.name || '';
+                    const sid    = row.dataset.studentId || '';
+                    const lang   = row.dataset.language || '';
+                    const group  = row.dataset.group || '';
+
+                    const matchQ  = !q || name.includes(q) || sid.includes(q);
+                    const matchL  = lg === 'all' || lang === lg;
+                    const matchG  = gf === 'all' || (gf === 'ungrouped' ? group === '' : group === gf);
+
+                    row.style.display = matchQ && matchL && matchG ? '' : 'none';
+                });
+
+                updateSelectAllState();
+            }
+
+            searchInput.addEventListener('input', applyFilters);
+            langFilter.addEventListener('change', applyFilters);
+            groupFilter.addEventListener('change', applyFilters);
+            targetGroup.addEventListener('change', updateSelectAllState);
+
+            selectAll.addEventListener('change', function() {
+                visibleRows().forEach(r => r.querySelector('.bulk-checkbox').checked = this.checked);
+                updateSelectAllState();
+            });
+
+            tableBody.addEventListener('change', function(e) {
+                if (e.target.classList.contains('bulk-checkbox')) updateSelectAllState();
+            });
+
+            moveBtn.addEventListener('click', async function() {
+                const target = targetGroup.value;
+                if (!target) return;
+                const ids = Array.from(tableBody.querySelectorAll('.bulk-checkbox:checked')).map(c => c.value);
+                if (!ids.length) return;
+
+                moveBtn.disabled = true;
+                moveBtn.textContent = 'Moving…';
+
+                try {
+                    const params = new URLSearchParams();
+                    params.append('target_group', target === 'ungrouped' ? '' : target);
+                    ids.forEach(id => params.append('participant_ids[]', id));
+
+                    const res = await fetch('/participants/groups/bulk-move', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: params.toString()
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + (data.message || 'Unknown error'));
+                        moveBtn.disabled = false;
+                        moveBtn.textContent = 'Move Selected';
+                    }
+                } catch (err) {
+                    alert('Network error. Please try again.');
+                    moveBtn.disabled = false;
+                    moveBtn.textContent = 'Move Selected';
+                }
+            });
+        })();
+        </script>
+    </div>
+
+    <!-- 2. Drag & Drop Workspace Pane -->
+    <div class="tab-pane fade" id="tab-workspace" role="tabpanel" aria-labelledby="tab-workspace-tab">
         <div class="row mb-4" data-current-mover="<?= htmlspecialchars($currentMover) ?>" data-latest-move-log-id="<?= (int)($latestMoveLogId ?? 0) ?>" id="group-editor-root">
             <div class="col-md-12">
                 <div class="card">
@@ -466,21 +629,32 @@ $maxPerGroupLabel = $currentMaxPerGroup > 0 ? (string)$currentMaxPerGroup : 'No 
                     <tr>
                         <th>Group</th>
                         <th>Count</th>
+                        <th>Senior Buddy</th>
                     </tr>
                     </thead>
                     <tbody>
                     <?php if (empty($groups)): ?>
                         <tr>
-                            <td colspan="2" class="text-muted">No groups assigned yet</td>
+                            <td colspan="3" class="text-muted">No groups assigned yet</td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($groups as $g): ?>
                             <tr>
                                 <td>
                                     <strong><?= htmlspecialchars($g['group_code']) ?></strong>
-                                    <span class="badge bg-light text-dark border"><?= htmlspecialchars($groupTypes[$g['group_code']] ?? 'Mixed') ?></span>
+                                    <span class="badge bg-surface"><?= htmlspecialchars($groupTypes[$g['group_code']] ?? 'Mixed') ?></span>
                                 </td>
                                 <td><?= (int)$g['count'] ?></td>
+                                <td>
+                                    <?php $buddies = $facilitatorByGroup[$g['group_code']] ?? []; ?>
+                                    <?php if (!empty($buddies)): ?>
+                                        <?php foreach ($buddies as $buddy): ?>
+                                            <span class="badge bg-primary-filled" style="font-size:0.7rem;margin-bottom:2px;display:inline-block"><?= htmlspecialchars($buddy['full_name']) ?></span>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <span class="text-muted small">Unassigned</span>
+                                    <?php endif; ?>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -495,10 +669,25 @@ $maxPerGroupLabel = $currentMaxPerGroup > 0 ? (string)$currentMaxPerGroup : 'No 
                     <?php foreach ($participantsByGroup as $groupCode => $participants): ?>
                         <div class="card mb-3">
                             <div class="card-header">
-                                <strong>Group <?= htmlspecialchars($groupCode) ?></strong>
-                                <span class="badge bg-info text-dark">Max <?= htmlspecialchars($maxPerGroupLabel) ?></span>
-                                <span class="badge bg-light text-dark border"><?= htmlspecialchars($groupTypes[$groupCode] ?? 'Mixed') ?></span>
-                                (<?= count($participants) ?> participants)
+                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <strong>Group <?= htmlspecialchars($groupCode) ?></strong>
+                                    <span class="badge bg-secondary">Max <?= htmlspecialchars($maxPerGroupLabel) ?></span>
+                                    <span class="badge bg-surface"><?= htmlspecialchars($groupTypes[$groupCode] ?? 'Mixed') ?></span>
+                                    <span class="text-muted small">(<?= count($participants) ?> participants)</span>
+                                </div>
+                                <?php $buddies = $facilitatorByGroup[$groupCode] ?? []; ?>
+                                <?php if (!empty($buddies)): ?>
+                                    <div class="mt-1 d-flex flex-wrap align-items-center gap-1">
+                                        <span class="small fw-semibold" style="color:var(--md-sys-color-on-surface-variant);">Senior Buddy:</span>
+                                        <?php foreach ($buddies as $buddy): ?>
+                                            <span class="badge bg-primary-filled" style="font-size:0.72rem"><?= htmlspecialchars($buddy['full_name']) ?></span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="mt-1">
+                                        <span class="small text-muted">Senior Buddy: <em>Unassigned</em></span>
+                                    </div>
+                                <?php endif; ?>
                             </div>
                             <div class="card-body">
                                 <div class="table-responsive">

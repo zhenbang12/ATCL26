@@ -53,6 +53,7 @@
 /* Global Reset & Typography */
 body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    font-size: 0.875rem;
     background-color: var(--md-sys-color-background);
     color: var(--md-sys-color-on-background);
     margin: 0;
@@ -107,7 +108,7 @@ h1, h2, h3, h4, h5, h6 {
 .m3-main-content {
     flex: 1;
     margin-left: 280px;
-    padding: 2rem;
+    padding: 1.25rem 1.5rem;
     background-color: var(--md-sys-color-background);
     min-width: 0;
     transition: margin-left 0.25s cubic-bezier(0.2, 0, 0, 1);
@@ -229,11 +230,11 @@ h1, h2, h3, h4, h5, h6 {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.75rem 1.5rem;
+    padding: 0.5rem 1rem;
     border-radius: 100px;
     color: var(--md-sys-color-on-surface-variant);
     text-decoration: none;
-    font-size: 0.95rem;
+    font-size: 0.875rem;
     font-weight: 500;
     transition: all 0.2s ease;
     cursor: pointer;
@@ -244,7 +245,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .m3-nav-item i, .m3-nav-item span.material-symbols-outlined {
-    font-size: 24px;
+    font-size: 20px;
 }
 
 .m3-nav-item:hover {
@@ -431,16 +432,22 @@ h1, h2, h3, h4, h5, h6 {
 .table th {
     background-color: var(--md-sys-color-surface-container-high) !important;
     color: var(--md-sys-color-on-surface-variant) !important;
-    padding: 1rem 0.75rem !important;
+    padding: 0.75rem 0.75rem !important;
     font-weight: 600 !important;
     border-bottom: 1px solid var(--md-sys-color-outline-variant) !important;
 }
 
 .table td {
-    padding: 1rem 0.75rem !important;
+    padding: 0.75rem 0.75rem !important;
     vertical-align: middle !important;
     border-bottom: 1px solid var(--md-sys-color-outline-variant) !important;
     color: var(--md-sys-color-on-surface) !important;
+}
+
+.table-sm th,
+.table-sm td {
+    padding: 0.45rem 0.6rem !important;
+    font-size: 0.8125rem !important;
 }
 
 .table tr:last-child td {
@@ -458,6 +465,7 @@ h1, h2, h3, h4, h5, h6 {
     font-weight: 500 !important;
 }
 
+/* M3 container-based badge roles */
 .badge.bg-primary {
     background-color: var(--md-sys-color-primary-container) !important;
     color: var(--md-sys-color-on-primary-container) !important;
@@ -468,9 +476,37 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--md-sys-color-on-secondary-container) !important;
 }
 
+.badge.bg-tertiary {
+    background-color: var(--md-sys-color-tertiary-container) !important;
+    color: var(--md-sys-color-on-tertiary-container) !important;
+}
+
 .badge.bg-dark {
     background-color: var(--md-sys-color-surface-container-highest) !important;
     color: var(--md-sys-color-on-surface) !important;
+}
+
+/* M3 filled (on-color) badge roles — high emphasis */
+.badge.bg-primary-filled {
+    background-color: var(--md-sys-color-primary) !important;
+    color: var(--md-sys-color-on-primary) !important;
+}
+
+.badge.bg-secondary-filled {
+    background-color: var(--md-sys-color-secondary) !important;
+    color: var(--md-sys-color-on-secondary) !important;
+}
+
+.badge.bg-tertiary-filled {
+    background-color: var(--md-sys-color-tertiary) !important;
+    color: var(--md-sys-color-on-tertiary) !important;
+}
+
+/* Surface-variant badge — low emphasis neutral */
+.badge.bg-surface {
+    background-color: var(--md-sys-color-surface-container-high) !important;
+    color: var(--md-sys-color-on-surface-variant) !important;
+    border: 1px solid var(--md-sys-color-outline-variant) !important;
 }
 
 /* Tab Headers */

@@ -1,7 +1,6 @@
 <?php
 // Unified Participants Listing and Insights Console
 $currentFilter = $currentFilter ?? 'all';
-$participants = $participants ?? [];
 $registrationSettings = $registrationSettings ?? [
     'pre_register_enabled' => true,
     'walk_in_enabled' => true,
@@ -38,9 +37,10 @@ $stats = $stats ?? [
             <a href="/participants/create" class="btn btn-primary btn-sm">Pre-register</a>
         <?php endif; ?>
         <a href="/participants/create-walkin" class="btn btn-dark btn-sm">Walk-in Registration</a>
-        <a href="/participants/checkin" class="btn btn-outline-secondary btn-sm">QR Check-in</a>
-        <a href="/participants/groups" class="btn btn-outline-secondary btn-sm">Grouping Overview</a>
         <a href="/participants/export?filter=<?= urlencode($currentFilter) ?>" class="btn btn-success btn-sm">Export CSV</a>
+        <a href="/participants/duplicates" class="btn btn-outline-warning btn-sm" style="border-radius: 100px;">
+            <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: text-bottom;">content_copy</span> Duplicates
+        </a>
     </div>
 </div>
 
@@ -163,7 +163,7 @@ $stats = $stats ?? [
                     <?php foreach ($stats['group_distribution'] as $group => $count): ?>
                         <div class="col-6 col-sm-4 col-md-2">
                             <div class="text-center p-2 rounded" style="background-color: var(--md-sys-color-surface-container-high); border: 1px solid var(--md-sys-color-outline-variant);">
-                                <div class="small fw-semibold" style="font-size: 0.75rem;"><?= htmlspecialchars($group ?: 'Ungrouped') ?></div>
+                                <div class="small fw-semibold" style="font-size: 0.75rem;"><?= htmlspecialchars($group ? 'Group ' . $group : 'Ungrouped') ?></div>
                                 <div class="h5 mb-0 fw-bold text-primary"><?= $count ?></div>
                             </div>
                         </div>
@@ -198,7 +198,6 @@ $stats = $stats ?? [
                 <th>Name</th>
                 <th>Student ID</th>
                 <th>Email</th>
-                <th>Intake</th>
                 <th>Programme</th>
                 <th>Faculty</th>
                 <th>Phone</th>
@@ -212,47 +211,6 @@ $stats = $stats ?? [
             </tr>
             </thead>
             <tbody>
-            <?php $counter = 1; foreach ($participants as $p): ?>
-                <tr>
-                    <td><?= $counter++ ?></td>
-                    <td class="fw-semibold"><?= htmlspecialchars($p['full_name']) ?></td>
-                    <td><?= htmlspecialchars($p['student_id'] ?? '') ?></td>
-                    <td><?= htmlspecialchars($p['student_email'] ?? '') ?></td>
-                    <td><?= htmlspecialchars($p['intake'] ?? '') ?></td>
-                    <td><?= htmlspecialchars($p['programme_name'] ?? '') ?></td>
-                    <td><?= htmlspecialchars($p['faculty'] ?? '') ?></td>
-                    <td><?= htmlspecialchars($p['contact_no'] ?? '') ?></td>
-                    <td>
-                        <span class="badge bg-secondary" style="font-size: 10px;"><?= htmlspecialchars($p['preferred_language'] ?? '') ?></span>
-                    </td>
-                    <td>
-                        <?php if (($p['registration_type'] ?? 'pre_register') === 'walk_in'): ?>
-                            <span class="badge bg-dark" style="font-size: 10px;">Walk-in</span>
-                        <?php else: ?>
-                            <span class="badge bg-secondary" style="font-size: 10px;">Pre-register</span>
-                        <?php endif; ?>
-                    </td>
-                    <td class="fw-bold text-primary"><?= htmlspecialchars($p['group_code'] ?? '-') ?></td>
-                    <td>
-                        <?php if (!empty($p['checked_in_at'])): ?>
-                            <span class="badge bg-success" style="font-size: 10px;">Yes</span>
-                        <?php else: ?>
-                            <span class="badge bg-warning text-dark" style="font-size: 10px;">No</span>
-                        <?php endif; ?>
-                    </td>
-                    <?php if (\App\Core\Auth::check()): ?>
-                        <td>
-                            <div class="d-flex align-items-center">
-                                <a href="/participants/edit?id=<?= $p['id'] ?>" class="btn btn-sm btn-outline-primary py-1 px-3 me-2" style="border-radius: 8px !important; font-size: 0.75rem !important;">Edit</a>
-                                <form method="post" action="/participants/delete" class="d-inline m-0" onsubmit="return confirm('Are you sure you want to delete this participant?');">
-                                    <input type="hidden" name="id" value="<?= $p['id'] ?>">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-3" style="border-radius: 8px !important; font-size: 0.75rem !important;">Delete</button>
-                                </form>
-                            </div>
-                        </td>
-                    <?php endif; ?>
-                </tr>
-            <?php endforeach; ?>
             </tbody>
         </table>
     </div>
@@ -265,8 +223,20 @@ $stats = $stats ?? [
 <script>
     $(document).ready(function() {
         $('#participants-table').DataTable({
+            processing: true,
+            serverSide: true,
+            ajax: {
+                url: '/participants/data?filter=<?= urlencode($currentFilter) ?>',
+                type: 'GET'
+            },
             pageLength: 25,
             order: [[1, 'asc']], // Sort by Name column by default
+            columnDefs: [
+                { orderable: false, targets: 0 }, // Counter is not orderable
+                <?php if (\App\Core\Auth::check()): ?>
+                { orderable: false, targets: 11 } // Actions are not orderable
+                <?php endif; ?>
+            ],
             language: {
                 search: "Search participants:",
                 lengthMenu: "Show _MENU_ participants per page",
