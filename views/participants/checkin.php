@@ -135,7 +135,6 @@
             scanView.style.display = 'block';
             statusContainer.innerHTML = "";
             input.value = "";
-            input.focus();
             // Resume scanner if available
             if (html5QrCode && html5QrCode.getState() === 3) {
                 try {
