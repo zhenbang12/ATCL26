@@ -405,7 +405,7 @@ class ParticipantController
                 }
 
                 if ($checkinSaved) {
-                    $stmt->execute([$code, $code]);
+                    $stmt->execute([$code, $code, $sid]);
                     $participant = $stmt->fetch(\PDO::FETCH_ASSOC);
                 }
             }
