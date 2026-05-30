@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS participants (
     duplicate_of INT NULL,
     checked_in_at DATETIME NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY idx_unique_student_id (student_id),
+    UNIQUE KEY idx_unique_student_session (session_id, student_id),
     INDEX idx_participants_session_id (session_id),
     CONSTRAINT fk_participants_session FOREIGN KEY (session_id) REFERENCES sessions(id)
 );
@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS event_groups (
     language_pool ENUM('english', 'mandarin') NOT NULL,
     sort_order INT NOT NULL DEFAULT 0,
     max_per_group INT NOT NULL DEFAULT 0,
-    UNIQUE KEY uq_event_groups_code (group_code)
+    UNIQUE KEY uq_event_groups_code_session (session_id, group_code)
 );
 
 CREATE TABLE IF NOT EXISTS event_group_settings (

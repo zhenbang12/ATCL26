@@ -1289,8 +1289,9 @@ class ParticipantController
         $qrImage = null;
 
         if ($studentId !== '') {
-            $stmt = $db->prepare('SELECT * FROM participants WHERE student_id = ?');
-            $stmt->execute([$studentId]);
+            $sid = $this->sid();
+            $stmt = $db->prepare('SELECT * FROM participants WHERE student_id = ? AND session_id = ?');
+            $stmt->execute([$studentId, $sid]);
             $participant = $stmt->fetch(\PDO::FETCH_ASSOC);
 
             if ($participant && !empty($participant['qr_code'])) {
@@ -1682,9 +1683,10 @@ class ParticipantController
             $counts[$c] = 0;
         }
 
+        $sid = $this->sid();
         $placeholders = implode(',', array_fill(0, count($poolCodes), '?'));
-        $cstmt = $db->prepare("SELECT group_code, COUNT(*) AS c FROM participants WHERE group_code IN ($placeholders) GROUP BY group_code");
-        $cstmt->execute($poolCodes);
+        $cstmt = $db->prepare("SELECT group_code, COUNT(*) AS c FROM participants WHERE group_code IN ($placeholders) AND session_id = ? GROUP BY group_code");
+        $cstmt->execute(array_merge($poolCodes, [$sid]));
         foreach ($cstmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
             $gc = (string)$row['group_code'];
             if (array_key_exists($gc, $counts)) {

@@ -17,24 +17,23 @@ class SessionHelper
      */
     public static function currentSessionId(): int
     {
+        // 1. If manually selected/overridden by the user, return it
         if (isset($_SESSION['active_session_id']) && (int)$_SESSION['active_session_id'] > 0) {
             return (int)$_SESSION['active_session_id'];
         }
 
-        // Auto-select: prefer is_active=1, else id=1
+        // 2. Otherwise, dynamically query the active default session from the database
         $db = Container::get('db');
         try {
             $row = $db->query('SELECT id FROM sessions WHERE is_active = 1 ORDER BY id LIMIT 1')
                        ->fetch(\PDO::FETCH_ASSOC);
             if ($row) {
-                $_SESSION['active_session_id'] = (int)$row['id'];
                 return (int)$row['id'];
             }
         } catch (\Exception $e) {
             // sessions table may not exist yet
         }
 
-        $_SESSION['active_session_id'] = 1;
         return 1;
     }
 
