@@ -1083,6 +1083,7 @@ class ParticipantController
         Auth::requireRole(['advisor', 'committee']);
 
         $db = Container::get('db');
+        $sid = $this->sid();
         $participantId = (int)($_POST['participant_id'] ?? 0);
         $targetGroup = trim((string)($_POST['target_group'] ?? ''));
         $expectedFromGroup = trim((string)($_POST['expected_from_group'] ?? ''));
@@ -1108,8 +1109,8 @@ class ParticipantController
         }
 
         if ($targetGroup !== null && $this->eventGroupLayoutExists($db)) {
-            $v = $db->prepare('SELECT 1 FROM event_groups WHERE group_code = ? LIMIT 1');
-            $v->execute([$targetGroup]);
+            $v = $db->prepare('SELECT 1 FROM event_groups WHERE group_code = ? AND session_id = ? LIMIT 1');
+            $v->execute([$targetGroup, $sid]);
             if (!$v->fetchColumn()) {
                 $this->respondGroupMove(false, 'Target group is not in the saved layout. Refresh the page after updating the layout.');
                 return;
@@ -1150,15 +1151,17 @@ class ParticipantController
             try {
                 $logStmt = $db->prepare("
                     INSERT INTO group_move_logs (
+                        session_id,
                         participant_id,
                         participant_name,
                         from_group_code,
                         to_group_code,
                         moved_by,
                         action_type
-                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 ");
                 $logStmt->execute([
+                    $sid,
                     $participantId,
                     $participantName,
                     $fromGroup,
@@ -2203,6 +2206,7 @@ class ParticipantController
         Auth::requireRole(['advisor', 'committee']);
 
         $db = Container::get('db');
+        $sid = $this->sid();
         $participantIds = $_POST['participant_ids'] ?? [];
         if (!is_array($participantIds)) {
             $participantIds = [];
@@ -2227,8 +2231,8 @@ class ParticipantController
         }
 
         if ($targetGroup !== null && $this->eventGroupLayoutExists($db)) {
-            $v = $db->prepare('SELECT 1 FROM event_groups WHERE group_code = ? LIMIT 1');
-            $v->execute([$targetGroup]);
+            $v = $db->prepare('SELECT 1 FROM event_groups WHERE group_code = ? AND session_id = ? LIMIT 1');
+            $v->execute([$targetGroup, $sid]);
             if (!$v->fetchColumn()) {
                 $this->respondGroupMove(false, 'Target group is not in the saved layout.');
                 return;
@@ -2241,13 +2245,14 @@ class ParticipantController
             $movedBy = (string)(Auth::user()['username'] ?? 'Unknown');
             $logInsert = $db->prepare('
                 INSERT INTO group_move_logs (
+                    session_id,
                     participant_id,
                     participant_name,
                     from_group_code,
                     to_group_code,
                     moved_by,
                     action_type
-                ) VALUES (?, ?, ?, ?, ?, "move")
+                ) VALUES (?, ?, ?, ?, ?, ?, "move")
             ');
 
             $update = $db->prepare('UPDATE participants SET group_code = ? WHERE id = ?');
@@ -2270,6 +2275,7 @@ class ParticipantController
 
                 // Log entry
                 $logInsert->execute([
+                    $sid,
                     $id,
                     $p['full_name'],
                     $fromGroup,

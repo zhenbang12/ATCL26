@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+// Force PHP timezone to UTC+8 (Malaysia/Singapore time)
+date_default_timezone_set('Asia/Kuala_Lumpur');
+
 // Load Composer autoloader if present (for local libraries like QR code)
 $vendorAutoload = __DIR__ . '/../vendor/autoload.php';
 if (file_exists($vendorAutoload)) {
@@ -55,6 +58,9 @@ try {
     $pdo = new PDO($dsn, $config['db']['user'], $config['db']['pass'], [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     ]);
+    
+    // Force MySQL connection to UTC+8
+    $pdo->exec("SET time_zone = '+08:00';");
 } catch (PDOException $e) {
     die('Database connection failed: ' . $e->getMessage());
 }
