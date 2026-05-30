@@ -367,6 +367,9 @@ class ParticipantController
         if ($participant) {
             if ((int)($participant['blacklisted'] ?? 0) === 1) {
                 $checkinCriticalError = 'Participant is blacklisted and cannot be checked in.';
+            } elseif (!empty($participant['checked_in_at'])) {
+                $formattedTime = date('g:i A', strtotime($participant['checked_in_at']));
+                $checkinCriticalError = 'Participant is already checked in (at ' . $formattedTime . ').';
             } else {
                 if (!empty($participant['duplicate_of'])) {
                     $canonStmt = $db->prepare('SELECT full_name, student_id FROM participants WHERE id = ?');
