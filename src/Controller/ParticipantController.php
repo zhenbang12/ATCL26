@@ -1912,8 +1912,9 @@ class ParticipantController
             exit;
         }
 
-        $stmt = $db->prepare('SELECT id, student_email FROM participants WHERE student_id = ?');
-        $stmt->execute([$studentId]);
+        $sid = $this->sid();
+        $stmt = $db->prepare('SELECT id, student_email FROM participants WHERE student_id = ? AND session_id = ?');
+        $stmt->execute([$studentId, $sid]);
         $participant = $stmt->fetch(\PDO::FETCH_ASSOC);
 
         if ($participant && strtolower(trim((string)$participant['student_email'])) === strtolower($email)) {
