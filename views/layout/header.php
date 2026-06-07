@@ -206,7 +206,7 @@ $theme = $registrationSettings['theme'] ?? 'violet';
         </div>
         <div class="d-flex align-items-center gap-2">
             <a href="/participants/lookup" class="btn btn-outline-primary btn-sm">Find My QR</a>
-            <a href="/login" class="btn btn-primary btn-sm">Login as Committee</a>
+            <?php /* <a href="/login" class="btn btn-primary btn-sm">Login as Committee</a> */ ?>
         </div>
     </div>
 <?php endif; ?>
