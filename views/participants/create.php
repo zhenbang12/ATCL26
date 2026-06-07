@@ -127,11 +127,11 @@ if (isset($_SESSION['registration_input'])) {
                     <small class="form-text text-muted">Saved as 60XXXXXXXXX</small>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label" for="preferred_language">Language</label>
+                    <label class="form-label" for="preferred_language">Preferred Grouping Language</label>
                     <select name="preferred_language" id="preferred_language" class="form-select" required>
                         <option value="" disabled <?= empty($savedInput['preferred_language']) ? 'selected' : '' ?>>Select…</option>
-                        <option value="Mandarin" <?= ($savedInput['preferred_language'] ?? '') === 'Mandarin' ? 'selected' : '' ?>>Mandarin</option>
-                        <option value="English" <?= ($savedInput['preferred_language'] ?? '') === 'English' ? 'selected' : '' ?>>English</option>
+                        <option value="Mandarin-speaking Group" <?= ($savedInput['preferred_language'] ?? '') === 'Mandarin-speaking Group' ? 'selected' : '' ?>>Mandarin-speaking Group</option>
+                        <option value="English-speaking Group" <?= ($savedInput['preferred_language'] ?? '') === 'English-speaking Group' ? 'selected' : '' ?>>English-speaking Group</option>
                     </select>
                 </div>
                 <button type="submit" class="btn btn-primary w-100 py-2">Save Registration</button>

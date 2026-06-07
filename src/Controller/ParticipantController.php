@@ -538,9 +538,9 @@ class ParticipantController
                 $otherCount = 0;
                 foreach ($participants as $participant) {
                     $language = strtolower(trim((string)($participant['preferred_language'] ?? '')));
-                    if ($language === 'english') {
+                    if (strpos($language, 'english') !== false) {
                         $englishCount++;
-                    } elseif ($language === 'mandarin' || $language === 'chinese') {
+                    } elseif (strpos($language, 'mandarin') !== false || strpos($language, 'chinese') !== false) {
                         $mandarinCount++;
                     } else {
                         $otherCount++;
@@ -1587,7 +1587,7 @@ class ParticipantController
         }
 
         $lang = strtolower(trim($preferredLanguage));
-        $pool = ($lang === 'english') ? 'english' : 'mandarin';
+        $pool = (strpos($lang, 'english') !== false) ? 'english' : 'mandarin';
 
         // Use a transaction with row-level locking (FOR UPDATE) to prevent
         // concurrent check-in operators from assigning two participants to

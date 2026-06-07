@@ -32,7 +32,7 @@
                     <strong>Programme:</strong> <?= htmlspecialchars($participant['programme_name'] ?? 'N/A') ?>
                 </div>
                 <div>
-                    <strong>Language:</strong>
+                    <strong>Preferred Grouping Language:</strong>
                     <span class="badge" style="background-color: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container);">
                         <?= htmlspecialchars($participant['preferred_language'] ?? 'N/A') ?>
                     </span>

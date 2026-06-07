@@ -58,7 +58,7 @@ $genders = ['Male', 'Female'];
 $relationships = ['Parents', 'Spouse'];
 
 // Preferred languages
-$languages = ['Mandarin', 'English'];
+$languages = ['Mandarin-speaking Group', 'English-speaking Group'];
 
 function generateIC(): string {
     // Malaysian IC format: YYMMDD-PB-GGGG

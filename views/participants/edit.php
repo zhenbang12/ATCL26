@@ -102,11 +102,11 @@ try {
 
             <div class="row">
                 <div class="col-md-4 mb-3">
-                    <label class="form-label" for="preferred_language">Preferred Language</label>
+                    <label class="form-label" for="preferred_language">Preferred Grouping Language</label>
                     <select name="preferred_language" id="preferred_language" class="form-select" required>
                         <option value="" disabled>Select…</option>
-                        <option value="Mandarin" <?= ($participant['preferred_language'] ?? '') === 'Mandarin' ? 'selected' : '' ?>>Mandarin</option>
-                        <option value="English" <?= ($participant['preferred_language'] ?? '') === 'English' ? 'selected' : '' ?>>English</option>
+                        <option value="Mandarin-speaking Group" <?= in_array($participant['preferred_language'] ?? '', ['Mandarin', 'Mandarin-speaking Group'], true) ? 'selected' : '' ?>>Mandarin-speaking Group</option>
+                        <option value="English-speaking Group" <?= in_array($participant['preferred_language'] ?? '', ['English', 'English-speaking Group'], true) ? 'selected' : '' ?>>English-speaking Group</option>
                     </select>
                 </div>
 

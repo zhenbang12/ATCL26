@@ -284,8 +284,8 @@ usort($allParticipants, function($a, $b) {
                 <div class="col-md-2">
                     <select id="bulkLanguageFilter" class="form-select form-select-sm" style="border-radius: 8px !important;">
                         <option value="all">All Languages</option>
-                        <option value="english">English</option>
-                        <option value="mandarin">Mandarin</option>
+                        <option value="english-speaking group">English-speaking Group</option>
+                        <option value="mandarin-speaking group">Mandarin-speaking Group</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -342,7 +342,7 @@ usort($allParticipants, function($a, $b) {
                                 <td>
                                     <?php
                                         $lang = strtolower($p['preferred_language'] ?? '');
-                                        $langClass = $lang === 'mandarin' ? 'bg-tertiary' : 'bg-secondary';
+                                        $langClass = (strpos($lang, 'mandarin') !== false) ? 'bg-tertiary' : 'bg-secondary';
                                     ?>
                                     <span class="badge <?= $langClass ?>" style="font-size:0.72rem"><?= htmlspecialchars($p['preferred_language'] ?? '—') ?></span>
                                 </td>
@@ -404,7 +404,7 @@ usort($allParticipants, function($a, $b) {
                     const group  = row.dataset.group || '';
 
                     const matchQ  = !q || name.includes(q) || sid.includes(q);
-                    const matchL  = lg === 'all' || lang === lg;
+                    const matchL  = lg === 'all' || lang === lg || lang.includes(lg.replace('-speaking group', '')) || lg.includes(lang);
                     const matchG  = gf === 'all' || (gf === 'ungrouped' ? group === '' : group === gf);
 
                     row.style.display = matchQ && matchL && matchG ? '' : 'none';
