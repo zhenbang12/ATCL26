@@ -24,7 +24,7 @@
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label class="form-label" for="full_name">Full Name</label>
+                            <label class="form-label" for="full_name">Full name as per IC/ Passport</label>
                             <input 
                                 type="text" 
                                 name="full_name" 

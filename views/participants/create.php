@@ -47,7 +47,7 @@ if (isset($_SESSION['registration_input'])) {
             <form method="post" action="/participants/store" class="mt-3">
                 <input type="hidden" name="registration_type" value="pre_register">
                 <div class="mb-3">
-                    <label class="form-label" for="full_name">Name (as per IC/ passport)</label>
+                    <label class="form-label" for="full_name">Full name as per IC/ Passport</label>
                     <input type="text" name="full_name" id="full_name" placeholder="e.g. Liow Zhen Bang" class="form-control" required autocomplete="name" value="<?= htmlspecialchars($savedInput['full_name'] ?? '') ?>">
                 </div>
                 <div class="mb-3">
