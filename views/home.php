@@ -185,6 +185,33 @@ $landingUrl = static function (?string $filename): ?string {
                             </div>
                         </section>
                     </div>
+
+                    <div class="col-12">
+                        <section class="card p-4 border-0" style="background-color: var(--md-sys-color-surface-container-low) !important;">
+                            <div class="card-body">
+                                <h2 class="h4 fw-bold mb-3 text-center" style="color: var(--md-sys-color-on-surface);"><?= htmlspecialchars($landingSettings['section_4_title']) ?></h2>
+                                <p class="text-center mb-4" style="color: var(--md-sys-color-on-surface-variant); line-height: 1.6;">
+                                    <?= nl2br(htmlspecialchars($landingSettings['section_4_caption'])) ?>
+                                </p>
+                                <?php if (!empty($landingSettings['section_4_url'])): ?>
+                                    <div class="text-center mb-4">
+                                        <a href="<?= htmlspecialchars($landingSettings['section_4_url']) ?>" class="btn btn-primary px-4 shadow-sm" target="_blank" rel="noopener">
+                                            <?= htmlspecialchars($landingSettings['section_4_button_text'] ?? 'View Booklet') ?>
+                                        </a>
+                                    </div>
+                                <?php endif; ?>
+                                <?php
+                                $f3Url = $landingUrl($landingImages['feature_3']['filename'] ?? null);
+                                $f3Alt = (string)($landingImages['feature_3']['alt_text'] ?? '');
+                                ?>
+                                <?php if ($f3Url !== null): ?>
+                                    <div class="text-center mt-2">
+                                        <img src="<?= htmlspecialchars($f3Url) ?>" alt="<?= htmlspecialchars($f3Alt) ?>" class="img-fluid rounded-4 shadow-sm" style="max-height: 500px; border: 1px solid var(--md-sys-color-outline-variant); width: auto; max-width: 100%; object-fit: contain;">
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </section>
+                    </div>
                 </div>
             </div>
         </div>

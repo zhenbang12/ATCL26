@@ -44,6 +44,15 @@ $contentSections = [
         'image_label' => 'Image 3',
         'help' => 'Shown after the third title and caption.',
     ],
+    [
+        'number' => 4,
+        'slot' => 'feature_3',
+        'title_name' => 'section_4_title',
+        'caption_name' => 'section_4_caption',
+        'title_default' => 'Join the Team',
+        'image_label' => 'Image 4',
+        'help' => 'Shown at the bottom of the landing page.',
+    ],
 ];
 ?>
 
@@ -160,6 +169,20 @@ $contentSections = [
                     <label class="form-label" for="<?= htmlspecialchars($section['caption_name']) ?>">Caption <?= (int)$section['number'] ?></label>
                     <textarea name="<?= htmlspecialchars($section['caption_name']) ?>" id="<?= htmlspecialchars($section['caption_name']) ?>" class="form-control" rows="4" maxlength="2000"><?= htmlspecialchars($settings[$section['caption_name']] ?? '') ?></textarea>
                 </div>
+
+                <?php if ((int)$section['number'] === 4): ?>
+                    <div class="row g-3">
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label" for="section_4_url">Button Action URL</label>
+                            <input type="url" name="section_4_url" id="section_4_url" class="form-control" maxlength="1024" value="<?= htmlspecialchars($settings['section_4_url'] ?? '') ?>" placeholder="https://example.com/brochure">
+                            <div class="form-text">Optional. Enter a URL to make this section show a call-to-action button.</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" for="section_4_button_text">Button Text</label>
+                            <input type="text" name="section_4_button_text" id="section_4_button_text" class="form-control" maxlength="255" value="<?= htmlspecialchars($settings['section_4_button_text'] ?? 'View Booklet') ?>" placeholder="View Booklet">
+                        </div>
+                    </div>
+                <?php endif; ?>
 
                 <hr class="my-4">
 

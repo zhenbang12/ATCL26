@@ -12,6 +12,7 @@ class SettingsController
         'hero' => 'Top banner — wide image below the main title',
         'feature_1' => 'Mid page — shown before “What to expect”',
         'feature_2' => 'Lower — shown before “Before you arrive”',
+        'feature_3' => 'Bottom — shown at the bottom of the landing page',
     ];
 
     private const MAX_BYTES = 5 * 1024 * 1024;
@@ -140,6 +141,19 @@ class SettingsController
                 $section3Title = mb_substr($section3Title, 0, 255);
             }
             $section3Caption = trim((string)($_POST['section_3_caption'] ?? ''));
+            $section4Title = trim((string)($_POST['section_4_title'] ?? 'Join the Team'));
+            if (mb_strlen($section4Title) > 255) {
+                $section4Title = mb_substr($section4Title, 0, 255);
+            }
+            $section4Caption = trim((string)($_POST['section_4_caption'] ?? ''));
+            $section4Url = trim((string)($_POST['section_4_url'] ?? ''));
+            if (mb_strlen($section4Url) > 1024) {
+                $section4Url = mb_substr($section4Url, 0, 1024);
+            }
+            $section4ButtonText = trim((string)($_POST['section_4_button_text'] ?? 'View Booklet'));
+            if (mb_strlen($section4ButtonText) > 255) {
+                $section4ButtonText = mb_substr($section4ButtonText, 0, 255);
+            }
 
             $stmt = $db->prepare('SELECT logo_1_filename, logo_2_filename, logo_3_filename FROM landing_settings LIMIT 1');
             $stmt->execute();
@@ -201,8 +215,8 @@ class SettingsController
                 $this->safeUnlink($uploadDir, $oldLogo3File);
             }
 
-            $upd = $db->prepare('UPDATE landing_settings SET logo_1_filename = ?, logo_1_alt_text = ?, logo_2_filename = ?, logo_2_alt_text = ?, logo_3_filename = ?, logo_3_alt_text = ?, background_color = ?, main_title = ?, main_caption = ?, section_1_title = ?, section_1_caption = ?, section_2_title = ?, section_2_caption = ?, section_3_title = ?, section_3_caption = ?');
-            $upd->execute([$logo1Name, $logo1Alt, $logo2Name, $logo2Alt, $logo3Name, $logo3Alt, $backgroundColor, $mainTitle, $mainCaption, $section1Title, $section1Caption, $section2Title, $section2Caption, $section3Title, $section3Caption]);
+            $upd = $db->prepare('UPDATE landing_settings SET logo_1_filename = ?, logo_1_alt_text = ?, logo_2_filename = ?, logo_2_alt_text = ?, logo_3_filename = ?, logo_3_alt_text = ?, background_color = ?, main_title = ?, main_caption = ?, section_1_title = ?, section_1_caption = ?, section_2_title = ?, section_2_caption = ?, section_3_title = ?, section_3_caption = ?, section_4_title = ?, section_4_caption = ?, section_4_url = ?, section_4_button_text = ?');
+            $upd->execute([$logo1Name, $logo1Alt, $logo2Name, $logo2Alt, $logo3Name, $logo3Alt, $backgroundColor, $mainTitle, $mainCaption, $section1Title, $section1Caption, $section2Title, $section2Caption, $section3Title, $section3Caption, $section4Title, $section4Caption, $section4Url, $section4ButtonText]);
 
             $_SESSION['settings_message'] = 'Landing page settings saved.';
             $_SESSION['settings_message_type'] = 'success';
@@ -310,7 +324,7 @@ class SettingsController
             $stmt = $db->query('
                 SELECT slot, filename, alt_text
                 FROM landing_images
-                ORDER BY FIELD(slot, \'hero\', \'feature_1\', \'feature_2\')
+                ORDER BY FIELD(slot, \'hero\', \'feature_1\', \'feature_2\', \'feature_3\')
             ');
             foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
                 $slot = (string)$row['slot'];
@@ -406,12 +420,12 @@ class SettingsController
     }
 
     /**
-     * @return array{logo_1_filename: ?string, logo_1_alt_text: string, logo_2_filename: ?string, logo_2_alt_text: string, logo_3_filename: ?string, logo_3_alt_text: string, background_color: string, main_title: string, main_caption: string, section_1_title: string, section_1_caption: string, section_2_title: string, section_2_caption: string, section_3_title: string, section_3_caption: string}
+     * @return array{logo_1_filename: ?string, logo_1_alt_text: string, logo_2_filename: ?string, logo_2_alt_text: string, logo_3_filename: ?string, logo_3_alt_text: string, background_color: string, main_title: string, main_caption: string, section_1_title: string, section_1_caption: string, section_2_title: string, section_2_caption: string, section_3_title: string, section_3_caption: string, section_4_title: string, section_4_caption: string, section_4_url: string, section_4_button_text: string}
      */
     public static function loadLandingSettings(\PDO $db): array
     {
         try {
-            $stmt = $db->query('SELECT logo_1_filename, logo_1_alt_text, logo_2_filename, logo_2_alt_text, logo_3_filename, logo_3_alt_text, background_color, main_title, main_caption, section_1_title, section_1_caption, section_2_title, section_2_caption, section_3_title, section_3_caption FROM landing_settings LIMIT 1');
+            $stmt = $db->query('SELECT logo_1_filename, logo_1_alt_text, logo_2_filename, logo_2_alt_text, logo_3_filename, logo_3_alt_text, background_color, main_title, main_caption, section_1_title, section_1_caption, section_2_title, section_2_caption, section_3_title, section_3_caption, section_4_title, section_4_caption, section_4_url, section_4_button_text FROM landing_settings LIMIT 1');
             $row = $stmt->fetch(\PDO::FETCH_ASSOC);
             if ($row) {
                 return [
@@ -430,6 +444,10 @@ class SettingsController
                     'section_2_caption' => (string)($row['section_2_caption'] ?? 'Icebreakers and group challenges across the event. Meals, briefings, and evening segments with your group. Check-in on arrival using the QR code you receive after registering. Language-friendly grouping so you can participate comfortably.'),
                     'section_3_title' => (string)($row['section_3_title'] ?? 'Before you arrive'),
                     'section_3_caption' => (string)($row['section_3_caption'] ?? 'Pre-register with your student details so we can prepare your QR for check-in and place you in a group when you arrive. If you already registered, you can retrieve your QR any time.'),
+                    'section_4_title' => (string)($row['section_4_title'] ?? 'Join the Team'),
+                    'section_4_caption' => (string)($row['section_4_caption'] ?? 'Want to make a difference? Apply as a facilitator or volunteer in our upcoming camp segments.'),
+                    'section_4_url' => (string)($row['section_4_url'] ?? ''),
+                    'section_4_button_text' => (string)($row['section_4_button_text'] ?? 'View Booklet'),
                 ];
             }
         } catch (\Exception $e) {
@@ -452,6 +470,10 @@ class SettingsController
             'section_2_caption' => 'Icebreakers and group challenges across the event. Meals, briefings, and evening segments with your group. Check-in on arrival using the QR code you receive after registering. Language-friendly grouping so you can participate comfortably.',
             'section_3_title' => 'Before you arrive',
             'section_3_caption' => 'Pre-register with your student details so we can prepare your QR for check-in and place you in a group when you arrive. If you already registered, you can retrieve your QR any time.',
+            'section_4_title' => 'Join the Team',
+            'section_4_caption' => 'Want to make a difference? Apply as a facilitator or volunteer in our upcoming camp segments.',
+            'section_4_url' => '',
+            'section_4_button_text' => 'View Booklet',
         ];
     }
 }
