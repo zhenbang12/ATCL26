@@ -15,6 +15,7 @@ $router = new Router();
 $router->get('/', 'HomeController@index');
 $router->get('/dashboard', 'HomeController@dashboard');
 $router->get('/public', 'HomeController@public');
+$router->get('/insights', 'InsightsController@index');
 
 // Site settings (advisor / committee)
 $router->get('/settings/landing', 'SettingsController@landingPage');

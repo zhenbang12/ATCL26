@@ -109,6 +109,12 @@ $theme = $registrationSettings['theme'] ?? 'violet';
                         Duplicates
                     </a>
                 </li>
+                <li>
+                    <a href="/insights" class="m3-nav-item <?= ($title ?? '') === 'Insights & Graphs' || strpos($_SERVER['REQUEST_URI'], '/insights') !== false ? 'active' : '' ?>">
+                        <span class="material-symbols-outlined">insights</span>
+                        Insights & Graphs
+                    </a>
+                </li>
                 <?php /*
                 <li>
                     <a href="/finance" class="m3-nav-item <?= strpos($_SERVER['REQUEST_URI'], '/finance') !== false ? 'active' : '' ?>">
