@@ -3,8 +3,8 @@
 /** @var string $sessionName */
 /** @var array<string, int> $summary */
 /** @var array<array{reg_date: string, count: string|int}> $regOverTime */
-/** @var array<int> $peakRegHours */
-/** @var array<int> $peakCheckinHours */
+/** @var array<array{reg_date: string, reg_hour: string|int, count: string|int}> $hourlyRegData */
+/** @var array<array{checkin_date: string, checkin_hour: string|int, count: string|int}> $hourlyCheckinData */
 /** @var array<array{faculty: string, count: string|int}> $facultyDistribution */
 /** @var array<array{preferred_language: string, count: string|int}> $languageDistribution */
 /** @var array<array{gender: string, count: string|int}> $genderDistribution */
@@ -278,7 +278,6 @@ $dropoutRate = $summary['total_active'] > 0
                         <canvas id="registrationTrendChart"></canvas>
                     </div>
                 </div>
-            </div>
         </div>
 
         <div class="row g-4 mb-4">
@@ -290,8 +289,13 @@ $dropoutRate = $summary['total_active'] > 0
                             <h2 class="h5 mb-1 fw-bold">Registration Peak Hours</h2>
                             <p class="text-muted small mb-0">Hourly volume of online pre-registrations</p>
                         </div>
-                        <div class="chart-icon-box">
-                            <span class="material-symbols-outlined">how_to_reg</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <select id="rushHourDateSelector" class="form-select form-select-sm" style="font-size: 0.8rem; padding: 0.25rem 1.75rem 0.25rem 0.75rem;" aria-label="Select Date for Registration Peak Hours">
+                                <option value="all">All Dates</option>
+                            </select>
+                            <div class="chart-icon-box">
+                                <span class="material-symbols-outlined">how_to_reg</span>
+                            </div>
                         </div>
                     </div>
                     <div style="height: 280px; position: relative;">
@@ -403,8 +407,8 @@ document.addEventListener('DOMContentLoaded', function() {
     <?php if ($summary['total_active'] > 0): ?>
         // --- 1. Fetch data from PHP variables ---
         const regOverTimeData = <?= json_encode($regOverTime) ?>;
-        const peakRegHours = <?= json_encode($peakRegHours) ?>;
-        const peakCheckinHours = <?= json_encode($peakCheckinHours) ?>;
+        const hourlyRegData = <?= json_encode($hourlyRegData) ?>;
+        const hourlyCheckinData = <?= json_encode($hourlyCheckinData) ?>;
         const facultyData = <?= json_encode($facultyDistribution) ?>;
         const languageData = <?= json_encode($languageDistribution) ?>;
         const genderData = <?= json_encode($genderDistribution) ?>;
@@ -517,16 +521,63 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // --- 4. Registration Peak Hours Chart ---
+        // --- 4. Interactive Date-Filter Peak Activity Hours Chart Logic ---
+        // Helper to compile a 24h array (0-23) from the grouped data
+        function get24hArray(dataList, filterDate) {
+            const arr = Array(24).fill(0);
+            dataList.forEach(item => {
+                const dateVal = item.reg_date !== undefined ? item.reg_date : item.checkin_date;
+                if (filterDate === 'all' || dateVal === filterDate) {
+                    const hr = parseInt(item.reg_hour !== undefined ? item.reg_hour : item.checkin_hour);
+                    const cnt = parseInt(item.count);
+                    if (!isNaN(hr) && hr >= 0 && hr < 24) {
+                        arr[hr] += cnt;
+                    }
+                }
+            });
+            return arr;
+        }
+
+        // Collect unique dates only from registration datasets
+        const uniqueDates = new Set();
+        hourlyRegData.forEach(item => { if (item.reg_date) uniqueDates.add(item.reg_date); });
+        
+        // Sort dates chronologically
+        const sortedDates = Array.from(uniqueDates).sort();
+
+        // Populate the dropdown selector
+        const dateSelector = document.getElementById('rushHourDateSelector');
+        if (dateSelector) {
+            sortedDates.forEach(dateStr => {
+                const option = document.createElement('option');
+                option.value = dateStr;
+                try {
+                    // Split date to avoid timezone offset issues when formatting
+                    const parts = dateStr.split('-');
+                    const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                    option.textContent = d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+                } catch(e) {
+                    option.textContent = dateStr;
+                }
+                dateSelector.appendChild(option);
+            });
+        }
+
+        // Initialize 24-hour datasets (defaults to 'all' dates)
+        const initialRegData = get24hArray(hourlyRegData, 'all');
+        const initialCheckinData = get24hArray(hourlyCheckinData, 'all');
+
         const hoursLabels = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+
+        // --- 4.1 Registration Peak Hours Chart ---
         const ctxRegHours = document.getElementById('registrationHoursChart').getContext('2d');
-        new Chart(ctxRegHours, {
+        const regHoursChart = new Chart(ctxRegHours, {
             type: 'bar',
             data: {
                 labels: hoursLabels,
                 datasets: [{
                     label: 'Registrations',
-                    data: peakRegHours,
+                    data: initialRegData,
                     backgroundColor: primaryColor + 'CC', // 80% opacity
                     borderRadius: 6
                 }]
@@ -556,15 +607,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // --- 4.5 Check-in Peak Hours Chart ---
+        // --- 4.2 Check-in Peak Hours Chart ---
         const ctxCheckinHours = document.getElementById('checkinHoursChart').getContext('2d');
-        new Chart(ctxCheckinHours, {
+        const checkinHoursChart = new Chart(ctxCheckinHours, {
             type: 'bar',
             data: {
                 labels: hoursLabels,
                 datasets: [{
                     label: 'Check-ins',
-                    data: peakCheckinHours,
+                    data: initialCheckinData,
                     backgroundColor: successColor + 'CC', // 80% opacity
                     borderRadius: 6
                 }]
@@ -593,6 +644,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
+
+        // Handle dropdown selection change (Registration only)
+        if (dateSelector) {
+            dateSelector.addEventListener('change', function() {
+                const targetDate = this.value;
+                const newReg = get24hArray(hourlyRegData, targetDate);
+
+                regHoursChart.data.datasets[0].data = newReg;
+                regHoursChart.update();
+            });
+        }
 
         // --- 5. Faculty Distribution (Horizontal Bar Chart) ---
         const faculties = facultyData.map(f => f.faculty || 'Not Specified');

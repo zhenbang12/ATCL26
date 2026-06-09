@@ -70,40 +70,27 @@ class InsightsController
         $regOverTimeStmt->execute([$sid]);
         $regOverTime = $regOverTimeStmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
 
-        // 4. Peak registration hours (Hour of day: 0-23)
-        $peakRegHourStmt = $db->prepare('
-            SELECT HOUR(created_at) as reg_hour, COUNT(*) as count
+        // 4. Hourly registrations grouped by Date + Hour
+        $hourlyRegStmt = $db->prepare('
+            SELECT DATE(created_at) as reg_date, HOUR(created_at) as reg_hour, COUNT(*) as count
             FROM participants
             WHERE duplicate_of IS NULL AND session_id = ?
-            GROUP BY HOUR(created_at)
-            ORDER BY reg_hour ASC
+            GROUP BY DATE(created_at), HOUR(created_at)
+            ORDER BY reg_date ASC, reg_hour ASC
         ');
-        $peakRegHourStmt->execute([$sid]);
-        $peakRegHoursRaw = $peakRegHourStmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+        $hourlyRegStmt->execute([$sid]);
+        $hourlyRegData = $hourlyRegStmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
 
-        // Prepare full 24h array to prevent missing hours in chart
-        $peakRegHours = array_fill(0, 24, 0);
-        foreach ($peakRegHoursRaw as $row) {
-            $hour = (int)$row['reg_hour'];
-            $peakRegHours[$hour] = (int)$row['count'];
-        }
-
-        // 5. Peak check-in hours (Hour of day: 0-23)
-        $peakCheckinHourStmt = $db->prepare('
-            SELECT HOUR(checked_in_at) as checkin_hour, COUNT(*) as count
+        // 5. Hourly check-ins grouped by Date + Hour
+        $hourlyCheckinStmt = $db->prepare('
+            SELECT DATE(checked_in_at) as checkin_date, HOUR(checked_in_at) as checkin_hour, COUNT(*) as count
             FROM participants
             WHERE duplicate_of IS NULL AND checked_in_at IS NOT NULL AND session_id = ?
-            GROUP BY HOUR(checked_in_at)
-            ORDER BY checkin_hour ASC
+            GROUP BY DATE(checked_in_at), HOUR(checked_in_at)
+            ORDER BY checkin_date ASC, checkin_hour ASC
         ');
-        $peakCheckinHourStmt->execute([$sid]);
-        $peakCheckinHoursRaw = $peakCheckinHourStmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
-
-        $peakCheckinHours = array_fill(0, 24, 0);
-        foreach ($peakCheckinHoursRaw as $row) {
-            $hour = (int)$row['checkin_hour'];
-            $peakCheckinHours[$hour] = (int)$row['count'];
-        }
+        $hourlyCheckinStmt->execute([$sid]);
+        $hourlyCheckinData = $hourlyCheckinStmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
 
         // 6. Faculty Distribution
         $facultyStmt = $db->prepare('
