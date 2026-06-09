@@ -198,13 +198,14 @@ $stats = $stats ?? [
                 <th>Name</th>
                 <th>Student ID</th>
                 <th>Email</th>
+                <th>Group</th>
+                <th>Checked in?</th>
                 <th>Programme</th>
                 <th>Faculty</th>
                 <th>Phone</th>
                 <th>Language</th>
                 <th>Registration</th>
-                <th>Group</th>
-                <th>Checked in?</th>
+                <th>Registered At</th>
                 <?php if (\App\Core\Auth::check()): ?>
                     <th>Actions</th>
                 <?php endif; ?>
@@ -234,7 +235,7 @@ $stats = $stats ?? [
             columnDefs: [
                 { orderable: false, targets: 0 }, // Counter is not orderable
                 <?php if (\App\Core\Auth::check()): ?>
-                { orderable: false, targets: 11 } // Actions are not orderable
+                { orderable: false, targets: 12 } // Actions are not orderable
                 <?php endif; ?>
             ],
             language: {

@@ -2075,13 +2075,14 @@ class ParticipantController
             1 => 'full_name',
             2 => 'student_id',
             3 => 'student_email',
-            4 => 'programme_name',
-            5 => 'faculty',
-            6 => 'contact_no',
-            7 => 'preferred_language',
-            8 => 'registration_type',
-            9 => 'group_code',
-            10 => 'checked_in_at'
+            4 => 'group_code',
+            5 => 'checked_in_at',
+            6 => 'programme_name',
+            7 => 'faculty',
+            8 => 'contact_no',
+            9 => 'preferred_language',
+            10 => 'registration_type',
+            11 => 'created_at'
         ];
         $orderBy = $columns[$orderColumnIndex] ?? 'full_name';
         
@@ -2131,7 +2132,7 @@ class ParticipantController
         $orderBySafe = $orderBy; 
         $orderDirSafe = $orderDir; 
 
-        $querySql = 'SELECT id, full_name, student_id, student_email, intake, programme_name, faculty, contact_no, preferred_language, group_code, registration_type, checked_in_at FROM participants' . $whereSql;
+        $querySql = 'SELECT id, full_name, student_id, student_email, intake, programme_name, faculty, contact_no, preferred_language, group_code, registration_type, checked_in_at, created_at FROM participants' . $whereSql;
         
         // Add ordering
         if ($orderBySafe === 'group_code') {
@@ -2178,13 +2179,14 @@ class ParticipantController
                 htmlspecialchars($p['full_name'] ?? ''),
                 htmlspecialchars($p['student_id'] ?? ''),
                 htmlspecialchars($p['student_email'] ?? ''),
+                '<span class="fw-bold text-primary">' . htmlspecialchars($p['group_code'] ?: '-') . '</span>',
+                $checkedInBadge,
                 htmlspecialchars($p['programme_name'] ?? ''),
                 htmlspecialchars($p['faculty'] ?? ''),
                 htmlspecialchars($p['contact_no'] ?? ''),
                 $langBadge,
                 $regBadge,
-                '<span class="fw-bold text-primary">' . htmlspecialchars($p['group_code'] ?: '-') . '</span>',
-                $checkedInBadge,
+                htmlspecialchars(date('j M Y, g:i A', strtotime($p['created_at']))),
             ];
 
             if ($isLoggedIn) {
