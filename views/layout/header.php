@@ -74,7 +74,7 @@ $theme = $registrationSettings['theme'] ?? 'violet';
                     </a>
                 </li>
                 <li>
-                    <a href="/participants" class="m3-nav-item <?= ($title ?? '') === 'Participants & Admission' || ($title ?? '') === 'Participants List' || (strpos($_SERVER['REQUEST_URI'], '/participants') !== false && strpos($_SERVER['REQUEST_URI'], '/participants/groups') === false && strpos($_SERVER['REQUEST_URI'], '/participants/checkin') === false && strpos($_SERVER['REQUEST_URI'], '/participants/assign-buddy') === false && strpos($_SERVER['REQUEST_URI'], '/participants/duplicates') === false) ? 'active' : '' ?>">
+                    <a href="/participants" class="m3-nav-item <?= ($title ?? '') === 'Participants & Admission' || ($title ?? '') === 'Participants List' || (strpos($_SERVER['REQUEST_URI'], '/participants') !== false && strpos($_SERVER['REQUEST_URI'], '/participants/groups') === false && strpos($_SERVER['REQUEST_URI'], '/participants/checkin') === false && strpos($_SERVER['REQUEST_URI'], '/participants/assign-buddy') === false && strpos($_SERVER['REQUEST_URI'], '/participants/duplicates') === false && strpos($_SERVER['REQUEST_URI'], '/participants/anomalies') === false) ? 'active' : '' ?>">
                         <span class="material-symbols-outlined">group</span>
                         Participants
                     </a>
@@ -107,6 +107,12 @@ $theme = $registrationSettings['theme'] ?? 'violet';
                     <a href="/participants/duplicates" class="m3-nav-item <?= ($title ?? '') === 'Duplicate Detection' || strpos($_SERVER['REQUEST_URI'], '/participants/duplicates') !== false ? 'active' : '' ?>">
                         <span class="material-symbols-outlined">content_copy</span>
                         Duplicates
+                    </a>
+                </li>
+                <li>
+                    <a href="/participants/anomalies" class="m3-nav-item <?= ($title ?? '') === 'Email Anomalies' || strpos($_SERVER['REQUEST_URI'], '/participants/anomalies') !== false ? 'active' : '' ?>">
+                        <span class="material-symbols-outlined">warning</span>
+                        Anomalies
                     </a>
                 </li>
                 <li>

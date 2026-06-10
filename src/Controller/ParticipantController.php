@@ -2475,4 +2475,65 @@ class ParticipantController
         header('Location: /participants/duplicates');
         exit;
     }
+
+    public function anomalies(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db = Container::get('db');
+        $title = 'Email Anomalies';
+        $sid = $this->sid();
+
+        // Fetch all active participants for the current session (excluding resolved duplicates)
+        $stmt = $db->prepare("SELECT * FROM participants WHERE duplicate_of IS NULL AND session_id = ? ORDER BY created_at DESC");
+        $stmt->execute([$sid]);
+        $participants = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $anomalies = [];
+        foreach ($participants as $p) {
+            $email = trim((string)($p['student_email'] ?? ''));
+
+            if ($email === '') {
+                $anomalies[] = [
+                    'participant' => $p,
+                    'reason' => 'Email is empty'
+                ];
+                continue;
+            }
+
+            // Parse username and domain
+            $parts = explode('@', $email);
+            $username = $parts[0] ?? '';
+            $domain = isset($parts[1]) ? strtolower(trim($parts[1])) : '';
+
+            if ($domain !== 'student.tarc.edu.my') {
+                $anomalies[] = [
+                    'participant' => $p,
+                    'reason' => 'Not a TARC student domain (@student.tarc.edu.my)'
+                ];
+                continue;
+            }
+
+            // Pattern checks:
+            // 1. Starts with '26' (ID-based: e.g. 26wcy80490)
+            $is26IntakeID = preg_match('/^26/i', $username);
+
+            // 2. Ends with 'w' + campus code + '26' (Name-based: e.g. adellynabna-wb26)
+            $is26IntakeName = preg_match('/w[a-z0-9]26$/i', $username);
+
+            if (!$is26IntakeID && !$is26IntakeName) {
+                $anomalies[] = [
+                    'participant' => $p,
+                    'reason' => 'Email does not match 2026 intake format (starts with 26 or ends with wX26)'
+                ];
+            }
+        }
+
+        $totalAnomalies = count($anomalies);
+        $totalParticipants = count($participants);
+
+        include __DIR__ . '/../../views/layout/header.php';
+        include __DIR__ . '/../../views/participants/anomalies.php';
+        include __DIR__ . '/../../views/layout/footer.php';
+    }
 }

@@ -65,6 +65,7 @@ $router->get('/participants/export-groups', 'ParticipantController@exportGroups'
 $router->get('/participants/duplicates', 'ParticipantController@duplicates');
 $router->post('/participants/duplicates/resolve', 'ParticipantController@resolveDuplicate');
 $router->post('/participants/duplicates/unresolve', 'ParticipantController@unresolveDuplicate');
+$router->get('/participants/anomalies', 'ParticipantController@anomalies');
 $router->get('/participants/edit', 'ParticipantController@edit');
 $router->post('/participants/update', 'ParticipantController@update');
 $router->post('/participants/delete', 'ParticipantController@delete');
