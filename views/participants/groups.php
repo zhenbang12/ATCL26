@@ -286,6 +286,7 @@ usort($allParticipants, function($a, $b) {
                         <option value="all">All Languages</option>
                         <option value="english-speaking group">English-speaking Group</option>
                         <option value="mandarin-speaking group">Mandarin-speaking Group</option>
+                        <option value="both language speaking group">Both language speaking group</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -342,7 +343,13 @@ usort($allParticipants, function($a, $b) {
                                 <td>
                                     <?php
                                         $lang = strtolower($p['preferred_language'] ?? '');
-                                        $langClass = (strpos($lang, 'mandarin') !== false) ? 'bg-tertiary' : 'bg-secondary';
+                                        if (strpos($lang, 'both') !== false) {
+                                            $langClass = 'bg-dark';
+                                        } elseif (strpos($lang, 'mandarin') !== false) {
+                                            $langClass = 'bg-tertiary';
+                                        } else {
+                                            $langClass = 'bg-secondary';
+                                        }
                                     ?>
                                     <span class="badge <?= $langClass ?>" style="font-size:0.72rem"><?= htmlspecialchars($p['preferred_language'] ?? '—') ?></span>
                                 </td>

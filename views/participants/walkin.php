@@ -129,6 +129,7 @@ if (isset($_SESSION['registration_input'])) {
             <option value="" disabled <?= empty($savedInput['preferred_language']) ? 'selected' : '' ?>>Select...</option>
             <option value="Mandarin-speaking Group" <?= ($savedInput['preferred_language'] ?? '') === 'Mandarin-speaking Group' ? 'selected' : '' ?>>Mandarin-speaking Group</option>
             <option value="English-speaking Group" <?= ($savedInput['preferred_language'] ?? '') === 'English-speaking Group' ? 'selected' : '' ?>>English-speaking Group</option>
+            <option value="Both language speaking group" <?= ($savedInput['preferred_language'] ?? '') === 'Both language speaking group' ? 'selected' : '' ?>>Both language speaking group</option>
         </select>
     </div>
     <button type="submit" class="btn btn-dark">Save Walk-in</button>
