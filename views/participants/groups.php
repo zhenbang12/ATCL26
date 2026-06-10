@@ -286,7 +286,7 @@ usort($allParticipants, function($a, $b) {
                         <option value="all">All Languages</option>
                         <option value="english-speaking group">English-speaking Group</option>
                         <option value="mandarin-speaking group">Mandarin-speaking Group</option>
-                        <option value="both language speaking group">Both language speaking group</option>
+                        <option value="both language speaking group">Both language speaking Group</option>
                     </select>
                 </div>
                 <div class="col-md-2">

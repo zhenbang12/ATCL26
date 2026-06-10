@@ -110,7 +110,7 @@
                                 <option value="" disabled>Select…</option>
                                 <option value="Mandarin-speaking Group" <?= in_array($participant['preferred_language'] ?? '', ['Mandarin', 'Mandarin-speaking Group'], true) ? 'selected' : '' ?>>Mandarin-speaking Group</option>
                                 <option value="English-speaking Group" <?= in_array($participant['preferred_language'] ?? '', ['English', 'English-speaking Group'], true) ? 'selected' : '' ?>>English-speaking Group</option>
-                                <option value="Both language speaking group" <?= in_array($participant['preferred_language'] ?? '', ['Both', 'Both language speaking group'], true) ? 'selected' : '' ?>>Both language speaking group</option>
+                                <option value="Both language speaking Group" <?= in_array($participant['preferred_language'] ?? '', ['Both', 'Both language speaking Group'], true) ? 'selected' : '' ?>>Both language speaking Group</option>
                             </select>
                         </div>
                     </div>
