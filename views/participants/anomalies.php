@@ -43,9 +43,9 @@ if (isset($_SESSION['participants_message'])) {
     </div>
     <div class="col-md-4">
         <div class="card text-center p-3 h-100" style="border: 1px solid var(--md-sys-color-outline-variant) !important; border-radius: 16px; background-color: var(--md-sys-color-surface-container-low) !important;">
-            <div class="text-muted small text-uppercase fw-semibold" style="color: var(--md-sys-color-on-surface-variant) !important; font-size: 0.7rem; letter-spacing: 0.5px;">Pending Review</div>
+            <div class="text-muted small text-uppercase fw-semibold" style="color: var(--md-sys-color-on-surface-variant) !important; font-size: 0.7rem; letter-spacing: 0.5px;">Participants Checked</div>
             <h2 class="mb-0 mt-1 fw-bold" style="color: var(--md-sys-color-primary) !important;"><?= $totalParticipants ?></h2>
-            <small class="text-muted" style="font-size: 0.72rem;">Participants still to check (of <?= $totalRegistered ?> total)</small>
+            <small class="text-muted" style="font-size: 0.72rem;">Included in anomaly scan (<?= $totalRegistered - $totalParticipants ?> removed from scan)</small>
         </div>
     </div>
     <div class="col-md-4">
