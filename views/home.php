@@ -113,7 +113,7 @@ $landingUrl = static function (?string $filename): ?string {
                         <?php elseif ($registrationSettings['walk_in_enabled']): ?>
                             <a href="/participants/create-walkin" class="btn btn-primary btn-lg px-5 fs-6 shadow-sm">Register as Walk-in</a>
                         <?php else: ?>
-                            <p class="mb-0 fw-medium">Registration is currently closed.</p>
+                            <p class="mb-0 fw-medium">Registration is currently closed, please walk in at DTAR tomorrow 1PM.</p>
                         <?php endif; ?>
                         <div class="mt-3">
                             <a href="/participants/lookup" class="btn btn-link btn-sm text-decoration-none fw-semibold" style="color: var(--md-sys-color-primary) !important;">Already registered? Find my QR code</a>

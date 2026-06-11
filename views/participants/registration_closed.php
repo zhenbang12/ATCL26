@@ -1,6 +1,6 @@
 <?php
 // Public message shown when a registration path is disabled.
-$closedTitle = $closedTitle ?? 'Registration is currently closed';
+$closedTitle = $closedTitle ?? 'Registration is currently closed, please walk in at DTAR tomorrow 1PM';
 ?>
 
 <div class="text-center py-5">
