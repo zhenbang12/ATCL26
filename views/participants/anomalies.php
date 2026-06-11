@@ -43,9 +43,9 @@ if (isset($_SESSION['participants_message'])) {
     </div>
     <div class="col-md-4">
         <div class="card text-center p-3 h-100" style="border: 1px solid var(--md-sys-color-outline-variant) !important; border-radius: 16px; background-color: var(--md-sys-color-surface-container-low) !important;">
-            <div class="text-muted small text-uppercase fw-semibold" style="color: var(--md-sys-color-on-surface-variant) !important; font-size: 0.7rem; letter-spacing: 0.5px;">Active Participants Checked</div>
+            <div class="text-muted small text-uppercase fw-semibold" style="color: var(--md-sys-color-on-surface-variant) !important; font-size: 0.7rem; letter-spacing: 0.5px;">Pending Review</div>
             <h2 class="mb-0 mt-1 fw-bold" style="color: var(--md-sys-color-primary) !important;"><?= $totalParticipants ?></h2>
-            <small class="text-muted" style="font-size: 0.72rem;">Excludes resolved duplicates</small>
+            <small class="text-muted" style="font-size: 0.72rem;">Participants still to check (of <?= $totalRegistered ?> total)</small>
         </div>
     </div>
     <div class="col-md-4">
@@ -93,6 +93,7 @@ if (isset($_SESSION['participants_message'])) {
                     <th>Name</th>
                     <th>Student ID</th>
                     <th>Email</th>
+                    <th>Phone</th>
                     <th>Flag Reason</th>
                     <th>Registered At</th>
                     <th style="width: 180px;">Actions</th>
@@ -110,6 +111,9 @@ if (isset($_SESSION['participants_message'])) {
                         </td>
                         <td>
                             <span class="text-danger fw-semibold"><?= htmlspecialchars($p['student_email'] ?? 'Blank') ?></span>
+                        </td>
+                        <td>
+                            <code><?= htmlspecialchars($p['contact_no'] ?? '-') ?></code>
                         </td>
                         <td>
                             <span class="badge bg-warning"><?= htmlspecialchars($item['reason']) ?></span>
@@ -147,7 +151,7 @@ $(document).ready(function() {
         pageLength: 25,
         order: [[0, 'asc']], // Sort by Name by default
         columnDefs: [
-            { orderable: false, targets: 5 } // Action is not orderable
+            { orderable: false, targets: 6 } // Action is not orderable
         ],
         language: {
             search: "Search anomalies:",

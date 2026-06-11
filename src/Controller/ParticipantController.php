@@ -2575,6 +2575,11 @@ class ParticipantController
         $totalAnomalies = count($anomalies);
         $totalParticipants = count($participants);
 
+        // Total registered (including excluded from anomalies) for context
+        $totalRegStmt = $db->prepare('SELECT COUNT(*) FROM participants WHERE duplicate_of IS NULL AND session_id = ?');
+        $totalRegStmt->execute([$sid]);
+        $totalRegistered = (int)$totalRegStmt->fetchColumn();
+
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/participants/anomalies.php';
         include __DIR__ . '/../../views/layout/footer.php';
