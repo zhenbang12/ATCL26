@@ -1592,7 +1592,8 @@ class ParticipantController
         }
 
         $lang = strtolower(trim($preferredLanguage));
-        $isBoth = (strpos($lang, 'both') !== false);
+        // Both language participants default to the Mandarin pool, so we set $isBoth to false.
+        $isBoth = false;
 
         // Use a transaction with row-level locking (FOR UPDATE) to prevent
         // concurrent check-in operators from assigning two participants to
@@ -1606,28 +1607,19 @@ class ParticipantController
             $lockStmt->execute([$sid]);
             $globalMax = max(0, (int)$lockStmt->fetchColumn());
 
-            if ($isBoth) {
-                // Lock all group rows in both language pools
-                $stmt = $db->prepare('
-                    SELECT group_code, max_per_group
-                    FROM event_groups
-                    WHERE session_id = ?
-                    ORDER BY sort_order ASC, CAST(group_code AS UNSIGNED), group_code
-                    FOR UPDATE
-                ');
-                $stmt->execute([$sid]);
-            } else {
-                $pool = (strpos($lang, 'english') !== false) ? 'english' : 'mandarin';
-                // Lock all group rows in this language pool
-                $stmt = $db->prepare('
-                    SELECT group_code, max_per_group
-                    FROM event_groups
-                    WHERE language_pool = ? AND session_id = ?
-                    ORDER BY sort_order ASC, CAST(group_code AS UNSIGNED), group_code
-                    FOR UPDATE
-                ');
-                $stmt->execute([$pool, $sid]);
-            }
+            // Assign "both" language or Mandarin-speaking participants to 'mandarin' pool.
+            // Only participants with strictly English preferred language (and not 'both') go to 'english' pool.
+            $pool = (strpos($lang, 'english') !== false && strpos($lang, 'both') === false) ? 'english' : 'mandarin';
+
+            // Lock all group rows in this language pool
+            $stmt = $db->prepare('
+                SELECT group_code, max_per_group
+                FROM event_groups
+                WHERE language_pool = ? AND session_id = ?
+                ORDER BY sort_order ASC, CAST(group_code AS UNSIGNED), group_code
+                FOR UPDATE
+            ');
+            $stmt->execute([$pool, $sid]);
             $poolRows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
             $poolCodes = [];
