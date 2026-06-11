@@ -67,6 +67,8 @@ $router->post('/participants/duplicates/resolve', 'ParticipantController@resolve
 $router->post('/participants/duplicates/unresolve', 'ParticipantController@unresolveDuplicate');
 $router->get('/participants/anomalies', 'ParticipantController@anomalies');
 $router->post('/participants/remove-anomaly', 'ParticipantController@removeAnomaly');
+$router->get('/participants/audit-logs', 'ParticipantController@auditLogs');
+$router->get('/participants/status', 'ParticipantController@checkStatus');
 $router->get('/participants/edit', 'ParticipantController@edit');
 $router->post('/participants/update', 'ParticipantController@update');
 $router->post('/participants/delete', 'ParticipantController@delete');

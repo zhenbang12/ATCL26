@@ -307,6 +307,11 @@ class ParticipantController
         $stmt->execute([$id]);
         $participant = $stmt->fetch(\PDO::FETCH_ASSOC);
 
+        if ($participant) {
+            $regTypeLabel = ($participant['registration_type'] === 'walk_in') ? 'walk-in' : 'pre-registered';
+            $this->logAudit($db, $id, $participant['full_name'], 'created', "Registered as $regTypeLabel");
+        }
+
         // Generate QR image as base64 PNG data URI (in-memory, no file saved)
         $options = new QROptions([
             'outputType' => QRCode::OUTPUT_IMAGE_PNG,
@@ -1832,6 +1837,10 @@ class ParticipantController
             exit;
         }
 
+        $oldStmt = $db->prepare('SELECT * FROM participants WHERE id = ?');
+        $oldStmt->execute([$id]);
+        $old = $oldStmt->fetch(\PDO::FETCH_ASSOC);
+
         try {
             $stmt = $db->prepare('UPDATE participants SET 
                 full_name = ?,
@@ -1869,6 +1878,17 @@ class ParticipantController
                 $id
             ]);
 
+            $newStmt = $db->prepare('SELECT * FROM participants WHERE id = ?');
+            $newStmt->execute([$id]);
+            $new = $newStmt->fetch(\PDO::FETCH_ASSOC);
+
+            if ($old && $new) {
+                $diff = $this->getParticipantDiff($old, $new);
+                if ($diff !== '') {
+                    $this->logAudit($db, $id, $new['full_name'], 'updated', $diff);
+                }
+            }
+
             $_SESSION['participants_message'] = 'Participant updated successfully.';
             $_SESSION['participants_message_type'] = 'success';
         } catch (\Exception $e) {
@@ -1886,9 +1906,17 @@ class ParticipantController
         $db = Container::get('db');
         $id = (int)($_POST['id'] ?? 0);
 
+        $oldStmt = $db->prepare('SELECT * FROM participants WHERE id = ?');
+        $oldStmt->execute([$id]);
+        $old = $oldStmt->fetch(\PDO::FETCH_ASSOC);
+
         try {
             $stmt = $db->prepare('DELETE FROM participants WHERE id = ?');
             $stmt->execute([$id]);
+
+            if ($old) {
+                $this->logAudit($db, $id, $old['full_name'], 'deleted', "Record deleted from system");
+            }
             $_SESSION['participants_message'] = 'Participant deleted successfully.';
             $_SESSION['participants_message_type'] = 'success';
         } catch (\Exception $e) {
@@ -2018,6 +2046,10 @@ class ParticipantController
         $contactNo = $this->formatPhoneNumber($contactRaw);
         $emergencyContactNo = $this->formatPhoneNumber($_POST['emergency_contact_no'] ?? '');
 
+        $oldStmt = $db->prepare('SELECT * FROM participants WHERE id = ?');
+        $oldStmt->execute([$id]);
+        $old = $oldStmt->fetch(\PDO::FETCH_ASSOC);
+
         try {
             $stmt = $db->prepare('UPDATE participants SET 
                 full_name = ?,
@@ -2042,6 +2074,17 @@ class ParticipantController
                 $preferredLanguage,
                 $id
             ]);
+
+            $newStmt = $db->prepare('SELECT * FROM participants WHERE id = ?');
+            $newStmt->execute([$id]);
+            $new = $newStmt->fetch(\PDO::FETCH_ASSOC);
+
+            if ($old && $new) {
+                $diff = $this->getParticipantDiff($old, $new);
+                if ($diff !== '') {
+                    $this->logAudit($db, $id, $new['full_name'], 'updated (public)', $diff);
+                }
+            }
 
             // Retrieve updated student_id for redirect
             $stmtId = $db->prepare('SELECT student_id FROM participants WHERE id = ?');
@@ -2543,9 +2586,25 @@ class ParticipantController
         $db = Container::get('db');
         $id = (int)($_POST['id'] ?? 0);
 
+        $oldStmt = $db->prepare('SELECT * FROM participants WHERE id = ?');
+        $oldStmt->execute([$id]);
+        $old = $oldStmt->fetch(\PDO::FETCH_ASSOC);
+
         try {
             $stmt = $db->prepare('UPDATE participants SET exclude_from_anomalies = 1 WHERE id = ?');
             $stmt->execute([$id]);
+
+            $newStmt = $db->prepare('SELECT * FROM participants WHERE id = ?');
+            $newStmt->execute([$id]);
+            $new = $newStmt->fetch(\PDO::FETCH_ASSOC);
+
+            if ($old && $new) {
+                $diff = $this->getParticipantDiff($old, $new);
+                if ($diff !== '') {
+                    $this->logAudit($db, $id, $new['full_name'], 'excluded_from_anomalies', $diff);
+                }
+            }
+
             $_SESSION['participants_message'] = 'Participant removed from anomalies list.';
             $_SESSION['participants_message_type'] = 'success';
         } catch (\Exception $e) {
@@ -2555,5 +2614,106 @@ class ParticipantController
 
         header('Location: /participants/anomalies');
         exit;
+    }
+
+    public function checkStatus(): void
+    {
+        $db = Container::get('db');
+        $id = (int)($_GET['id'] ?? 0);
+
+        $stmt = $db->prepare('SELECT checked_in_at, group_code FROM participants WHERE id = ?');
+        $stmt->execute([$id]);
+        $status = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        header('Content-Type: application/json');
+        if ($status) {
+            echo json_encode([
+                'success' => true,
+                'checked_in' => !empty($status['checked_in_at']),
+                'checked_in_at' => $status['checked_in_at'] ? date('d M Y, h:i A', strtotime($status['checked_in_at'])) : null,
+                'group_code' => $status['group_code'] ?: 'Pending'
+            ]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Participant not found']);
+        }
+        exit;
+    }
+
+    public function auditLogs(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db = Container::get('db');
+        $title = 'Audit Logs';
+        $sid = $this->sid();
+
+        $stmt = $db->prepare('SELECT * FROM participant_audit_logs WHERE session_id = ? ORDER BY performed_at DESC');
+        $stmt->execute([$sid]);
+        $logs = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+
+        include __DIR__ . '/../../views/layout/header.php';
+        include __DIR__ . '/../../views/participants/audit_logs.php';
+        include __DIR__ . '/../../views/layout/footer.php';
+    }
+
+    private function logAudit(
+        \PDO $db,
+        int $participantId,
+        string $participantName,
+        string $action,
+        ?string $changedFields = null
+    ): void {
+        $sid = $this->sid();
+        $user = Auth::user();
+        $performedBy = $user ? $user['username'] : 'Public';
+
+        $stmt = $db->prepare('INSERT INTO participant_audit_logs (session_id, participant_id, participant_name, action, changed_fields, performed_by) VALUES (?, ?, ?, ?, ?, ?)');
+        $stmt->execute([
+            $sid,
+            $participantId,
+            $participantName,
+            $action,
+            $changedFields,
+            $performedBy
+        ]);
+    }
+
+    private function getParticipantDiff(array $old, array $new): string
+    {
+        $fieldsToCompare = [
+            'full_name' => 'Name',
+            'ic_passport_no' => 'IC/Passport No',
+            'student_id' => 'Student ID',
+            'student_email' => 'Student Email',
+            'intake' => 'Intake',
+            'programme_name' => 'Programme Name',
+            'faculty' => 'Faculty',
+            'gender' => 'Gender',
+            'contact_no' => 'Contact No',
+            'emergency_contact_no' => 'Emergency Contact No',
+            'emergency_contact_relationship' => 'Emergency Contact Relationship',
+            'preferred_language' => 'Preferred Language',
+            'registration_type' => 'Registration Type',
+            'group_code' => 'Group Code',
+            'blacklisted' => 'Blacklisted',
+            'exclude_from_anomalies' => 'Excluded from anomalies'
+        ];
+
+        $changes = [];
+        foreach ($fieldsToCompare as $col => $label) {
+            $oldVal = trim((string)($old[$col] ?? ''));
+            $newVal = trim((string)($new[$col] ?? ''));
+            if ($oldVal !== $newVal) {
+                if ($col === 'blacklisted') {
+                    $oldVal = $oldVal === '1' ? 'Yes' : 'No';
+                    $newVal = $newVal === '1' ? 'Yes' : 'No';
+                } elseif ($col === 'exclude_from_anomalies') {
+                    $oldVal = $oldVal === '1' ? 'Yes' : 'No';
+                    $newVal = $newVal === '1' ? 'Yes' : 'No';
+                }
+                $changes[] = "$label: " . ($oldVal ?: '(empty)') . " -> " . ($newVal ?: '(empty)');
+            }
+        }
+        return implode(', ', $changes);
     }
 }

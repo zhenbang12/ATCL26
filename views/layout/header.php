@@ -116,6 +116,12 @@ $theme = $registrationSettings['theme'] ?? 'violet';
                     </a>
                 </li>
                 <li>
+                    <a href="/participants/audit-logs" class="m3-nav-item <?= ($title ?? '') === 'Audit Logs' || strpos($_SERVER['REQUEST_URI'], '/participants/audit-logs') !== false ? 'active' : '' ?>">
+                        <span class="material-symbols-outlined">history</span>
+                        Audit Logs
+                    </a>
+                </li>
+                <li>
                     <a href="/insights" class="m3-nav-item <?= ($title ?? '') === 'Insights & Graphs' || strpos($_SERVER['REQUEST_URI'], '/insights') !== false ? 'active' : '' ?>">
                         <span class="material-symbols-outlined">insights</span>
                         Insights & Graphs

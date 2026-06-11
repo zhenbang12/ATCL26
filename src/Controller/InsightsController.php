@@ -30,27 +30,64 @@ class InsightsController
 
         // 2. Summary stats
         $summaryStmt = $db->prepare('
-            SELECT 
-                COUNT(*) as total_active,
-                SUM(CASE WHEN checked_in_at IS NOT NULL THEN 1 ELSE 0 END) as checked_in,
-                SUM(CASE WHEN registration_type = "pre_register" THEN 1 ELSE 0 END) as pre_register,
-                SUM(CASE WHEN registration_type = "walk_in" THEN 1 ELSE 0 END) as walk_in
+            SELECT student_email, registration_type, checked_in_at, exclude_from_anomalies 
             FROM participants 
             WHERE duplicate_of IS NULL AND session_id = ?
         ');
         $summaryStmt->execute([$sid]);
-        $summary = $summaryStmt->fetch(\PDO::FETCH_ASSOC) ?: [
-            'total_active' => 0,
-            'checked_in' => 0,
-            'pre_register' => 0,
-            'walk_in' => 0
-        ];
+        $participants = $summaryStmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
 
-        // Ensure keys are integer
-        $summary['total_active'] = (int)($summary['total_active'] ?? 0);
-        $summary['checked_in'] = (int)($summary['checked_in'] ?? 0);
-        $summary['pre_register'] = (int)($summary['pre_register'] ?? 0);
-        $summary['walk_in'] = (int)($summary['walk_in'] ?? 0);
+        $totalActive = 0;
+        $checkedIn = 0;
+        $preRegister = 0;
+        $walkIn = 0;
+
+        foreach ($participants as $p) {
+            $email = trim((string)($p['student_email'] ?? ''));
+
+            // Check if anomaly (must not be whitelisted)
+            $isAnomaly = false;
+            if ((int)($p['exclude_from_anomalies'] ?? 0) === 0) {
+                if ($email === '') {
+                    $isAnomaly = true;
+                } else {
+                    $parts = explode('@', $email);
+                    $username = $parts[0] ?? '';
+                    $domain = isset($parts[1]) ? strtolower(trim($parts[1])) : '';
+
+                    if ($domain !== 'student.tarc.edu.my') {
+                        $isAnomaly = true;
+                    } else {
+                        $is26IntakeID = preg_match('/^26/i', $username);
+                        $is26IntakeName = preg_match('/w[a-z0-9]26$/i', $username);
+                        if (!$is26IntakeID && !$is26IntakeName) {
+                            $isAnomaly = true;
+                        }
+                    }
+                }
+            }
+
+            if ($isAnomaly) {
+                continue;
+            }
+
+            $totalActive++;
+            if (!empty($p['checked_in_at'])) {
+                $checkedIn++;
+            }
+            if (($p['registration_type'] ?? 'pre_register') === 'walk_in') {
+                $walkIn++;
+            } else {
+                $preRegister++;
+            }
+        }
+
+        $summary = [
+            'total_active' => $totalActive,
+            'checked_in' => $checkedIn,
+            'pre_register' => $preRegister,
+            'walk_in' => $walkIn
+        ];
 
         // Get duplicate count
         $dupStmt = $db->prepare('

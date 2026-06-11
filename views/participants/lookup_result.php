@@ -43,35 +43,86 @@ $registrationLabel = $lookupFrom === 'walk-in' ? 'Back to walk-in' : 'Back to pr
             </div>
         </div>
 
-        <!-- Check-in Status -->
-        <?php if (!empty($participant['checked_in_at'])): ?>
-            <div class="card p-4 border-0 mb-3" style="background-color: var(--md-sys-color-success-container) !important; border-radius: 20px !important; color: var(--md-sys-color-on-success-container) !important;">
-                <div class="d-flex align-items-center gap-3 mb-2">
-                    <span class="material-symbols-outlined" style="font-size: 36px;">check_circle</span>
-                    <div>
-                        <div class="fw-bold" style="font-size: 1.2rem;">Checked In</div>
+        <!-- Check-in Status Container -->
+        <div id="checkin-status-section">
+            <?php if (!empty($participant['checked_in_at'])): ?>
+                <div class="card p-4 border-0 mb-3" style="background-color: var(--md-sys-color-success-container) !important; border-radius: 20px !important; color: var(--md-sys-color-on-success-container) !important;">
+                    <div class="d-flex align-items-center gap-3 mb-2">
+                        <span class="material-symbols-outlined" style="font-size: 36px;">check_circle</span>
+                        <div>
+                            <div class="fw-bold" style="font-size: 1.2rem;">Checked In</div>
+                        </div>
+                    </div>
+                    <div style="font-size: 0.95rem; line-height: 1.8;">
+                        <div class="mb-1">
+                            <strong>Checked in at:</strong> <?= htmlspecialchars(date('d M Y, h:i A', strtotime($participant['checked_in_at']))) ?>
+                        </div>
+                        <div>
+                            <strong>Group Number:</strong>
+                            <span class="badge bg-primary fs-6" style="padding: 4px 12px !important;"><?= htmlspecialchars($participant['group_code'] ?? 'Pending') ?></span>
+                        </div>
                     </div>
                 </div>
-                <div style="font-size: 0.95rem; line-height: 1.8;">
-                    <div class="mb-1">
-                        <strong>Checked in at:</strong> <?= htmlspecialchars(date('d M Y, h:i A', strtotime($participant['checked_in_at']))) ?>
-                    </div>
-                    <div>
-                        <strong>Group Number:</strong>
-                        <span class="badge bg-primary fs-6" style="padding: 4px 12px !important;"><?= htmlspecialchars($participant['group_code'] ?? 'Pending') ?></span>
-                    </div>
-                </div>
-            </div>
-        <?php else: ?>
-            <div class="card p-4 border-0 mb-3" style="background-color: var(--md-sys-color-tertiary-container) !important; border-radius: 20px !important; color: var(--md-sys-color-on-tertiary-container) !important;">
-                <div class="d-flex align-items-center gap-3">
-                    <span class="material-symbols-outlined" style="font-size: 36px;">pending</span>
-                    <div>
-                        <div class="fw-bold" style="font-size: 1.1rem;">Not Checked In Yet</div>
-                        <p class="mb-0 small mt-1">Please present this QR code to the registration counter for check-in.</p>
+            <?php else: ?>
+                <div class="card p-4 border-0 mb-3" style="background-color: var(--md-sys-color-tertiary-container) !important; border-radius: 20px !important; color: var(--md-sys-color-on-tertiary-container) !important;">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="material-symbols-outlined" style="font-size: 36px;">pending</span>
+                        <div>
+                            <div class="fw-bold" style="font-size: 1.1rem;">Not Checked In Yet</div>
+                            <p class="mb-0 small mt-1">Please present this QR code to the registration counter for check-in.</p>
+                        </div>
                     </div>
                 </div>
-            </div>
+            <?php endif; ?>
+        </div>
+
+        <?php if (empty($participant['checked_in_at']) && !empty($participant['id'])): ?>
+            <script>
+                (function() {
+                    const participantId = <?= (int)$participant['id'] ?>;
+                    const statusSection = document.getElementById('checkin-status-section');
+                    
+                    const pollInterval = setInterval(async () => {
+                        try {
+                            const response = await fetch('/participants/status?id=' + participantId);
+                            const data = await response.json();
+                            
+                            if (data.success && data.checked_in) {
+                                clearInterval(pollInterval);
+                                
+                                // Render the checked in card dynamically with fade-in animation
+                                statusSection.innerHTML = `
+                                    <div class="card p-4 border-0 mb-3" style="background-color: var(--md-sys-color-success-container) !important; border-radius: 20px !important; color: var(--md-sys-color-on-success-container) !important; animation: fadeInCheckin 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;">
+                                        <div class="d-flex align-items-center gap-3 mb-2">
+                                            <span class="material-symbols-outlined" style="font-size: 36px;">check_circle</span>
+                                            <div>
+                                                <div class="fw-bold" style="font-size: 1.2rem;">Checked In</div>
+                                            </div>
+                                        </div>
+                                        <div style="font-size: 0.95rem; line-height: 1.8;">
+                                            <div class="mb-1">
+                                                <strong>Checked in at:</strong> \${data.checked_in_at}
+                                            </div>
+                                            <div>
+                                                <strong>Group Number:</strong>
+                                                <span class="badge bg-primary fs-6" style="padding: 4px 12px !important;">\${data.group_code}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                        } catch (e) {
+                            console.error('Error polling status:', e);
+                        }
+                    }, 2500);
+                })();
+            </script>
+            <style>
+                @keyframes fadeInCheckin {
+                    from { opacity: 0; transform: translateY(12px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+            </style>
         <?php endif; ?>
 
         <!-- QR Code Card -->
