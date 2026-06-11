@@ -2484,8 +2484,8 @@ class ParticipantController
         $title = 'Email Anomalies';
         $sid = $this->sid();
 
-        // Fetch all active participants for the current session (excluding resolved duplicates)
-        $stmt = $db->prepare("SELECT * FROM participants WHERE duplicate_of IS NULL AND session_id = ? ORDER BY created_at DESC");
+        // Fetch all active participants for the current session (excluding resolved duplicates and whitelisted anomalies)
+        $stmt = $db->prepare("SELECT * FROM participants WHERE duplicate_of IS NULL AND exclude_from_anomalies = 0 AND session_id = ? ORDER BY created_at DESC");
         $stmt->execute([$sid]);
         $participants = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
@@ -2535,5 +2535,25 @@ class ParticipantController
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/participants/anomalies.php';
         include __DIR__ . '/../../views/layout/footer.php';
+    }
+
+    public function removeAnomaly(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+        $db = Container::get('db');
+        $id = (int)($_POST['id'] ?? 0);
+
+        try {
+            $stmt = $db->prepare('UPDATE participants SET exclude_from_anomalies = 1 WHERE id = ?');
+            $stmt->execute([$id]);
+            $_SESSION['participants_message'] = 'Participant removed from anomalies list.';
+            $_SESSION['participants_message_type'] = 'success';
+        } catch (\Exception $e) {
+            $_SESSION['participants_message'] = 'Error removing participant: ' . $e->getMessage();
+            $_SESSION['participants_message_type'] = 'danger';
+        }
+
+        header('Location: /participants/anomalies');
+        exit;
     }
 }

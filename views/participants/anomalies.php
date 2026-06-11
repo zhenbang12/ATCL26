@@ -94,7 +94,8 @@ if (isset($_SESSION['participants_message'])) {
                     <th>Student ID</th>
                     <th>Email</th>
                     <th>Flag Reason</th>
-                    <th style="width: 100px;">Actions</th>
+                    <th>Registered At</th>
+                    <th style="width: 180px;">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -113,10 +114,21 @@ if (isset($_SESSION['participants_message'])) {
                         <td>
                             <span class="badge bg-warning"><?= htmlspecialchars($item['reason']) ?></span>
                         </td>
+                        <td style="font-size: 0.85rem;">
+                            <?= !empty($p['created_at']) ? htmlspecialchars(date('j M Y, g:i A', strtotime($p['created_at']))) : '-' ?>
+                        </td>
                         <td>
-                            <a href="/participants/edit?id=<?= (int)$p['id'] ?>" class="btn btn-sm btn-outline-primary py-1 px-3" style="border-radius: 8px !important; font-size: 0.75rem !important;">
-                                <span class="material-symbols-outlined" style="font-size: 14px; vertical-align: text-bottom;">edit</span> Edit
-                            </a>
+                            <div class="d-flex gap-2">
+                                <a href="/participants/edit?id=<?= (int)$p['id'] ?>" class="btn btn-sm btn-outline-primary py-1 px-3" style="border-radius: 8px !important; font-size: 0.75rem !important;">
+                                    <span class="material-symbols-outlined" style="font-size: 14px; vertical-align: text-bottom;">edit</span> Edit
+                                </a>
+                                <form method="post" action="/participants/remove-anomaly" class="d-inline m-0" onsubmit="return confirm('Are you sure you want to remove this participant from the anomalies list?');">
+                                    <input type="hidden" name="id" value="<?= (int)$p['id'] ?>">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-3" style="border-radius: 8px !important; font-size: 0.75rem !important;">
+                                        <span class="material-symbols-outlined" style="font-size: 14px; vertical-align: text-bottom;">delete</span> Remove
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -135,7 +147,7 @@ $(document).ready(function() {
         pageLength: 25,
         order: [[0, 'asc']], // Sort by Name by default
         columnDefs: [
-            { orderable: false, targets: 4 } // Action is not orderable
+            { orderable: false, targets: 5 } // Action is not orderable
         ],
         language: {
             search: "Search anomalies:",
