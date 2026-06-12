@@ -41,6 +41,8 @@ class InsightsController
         $checkedIn = 0;
         $preRegister = 0;
         $walkIn = 0;
+        $preRegisterCheckedIn = 0;
+        $walkInCheckedIn = 0;
 
         foreach ($participants as $p) {
             $email = trim((string)($p['student_email'] ?? ''));
@@ -72,21 +74,39 @@ class InsightsController
             }
 
             $totalActive++;
-            if (!empty($p['checked_in_at'])) {
+            $isCheckedIn = !empty($p['checked_in_at']);
+            if ($isCheckedIn) {
                 $checkedIn++;
             }
             if (($p['registration_type'] ?? 'pre_register') === 'walk_in') {
                 $walkIn++;
+                if ($isCheckedIn) {
+                    $walkInCheckedIn++;
+                }
             } else {
                 $preRegister++;
+                if ($isCheckedIn) {
+                    $preRegisterCheckedIn++;
+                }
             }
         }
+
+        $preRegisterDropout = max(0, $preRegister - $preRegisterCheckedIn);
+        $walkInDropout = max(0, $walkIn - $walkInCheckedIn);
+        $preRegisterDropoutRate = $preRegister > 0 ? round(($preRegisterDropout / $preRegister) * 100, 1) : 0;
+        $walkInDropoutRate = $walkIn > 0 ? round(($walkInDropout / $walkIn) * 100, 1) : 0;
 
         $summary = [
             'total_active' => $totalActive,
             'checked_in' => $checkedIn,
             'pre_register' => $preRegister,
-            'walk_in' => $walkIn
+            'walk_in' => $walkIn,
+            'pre_register_checked_in' => $preRegisterCheckedIn,
+            'walk_in_checked_in' => $walkInCheckedIn,
+            'pre_register_dropout' => $preRegisterDropout,
+            'walk_in_dropout' => $walkInDropout,
+            'pre_register_dropout_rate' => $preRegisterDropoutRate,
+            'walk_in_dropout_rate' => $walkInDropoutRate
         ];
 
         // Get duplicate count

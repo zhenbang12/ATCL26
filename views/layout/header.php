@@ -157,9 +157,15 @@ $theme = $registrationSettings['theme'] ?? 'violet';
                 <?php endif; ?>
                 <?php if (in_array(\App\Core\Auth::role(), ['advisor', 'committee', 'superuser'], true)): ?>
                     <li>
-                        <a href="/settings/landing" class="m3-nav-item <?= strpos($_SERVER['REQUEST_URI'], '/settings') !== false ? 'active' : '' ?>">
+                        <a href="/settings/landing" class="m3-nav-item <?= strpos($_SERVER['REQUEST_URI'], '/settings/landing') !== false ? 'active' : '' ?>">
                             <span class="material-symbols-outlined">settings</span>
                             Settings
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/settings/backup" class="m3-nav-item <?= strpos($_SERVER['REQUEST_URI'], '/settings/backup') !== false ? 'active' : '' ?>">
+                            <span class="material-symbols-outlined">backup</span>
+                            Backup &amp; Restore
                         </a>
                     </li>
                 <?php endif; ?>

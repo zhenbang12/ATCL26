@@ -584,13 +584,16 @@ class ParticipantController
             ");
             $sidStmt8->execute([$sid]);
             $facilitators = $sidStmt8->fetchAll(\PDO::FETCH_ASSOC);
-            foreach ($facilitators as $facilitator) {
-                $assignedGroup = trim((string)($facilitator['assigned_group_code'] ?? ''));
-                if ($assignedGroup !== '') {
-                    if (!isset($facilitatorByGroup[$assignedGroup])) {
-                        $facilitatorByGroup[$assignedGroup] = [];
+             foreach ($facilitators as $facilitator) {
+                $assignedGroupStr = trim((string)($facilitator['assigned_group_code'] ?? ''));
+                if ($assignedGroupStr !== '') {
+                    $assignedGroups = array_filter(array_map('trim', explode(',', $assignedGroupStr)));
+                    foreach ($assignedGroups as $assignedGroup) {
+                        if (!isset($facilitatorByGroup[$assignedGroup])) {
+                            $facilitatorByGroup[$assignedGroup] = [];
+                        }
+                        $facilitatorByGroup[$assignedGroup][] = $facilitator;
                     }
-                    $facilitatorByGroup[$assignedGroup][] = $facilitator;
                 }
             }
         } catch (\Exception $e) {
@@ -656,13 +659,16 @@ class ParticipantController
             ");
             $sidStmt2->execute([$sid]);
             $facilitators = $sidStmt2->fetchAll(\PDO::FETCH_ASSOC);
-            foreach ($facilitators as $facilitator) {
-                $assignedGroup = trim((string)($facilitator['assigned_group_code'] ?? ''));
-                if ($assignedGroup !== '') {
-                    if (!isset($facilitatorByGroup[$assignedGroup])) {
-                        $facilitatorByGroup[$assignedGroup] = [];
+             foreach ($facilitators as $facilitator) {
+                $assignedGroupStr = trim((string)($facilitator['assigned_group_code'] ?? ''));
+                if ($assignedGroupStr !== '') {
+                    $assignedGroups = array_filter(array_map('trim', explode(',', $assignedGroupStr)));
+                    foreach ($assignedGroups as $assignedGroup) {
+                        if (!isset($facilitatorByGroup[$assignedGroup])) {
+                            $facilitatorByGroup[$assignedGroup] = [];
+                        }
+                        $facilitatorByGroup[$assignedGroup][] = $facilitator;
                     }
-                    $facilitatorByGroup[$assignedGroup][] = $facilitator;
                 }
             }
         } catch (\Exception $e) {
@@ -716,16 +722,34 @@ class ParticipantController
         try {
             $db->beginTransaction();
 
-            // Ensure one facilitator per group and one group per facilitator.
-            $clearGroupStmt = $db->prepare('UPDATE crew SET assigned_group_code = NULL WHERE assigned_group_code = ? AND is_facilitator = 1 AND session_id = ?');
-            $clearGroupStmt->execute([$groupCode, $sid]);
+            // Clear this groupCode from all crew members
+            $stmt = $db->prepare('SELECT id, assigned_group_code FROM crew WHERE is_facilitator = 1 AND session_id = ?');
+            $stmt->execute([$sid]);
+            $allCrew = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
+            $updateStmt = $db->prepare('UPDATE crew SET assigned_group_code = ? WHERE id = ?');
+
+            foreach ($allCrew as $c) {
+                $assignedGroups = array_filter(array_map('trim', explode(',', (string)$c['assigned_group_code'])));
+                if (in_array($groupCode, $assignedGroups, true)) {
+                    $assignedGroups = array_diff($assignedGroups, [$groupCode]);
+                    $newCodeStr = count($assignedGroups) > 0 ? implode(',', $assignedGroups) : null;
+                    $updateStmt->execute([$newCodeStr, $c['id']]);
+                }
+            }
+
+            // Assign this groupCode to selected crewIds
             foreach ($crewIds as $crewId) {
-                $clearCrewStmt = $db->prepare('UPDATE crew SET assigned_group_code = NULL WHERE id = ? AND is_facilitator = 1 AND session_id = ?');
-                $clearCrewStmt->execute([$crewId, $sid]);
-
-                $assignStmt = $db->prepare('UPDATE crew SET assigned_group_code = ? WHERE id = ? AND is_facilitator = 1 AND session_id = ?');
-                $assignStmt->execute([$groupCode, $crewId, $sid]);
+                $stmt = $db->prepare('SELECT assigned_group_code FROM crew WHERE id = ? AND is_facilitator = 1 AND session_id = ?');
+                $stmt->execute([$crewId, $sid]);
+                $current = (string)$stmt->fetchColumn();
+                $assignedGroups = array_filter(array_map('trim', explode(',', $current)));
+                if (!in_array($groupCode, $assignedGroups, true)) {
+                    $assignedGroups[] = $groupCode;
+                    sort($assignedGroups, SORT_NATURAL);
+                    $newCodeStr = implode(',', $assignedGroups);
+                    $updateStmt->execute([$newCodeStr, $crewId]);
+                }
             }
 
             $db->commit();
@@ -766,9 +790,7 @@ class ParticipantController
             $clearAll = $db->prepare('UPDATE crew SET assigned_group_code = NULL WHERE is_facilitator = 1 AND session_id = ?');
             $clearAll->execute([$sid]);
 
-            $assignedCrewIds = [];
-            $assignStmt = $db->prepare('UPDATE crew SET assigned_group_code = ? WHERE id = ? AND is_facilitator = 1');
-
+            $crewGroupCodes = [];
             foreach ($assignments as $groupCode => $crewIds) {
                 $groupCode = trim((string)$groupCode);
                 if ($groupCode === '') {
@@ -788,19 +810,19 @@ class ParticipantController
                 $crewIds = array_slice($crewIds, 0, 2);
 
                 foreach ($crewIds as $crewId) {
-                    // Check for duplicate assignments across different groups
-                    if (isset($assignedCrewIds[$crewId])) {
-                        $q = $db->prepare('SELECT full_name FROM crew WHERE id = ? LIMIT 1');
-                        $q->execute([$crewId]);
-                        $name = $q->fetchColumn() ?: 'Facilitator (ID ' . $crewId . ')';
-                        throw new \Exception('Senior buddy "' . $name . '" cannot be assigned to multiple groups.');
+                    if (!isset($crewGroupCodes[$crewId])) {
+                        $crewGroupCodes[$crewId] = [];
                     }
-
-                    $assignedCrewIds[$crewId] = $groupCode;
-
-                    // Update assignment in database
-                    $assignStmt->execute([$groupCode, $crewId]);
+                    $crewGroupCodes[$crewId][] = $groupCode;
                 }
+            }
+
+            // Update assignment in database
+            $assignStmt = $db->prepare('UPDATE crew SET assigned_group_code = ? WHERE id = ? AND is_facilitator = 1 AND session_id = ?');
+            foreach ($crewGroupCodes as $crewId => $codes) {
+                sort($codes, SORT_NATURAL);
+                $codeStr = implode(',', $codes);
+                $assignStmt->execute([$codeStr, $crewId, $sid]);
             }
 
             $db->commit();

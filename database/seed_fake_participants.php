@@ -71,18 +71,14 @@ function generateIC(): string {
 }
 
 function generateStudentID(): string {
-    $year = rand(20, 26); // 20-26
+    $year = 26; // 26 intake to match active session cohort (ATCL26)
     $letters = ['WMR', 'WMS', 'WMT', 'WMU', 'WMV', 'WMX', 'WMY', 'WMZ'];
     $number = str_pad(rand(1, 99999), 5, '0', STR_PAD_LEFT);
     return $year . $letters[array_rand($letters)] . $number;
 }
 
-function generateEmail(string $name): string {
-    $nameParts = explode(' ', strtolower($name));
-    $firstName = $nameParts[0];
-    $lastName = isset($nameParts[1]) ? substr($nameParts[1], 0, 2) : 'xx';
-    $random = rand(10, 99);
-    return $firstName . $lastName . '-wm' . $random . '@student.tarc.edu.my';
+function generateEmail(string $studentId): string {
+    return strtolower($studentId) . '@student.tarc.edu.my';
 }
 
 function generatePhone(): string {
@@ -97,7 +93,9 @@ echo "Generating 150 fake participants...\n";
 $db->beginTransaction();
 
 try {
+    $sid = \App\Core\SessionHelper::currentSessionId();
     $stmt = $db->prepare('INSERT INTO participants (
+        session_id,
         full_name,
         ic_passport_no,
         student_id,
@@ -112,8 +110,9 @@ try {
         preferred_language,
         qr_code,
         group_code,
+        registration_type,
         checked_in_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
 
     for ($i = 1; $i <= 150; $i++) {
         $firstName = $firstNames[array_rand($firstNames)];
@@ -122,7 +121,7 @@ try {
         
         $ic = generateIC();
         $studentId = generateStudentID();
-        $email = generateEmail($fullName);
+        $email = generateEmail($studentId);
         $intake = $intakes[array_rand($intakes)];
         $programme = $programmes[array_rand($programmes)];
         $faculty = $faculties[array_rand($faculties)];
@@ -135,11 +134,16 @@ try {
         
         // No grouping data
         $groupCode = null;
+
+        // Randomize registration type: 80% pre-register, 20% walk-in
+        $regType = (rand(1, 10) <= 2) ? 'walk_in' : 'pre_register';
         
-        // 30% chance of being checked in
-        $checkedIn = (rand(1, 10) <= 3) ? date('Y-m-d H:i:s', time() - rand(0, 86400 * 7)) : null;
+        // Different check-in probabilities (90% for walk-ins, 70% for pre-registered)
+        $isCheckedIn = ($regType === 'walk_in') ? (rand(1, 10) <= 9) : (rand(1, 10) <= 7);
+        $checkedIn = $isCheckedIn ? date('Y-m-d H:i:s', time() - rand(0, 86400 * 5)) : null;
         
         $stmt->execute([
+            $sid,
             $fullName,
             $ic,
             $studentId,
@@ -154,6 +158,7 @@ try {
             $language,
             $qrCode,
             $groupCode,
+            $regType,
             $checkedIn
         ]);
         

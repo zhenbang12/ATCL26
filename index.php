@@ -21,6 +21,9 @@ $router->get('/insights', 'InsightsController@index');
 $router->get('/settings/landing', 'SettingsController@landingPage');
 $router->post('/settings/landing/save', 'SettingsController@landingPageSave');
 $router->post('/settings/registration/save', 'SettingsController@registrationSettingsSave');
+$router->get('/settings/backup', 'BackupController@showPage');
+$router->post('/settings/backup/run', 'BackupController@runBackup');
+$router->post('/settings/backup/restore', 'BackupController@runRestore');
 
 // User management (superuser only)
 $router->get('/users', 'UserController@index');

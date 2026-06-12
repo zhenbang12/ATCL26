@@ -87,7 +87,7 @@ if ($message !== null) {
             <div class="col-12">
                 <div class="alert alert-secondary d-flex align-items-center gap-2 py-2 mb-0" style="border-radius: 12px;">
                     <span class="material-symbols-outlined" style="font-size: 18px;">info</span>
-                    <span class="small">Currently assigned to <strong>Group <?= htmlspecialchars($c['assigned_group_code']) ?></strong>.
+                    <span class="small">Currently assigned to <strong>Group(s) <?= htmlspecialchars($c['assigned_group_code']) ?></strong>.
                     Unchecking Senior Buddy will clear this assignment.</span>
                 </div>
             </div>

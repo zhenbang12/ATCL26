@@ -220,7 +220,17 @@ $dropoutRate = $summary['total_active'] > 0
                             <div class="progress-bar-fill" style="width: <?= $dropoutRate ?>%; background: #E28413;"></div>
                         </div>
                     </div>
-                    <div class="small text-muted"><?= number_format($dropoutCount) ?> of <?= number_format($summary['total_active']) ?> no-shows</div>
+                    <div class="small text-muted mb-2"><?= number_format($dropoutCount) ?> of <?= number_format($summary['total_active']) ?> no-shows</div>
+                    <div class="border-top pt-2 mt-2" style="font-size: 0.75rem;">
+                        <div class="d-flex justify-content-between text-muted mb-1">
+                            <span>Pre-register:</span>
+                            <span class="fw-semibold" style="color: var(--md-sys-color-on-surface);"><?= $summary['pre_register_dropout_rate'] ?>% <span class="fw-normal text-muted">(<?= number_format($summary['pre_register_dropout']) ?>)</span></span>
+                        </div>
+                        <div class="d-flex justify-content-between text-muted">
+                            <span>Walk-in:</span>
+                            <span class="fw-semibold" style="color: var(--md-sys-color-on-surface);"><?= $summary['walk_in_dropout_rate'] ?>% <span class="fw-normal text-muted">(<?= number_format($summary['walk_in_dropout']) ?>)</span></span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -232,8 +242,18 @@ $dropoutRate = $summary['total_active'] > 0
                         <span class="material-symbols-outlined text-info" style="font-size: 20px;">join_inner</span>
                     </div>
                     <div class="fs-2 fw-bold mb-1" style="color: var(--md-sys-color-tertiary);"><?= number_format($summary['pre_register']) ?></div>
-                    <div class="small text-muted">
+                    <div class="small text-muted mb-2">
                         Pre-registered vs <strong><?= number_format($summary['walk_in']) ?></strong> Walk-ins
+                    </div>
+                    <div class="border-top pt-2 mt-2" style="font-size: 0.75rem;">
+                        <div class="d-flex justify-content-between text-muted mb-1">
+                            <span>Pre-reg Turnout:</span>
+                            <span class="fw-semibold" style="color: var(--md-sys-color-on-surface);"><?= number_format($summary['pre_register_checked_in']) ?> / <?= number_format($summary['pre_register']) ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between text-muted">
+                            <span>Walk-in Turnout:</span>
+                            <span class="fw-semibold" style="color: var(--md-sys-color-on-surface);"><?= number_format($summary['walk_in_checked_in']) ?> / <?= number_format($summary['walk_in']) ?></span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -318,6 +338,100 @@ $dropoutRate = $summary['total_active'] > 0
                     </div>
                     <div style="height: 280px; position: relative;">
                         <canvas id="checkinHoursChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Turnout & Dropout Analysis by Registration Type -->
+        <div class="row g-4 mb-4">
+            <!-- Grouped Bar Chart -->
+            <div class="col-md-6">
+                <div class="chart-card card">
+                    <div class="chart-title-container">
+                        <div>
+                            <h2 class="h5 mb-1 fw-bold">Turnout vs. Dropout Comparison</h2>
+                            <p class="text-muted small mb-0">Turnout (Checked-in) vs. Dropout (No-show) for each registration mode</p>
+                        </div>
+                        <div class="chart-icon-box">
+                            <span class="material-symbols-outlined">compare_arrows</span>
+                        </div>
+                    </div>
+                    <div style="height: 280px; position: relative;">
+                        <canvas id="regTypeBreakdownChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Stats Table -->
+            <div class="col-md-6">
+                <div class="chart-card card d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="chart-title-container">
+                            <div>
+                                <h2 class="h5 mb-1 fw-bold">Registration Mode Turnout Details</h2>
+                                <p class="text-muted small mb-0">Turnout and no-show stats with percentage rates</p>
+                            </div>
+                            <div class="chart-icon-box" style="background-color: var(--md-sys-color-tertiary-container); color: var(--md-sys-color-on-tertiary-container);">
+                                <span class="material-symbols-outlined">table_chart</span>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+                                <thead>
+                                    <tr>
+                                        <th scope="col" class="text-muted fw-semibold">Reg. Mode</th>
+                                        <th scope="col" class="text-muted fw-semibold text-center">Total</th>
+                                        <th scope="col" class="text-muted fw-semibold text-center">Attended</th>
+                                        <th scope="col" class="text-muted fw-semibold text-center">No-Show</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="fw-semibold">Pre-registered</td>
+                                        <td class="text-center"><?= number_format($summary['pre_register']) ?></td>
+                                        <td class="text-center">
+                                            <span class="badge text-success-emphasis bg-success-subtle border border-success-subtle px-2 py-1 rounded-pill">
+                                                <?= number_format($summary['pre_register_checked_in']) ?> (<?= 100 - $summary['pre_register_dropout_rate'] ?>%)
+                                            </span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge text-warning-emphasis bg-warning-subtle border border-warning-subtle px-2 py-1 rounded-pill">
+                                                <?= number_format($summary['pre_register_dropout']) ?> (<?= $summary['pre_register_dropout_rate'] ?>%)
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-semibold">Walk-in</td>
+                                        <td class="text-center"><?= number_format($summary['walk_in']) ?></td>
+                                        <td class="text-center">
+                                            <span class="badge text-success-emphasis bg-success-subtle border border-success-subtle px-2 py-1 rounded-pill">
+                                                <?= number_format($summary['walk_in_checked_in']) ?> (<?= 100 - $summary['walk_in_dropout_rate'] ?>%)
+                                            </span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge text-warning-emphasis bg-warning-subtle border border-warning-subtle px-2 py-1 rounded-pill">
+                                                <?= number_format($summary['walk_in_dropout']) ?> (<?= $summary['walk_in_dropout_rate'] ?>%)
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr style="border-top: 2px solid var(--md-sys-color-outline-variant);">
+                                        <td class="fw-bold">Total Active</td>
+                                        <td class="text-center fw-bold"><?= number_format($summary['total_active']) ?></td>
+                                        <td class="text-center fw-bold">
+                                            <span class="badge bg-success text-white px-2 py-1 rounded-pill">
+                                                <?= number_format($summary['checked_in']) ?> (<?= $attendanceRate ?>%)
+                                            </span>
+                                        </td>
+                                        <td class="text-center fw-bold">
+                                            <span class="badge text-white px-2 py-1 rounded-pill" style="background-color: #E28413 !important;">
+                                                <?= number_format($dropoutCount) ?> (<?= $dropoutRate ?>%)
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -734,6 +848,70 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
+
+        // --- 6.1. Turnout & Dropout Breakdown Chart ---
+        const preRegCheckedInCount = <?= (int)($summary['pre_register_checked_in'] ?? 0) ?>;
+        const preRegDropoutCount = <?= (int)($summary['pre_register_dropout'] ?? 0) ?>;
+        const walkInCheckedInCount = <?= (int)($summary['walk_in_checked_in'] ?? 0) ?>;
+        const walkInDropoutCount = <?= (int)($summary['walk_in_dropout'] ?? 0) ?>;
+
+        const ctxRegBreakdown = document.getElementById('regTypeBreakdownChart').getContext('2d');
+        new Chart(ctxRegBreakdown, {
+            type: 'bar',
+            data: {
+                labels: ['Pre-registered', 'Walk-in'],
+                datasets: [
+                    {
+                        label: 'Attended (Checked In)',
+                        data: [preRegCheckedInCount, walkInCheckedInCount],
+                        backgroundColor: successColor + 'CC', // 80% opacity
+                        borderRadius: 6
+                    },
+                    {
+                        label: 'Dropout (No-show)',
+                        data: [preRegDropoutCount, walkInDropoutCount],
+                        backgroundColor: '#E28413CC', // 80% opacity
+                        borderRadius: 6
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { boxWidth: 16, usePointStyle: true, pointStyle: 'circle' }
+                    },
+                    tooltip: {
+                        padding: 12,
+                        cornerRadius: 12,
+                        backgroundColor: 'rgba(29, 27, 32, 0.95)',
+                        titleFont: { weight: 'bold' },
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed.y;
+                                const label = context.dataset.label;
+                                const index = context.dataIndex;
+                                const total = index === 0 ? (preRegCheckedInCount + preRegDropoutCount) : (walkInCheckedInCount + walkInDropoutCount);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 5 },
+                        grid: { color: '#E6E1E5' }
+                    }
+                }
+            }
+        });
 
         // --- 7. Demographics - Registration Mode (Doughnut) ---
         const preRegCount = <?= (int)($summary['pre_register'] ?? 0) ?>;

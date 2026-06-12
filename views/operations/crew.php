@@ -68,7 +68,12 @@ if ($message !== null) {
                     </td>
                     <td>
                         <?php if (!empty($c['assigned_group_code'])): ?>
-                            <span class="badge bg-primary" style="font-size: 0.72rem;">Group <?= htmlspecialchars($c['assigned_group_code']) ?></span>
+                            <?php 
+                            $assignedGroups = array_filter(array_map('trim', explode(',', $c['assigned_group_code'])));
+                            foreach ($assignedGroups as $ag): 
+                            ?>
+                                <span class="badge bg-primary" style="font-size: 0.72rem; margin-right: 2px;">Group <?= htmlspecialchars($ag) ?></span>
+                            <?php endforeach; ?>
                         <?php else: ?>
                             <span class="text-muted small">—</span>
                         <?php endif; ?>

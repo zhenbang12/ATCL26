@@ -123,10 +123,6 @@ $unassignedFacilitators = array_filter($facilitators, function($f) use ($assigne
                                                 <?php foreach ($facilitators as $facilitator): ?>
                                                     <?php
                                                     $facilitatorId = (int)$facilitator['id'];
-                                                    $assignedGroup = trim((string)($facilitator['assigned_group_code'] ?? ''));
-                                                    if ($assignedGroup !== '' && $assignedGroup !== $groupCode && $slot1Id !== $facilitatorId) {
-                                                        continue;
-                                                    }
                                                     ?>
                                                     <option value="<?= $facilitatorId ?>" <?= $slot1Id === $facilitatorId ? 'selected' : '' ?>>
                                                         <?= htmlspecialchars($facilitator['full_name']) ?>
@@ -142,10 +138,6 @@ $unassignedFacilitators = array_filter($facilitators, function($f) use ($assigne
                                                 <?php foreach ($facilitators as $facilitator): ?>
                                                     <?php
                                                     $facilitatorId = (int)$facilitator['id'];
-                                                    $assignedGroup = trim((string)($facilitator['assigned_group_code'] ?? ''));
-                                                    if ($assignedGroup !== '' && $assignedGroup !== $groupCode && $slot2Id !== $facilitatorId) {
-                                                        continue;
-                                                    }
                                                     ?>
                                                     <option value="<?= $facilitatorId ?>" <?= $slot2Id === $facilitatorId ? 'selected' : '' ?>>
                                                         <?= htmlspecialchars($facilitator['full_name']) ?>
