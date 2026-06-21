@@ -40,6 +40,11 @@
                         <div class="card p-2 d-inline-block" style="border-radius: 16px !important; max-width: 300px;">
                             <img id="previewImg" src="" alt="Preview" class="rounded" style="max-height: 200px; max-width: 100%; object-fit: cover;">
                         </div>
+                        <div class="mt-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="rotateBtn" title="Rotate 90° clockwise">
+                                <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: text-bottom;">rotate_right</span> Rotate
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -128,6 +133,36 @@ function compressImage(file, maxDim, quality) {
             });
         };
     img.src = URL.createObjectURL(file);
+    });
+}
+
+// Rotate image 90° clockwise
+var rotateBtn = document.getElementById('rotateBtn');
+if (rotateBtn) {
+    rotateBtn.addEventListener('click', function() {
+        var imgEl = document.getElementById('previewImg');
+        if (!imgEl.src) return;
+
+        var rotImg = new Image();
+        rotImg.onload = function() {
+            var canvas = document.createElement('canvas');
+            canvas.width = rotImg.height;
+            canvas.height = rotImg.width;
+            var ctx = canvas.getContext('2d');
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.rotate(90 * Math.PI / 180);
+            ctx.drawImage(rotImg, -rotImg.width / 2, -rotImg.height / 2);
+
+            canvas.toBlob(function(blob) {
+                var newName = 'rotated_' + Date.now() + '.jpg';
+                var newFile = new File([blob], newName, { type: 'image/jpeg' });
+                var dt = new DataTransfer();
+                dt.items.add(newFile);
+                photoInput.files = dt.files;
+                imgEl.src = URL.createObjectURL(blob);
+            }, 'image/jpeg', 0.8);
+        };
+        rotImg.src = imgEl.src;
     });
 }
 
