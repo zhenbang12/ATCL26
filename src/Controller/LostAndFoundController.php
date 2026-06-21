@@ -94,28 +94,37 @@ class LostAndFoundController
 
         // Handle photo upload
         $photoFilename = null;
-        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK && $_FILES['photo']['size'] > 0) {
             $uploadDir = __DIR__ . '/../../uploads/lost_and_found/';
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0755, true);
             }
 
-            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-            $mimeType = mime_content_type($_FILES['photo']['tmp_name']);
+            // Validate image type with fallback
+            $allowedExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
 
-            if (!in_array($mimeType, $allowedTypes)) {
+            if (!in_array($ext, $allowedExts, true)) {
                 $_SESSION['lf_message'] = 'Invalid image type. Allowed: JPG, PNG, GIF, WEBP.';
                 $_SESSION['lf_message_type'] = 'danger';
                 header('Location: /lost-and-found/create');
                 exit;
             }
 
-            $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
+            // Verify it's actually an image
+            $imageInfo = @getimagesize($_FILES['photo']['tmp_name']);
+            if ($imageInfo === false) {
+                $_SESSION['lf_message'] = 'Uploaded file is not a valid image.';
+                $_SESSION['lf_message_type'] = 'danger';
+                header('Location: /lost-and-found/create');
+                exit;
+            }
+
             $photoFilename = 'lf_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
             $targetPath = $uploadDir . $photoFilename;
 
             if (!move_uploaded_file($_FILES['photo']['tmp_name'], $targetPath)) {
-                $_SESSION['lf_message'] = 'Failed to upload photo.';
+                $_SESSION['lf_message'] = 'Failed to save photo. Check that the uploads directory is writable.';
                 $_SESSION['lf_message_type'] = 'danger';
                 header('Location: /lost-and-found/create');
                 exit;
@@ -215,16 +224,26 @@ class LostAndFoundController
         }
 
         // Handle new photo upload
-        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK && $_FILES['photo']['size'] > 0) {
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0755, true);
             }
 
-            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-            $mimeType = mime_content_type($_FILES['photo']['tmp_name']);
+            // Validate image type with fallback
+            $allowedExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
 
-            if (!in_array($mimeType, $allowedTypes)) {
+            if (!in_array($ext, $allowedExts, true)) {
                 $_SESSION['lf_message'] = 'Invalid image type. Allowed: JPG, PNG, GIF, WEBP.';
+                $_SESSION['lf_message_type'] = 'danger';
+                header('Location: /lost-and-found/edit?id=' . $id);
+                exit;
+            }
+
+            // Verify it's actually an image
+            $imageInfo = @getimagesize($_FILES['photo']['tmp_name']);
+            if ($imageInfo === false) {
+                $_SESSION['lf_message'] = 'Uploaded file is not a valid image.';
                 $_SESSION['lf_message_type'] = 'danger';
                 header('Location: /lost-and-found/edit?id=' . $id);
                 exit;
@@ -238,12 +257,11 @@ class LostAndFoundController
                 }
             }
 
-            $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
             $photoFilename = 'lf_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
             $targetPath = $uploadDir . $photoFilename;
 
             if (!move_uploaded_file($_FILES['photo']['tmp_name'], $targetPath)) {
-                $_SESSION['lf_message'] = 'Failed to upload photo.';
+                $_SESSION['lf_message'] = 'Failed to save photo. Check that the uploads directory is writable.';
                 $_SESSION['lf_message_type'] = 'danger';
                 header('Location: /lost-and-found/edit?id=' . $id);
                 exit;
