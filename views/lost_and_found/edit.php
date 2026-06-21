@@ -100,19 +100,50 @@
 </div>
 
 <script>
-document.getElementById('photo').addEventListener('change', function(e) {
+const photoInput = document.getElementById('photo');
+const preview = document.getElementById('photoPreview');
+const previewImg = document.getElementById('previewImg');
+
+photoInput.addEventListener('change', function(e) {
     const file = e.target.files[0];
-    const preview = document.getElementById('photoPreview');
-    const img = document.getElementById('previewImg');
-    if (file) {
+    if (!file) {
+        preview.style.display = 'none';
+        return;
+    }
+    // Compress image on client side before upload
+    compressImage(file, 1200, 0.8).then(function(compressedFile) {
+        const dt = new DataTransfer();
+        dt.items.add(compressedFile);
+        photoInput.files = dt.files;
         const reader = new FileReader();
         reader.onload = function(ev) {
-            img.src = ev.target.result;
+            previewImg.src = ev.target.result;
             preview.style.display = 'block';
         };
-        reader.readAsDataURL(file);
-    } else {
-        preview.style.display = 'none';
-    }
+        reader.readAsDataURL(compressedFile);
+    });
 });
+
+function compressImage(file, maxDim, quality) {
+    return new Promise(function(resolve) {
+        const img = new Image();
+        img.onload = function() {
+            let w = img.width, h = img.height;
+            if (w > maxDim || h > maxDim) {
+                const ratio = Math.min(maxDim / w, maxDim / h);
+                w = Math.round(w * ratio);
+                h = Math.round(h * ratio);
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            canvas.toBlob(function(finalBlob) {
+                const newName = file.name.replace(/\.[^.]+$/, '.jpg');
+                resolve(new File([finalBlob], newName, { type: 'image/jpeg' }));
+            }, 'image/jpeg', quality);
+        };
+        img.src = URL.createObjectURL(file);
+    });
+}
 </script>
