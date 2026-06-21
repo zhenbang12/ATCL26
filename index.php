@@ -128,6 +128,16 @@ $router->get('/governance', 'GovernanceController@index');
 $router->get('/governance/tasks', 'GovernanceController@tasks');
 $router->get('/governance/proposals', 'GovernanceController@proposals');
 
+// Lost & Found
+$router->get('/lost-and-found', 'LostAndFoundController@index');
+$router->get('/lost-and-found/create', 'LostAndFoundController@create');
+$router->post('/lost-and-found/store', 'LostAndFoundController@store');
+$router->post('/lost-and-found/delete', 'LostAndFoundController@delete');
+$router->post('/lost-and-found/mark-returned', 'LostAndFoundController@markReturned');
+$router->get('/lost-and-found/public', 'LostAndFoundController@publicView');
+$router->get('/lost-and-found/claim', 'LostAndFoundController@claimForm');
+$router->post('/lost-and-found/submit-claim', 'LostAndFoundController@submitClaim');
+
 // Session management
 $router->get('/sessions', 'SessionController@index');
 $router->get('/sessions/create', 'SessionController@create');
