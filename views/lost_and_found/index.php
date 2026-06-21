@@ -1,6 +1,5 @@
 <?php
 // Admin: Lost & Found management list
-// Available: $items, $counts, $filter, $sort
 $filter = $filter ?? 'all';
 $sort = $sort ?? 'newest';
 $counts = $counts ?? ['all' => 0, 'unclaimed' => 0, 'claimed' => 0];
@@ -33,7 +32,33 @@ $counts = $counts ?? ['all' => 0, 'unclaimed' => 0, 'claimed' => 0];
     </div>
 </div>
 
-<!-- Compact Statistics Banner -->
+<!-- Bulk Action Bar -->
+<div id="bulkBar" class="card p-3 mb-3 border-0" style="background-color: var(--md-sys-color-primary-container) !important; border-radius: 16px !important; display: none;">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <span class="material-symbols-outlined" style="color: var(--md-sys-color-on-primary-container);">checklist</span>
+            <strong style="color: var(--md-sys-color-on-primary-container);">
+                <span id="selectedCount">0</span> item(s) selected
+            </strong>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-warning btn-sm" onclick="bulkAction('unclaim')">
+                <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: text-bottom;">undo</span> Mark Unclaimed
+            </button>
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="bulkAction('delete')">
+                <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: text-bottom;">delete</span> Delete Selected
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearSelection()">
+                <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: text-bottom;">close</span> Clear
+            </button>
+        </div>
+    </div>
+</div>
+
+<form id="bulkDeleteForm" method="POST" action="/lost-and-found/bulk-delete" style="display:none;"></form>
+<form id="bulkUnclaimForm" method="POST" action="/lost-and-found/bulk-unclaim" style="display:none;"></form>
+
+<!-- Statistics Banner -->
 <div class="row g-3 mb-4">
     <div class="col-md-4">
         <div class="card text-center p-3 h-100" style="border: 1px solid var(--md-sys-color-outline-variant) !important; border-radius: 16px; background-color: var(--md-sys-color-surface-container-low) !important;">
@@ -58,7 +83,6 @@ $counts = $counts ?? ['all' => 0, 'unclaimed' => 0, 'claimed' => 0];
 <!-- Filter Chips & Sort -->
 <div class="card p-3 mb-4 border-0" style="background-color: var(--md-sys-color-surface-container-low) !important; border-radius: 20px !important;">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-        <!-- Filter Chips (M3 Filter Chip Style) -->
         <div class="d-flex flex-wrap gap-2">
             <a href="/lost-and-found?filter=all&sort=<?= htmlspecialchars($sort) ?>"
                class="btn btn-sm <?= $filter === 'all' ? 'btn-primary' : 'btn-outline-secondary' ?>"
@@ -79,20 +103,15 @@ $counts = $counts ?? ['all' => 0, 'unclaimed' => 0, 'claimed' => 0];
                 Claimed <span class="badge <?= $filter === 'claimed' ? 'bg-light text-dark' : 'bg-success' ?> ms-1"><?= $counts['claimed'] ?></span>
             </a>
         </div>
-
-        <!-- Sort Dropdown (M3 style) -->
         <div class="dropdown">
             <button class="btn btn-outline-secondary btn-sm dropdown-toggle d-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown" style="border-radius: 100px !important;">
                 <span class="material-symbols-outlined" style="font-size: 16px;">sort</span>
                 <?= match($sort) { 'oldest' => 'Oldest First', 'caption' => 'Caption A–Z', default => 'Newest First' } ?>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item <?= $sort === 'newest' ? 'active' : '' ?>" href="/lost-and-found?filter=<?= htmlspecialchars($filter) ?>&sort=newest">
-                    <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: text-bottom;">arrow_downward</span> Newest First</a></li>
-                <li><a class="dropdown-item <?= $sort === 'oldest' ? 'active' : '' ?>" href="/lost-and-found?filter=<?= htmlspecialchars($filter) ?>&sort=oldest">
-                    <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: text-bottom;">arrow_upward</span> Oldest First</a></li>
-                <li><a class="dropdown-item <?= $sort === 'caption' ? 'active' : '' ?>" href="/lost-and-found?filter=<?= htmlspecialchars($filter) ?>&sort=caption">
-                    <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: text-bottom;">sort_by_alpha</span> Caption A–Z</a></li>
+                <li><a class="dropdown-item <?= $sort === 'newest' ? 'active' : '' ?>" href="/lost-and-found?filter=<?= htmlspecialchars($filter) ?>&sort=newest">Newest First</a></li>
+                <li><a class="dropdown-item <?= $sort === 'oldest' ? 'active' : '' ?>" href="/lost-and-found?filter=<?= htmlspecialchars($filter) ?>&sort=oldest">Oldest First</a></li>
+                <li><a class="dropdown-item <?= $sort === 'caption' ? 'active' : '' ?>" href="/lost-and-found?filter=<?= htmlspecialchars($filter) ?>&sort=caption">Caption A–Z</a></li>
             </ul>
         </div>
     </div>
@@ -103,20 +122,13 @@ $counts = $counts ?? ['all' => 0, 'unclaimed' => 0, 'claimed' => 0];
     <div class="card p-5 text-center border-0" style="background-color: var(--md-sys-color-surface-container-low) !important; border-radius: 20px !important;">
         <span class="material-symbols-outlined" style="font-size: 56px; color: var(--md-sys-color-outline);">inventory_2</span>
         <h5 class="mt-2 fw-bold" style="color: var(--md-sys-color-on-surface);">
-            <?php if ($filter === 'unclaimed'): ?>
-                No Unclaimed Items
-            <?php elseif ($filter === 'claimed'): ?>
-                No Claimed Items
-            <?php else: ?>
-                No Items Yet
-            <?php endif; ?>
+            <?php if ($filter === 'unclaimed'): ?>No Unclaimed Items
+            <?php elseif ($filter === 'claimed'): ?>No Claimed Items
+            <?php else: ?>No Items Yet<?php endif; ?>
         </h5>
         <p class="text-muted mb-3">
-            <?php if ($filter === 'all'): ?>
-                Click "Add Item" to add a lost & found item with a photo.
-            <?php else: ?>
-                No items match the current filter.
-            <?php endif; ?>
+            <?php if ($filter === 'all'): ?>Click "Add Item" to add a lost & found item with a photo.
+            <?php else: ?>No items match the current filter.<?php endif; ?>
         </p>
         <?php if ($filter === 'all'): ?>
             <div>
@@ -130,7 +142,12 @@ $counts = $counts ?? ['all' => 0, 'unclaimed' => 0, 'claimed' => 0];
     <div class="row g-3">
         <?php foreach ($items as $item): ?>
             <div class="col-md-6 col-lg-4">
-                <div class="card h-100" style="border-radius: 20px !important; overflow: hidden;">
+                <div class="card h-100" style="border-radius: 20px !important; overflow: hidden; position: relative;">
+                    <!-- Selection checkbox -->
+                    <div style="position: absolute; top: 12px; left: 12px; z-index: 10;">
+                        <input type="checkbox" class="form-check-input item-checkbox" data-id="<?= (int)$item['id'] ?>"
+                               style="width: 22px; height: 22px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                    </div>
                     <?php if ($item['photo_filename']): ?>
                         <div style="position: relative;">
                             <img src="/uploads/lost_and_found/<?= htmlspecialchars($item['photo_filename']) ?>"
@@ -170,7 +187,6 @@ $counts = $counts ?? ['all' => 0, 'unclaimed' => 0, 'claimed' => 0];
                         <?php if ($item['description']): ?>
                             <p class="card-text small mb-2" style="color: var(--md-sys-color-on-surface-variant);"><?= nl2br(htmlspecialchars($item['description'])) ?></p>
                         <?php endif; ?>
-
                         <?php if ($item['status'] === 'claimed'): ?>
                             <div class="mt-auto pt-2" style="border-top: 1px solid var(--md-sys-color-outline-variant);">
                                 <div class="d-flex align-items-center gap-1 mb-1">
@@ -214,3 +230,48 @@ $counts = $counts ?? ['all' => 0, 'unclaimed' => 0, 'claimed' => 0];
         <?php endforeach; ?>
     </div>
 <?php endif; ?>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var checkboxes = document.querySelectorAll('.item-checkbox');
+    var bulkBar = document.getElementById('bulkBar');
+    var selectedCount = document.getElementById('selectedCount');
+
+    checkboxes.forEach(function(cb) {
+        cb.addEventListener('change', updateBulkBar);
+    });
+
+    function updateBulkBar() {
+        var checked = document.querySelectorAll('.item-checkbox:checked');
+        var count = checked.length;
+        selectedCount.textContent = count;
+        bulkBar.style.display = count > 0 ? 'block' : 'none';
+    }
+
+    window.bulkAction = function(action) {
+        var checked = document.querySelectorAll('.item-checkbox:checked');
+        if (checked.length === 0) return;
+        if (action === 'delete') {
+            if (!confirm('Delete ' + checked.length + ' selected item(s) permanently?')) return;
+        }
+        var formId = action === 'delete' ? 'bulkDeleteForm' : 'bulkUnclaimForm';
+        var form = document.getElementById(formId);
+        form.innerHTML = '';
+        checked.forEach(function(cb) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'ids[]';
+            input.value = cb.getAttribute('data-id');
+            form.appendChild(input);
+        });
+        form.submit();
+    };
+
+    window.clearSelection = function() {
+        document.querySelectorAll('.item-checkbox:checked').forEach(function(cb) {
+            cb.checked = false;
+        });
+        updateBulkBar();
+    };
+});
+</script>

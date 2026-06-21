@@ -76,6 +76,45 @@
     </div>
 </div>
 
+<!-- Bulk Upload Section -->
+<div class="row justify-content-center mt-4">
+    <div class="col-lg-8">
+        <div class="card p-4 border-0" style="background-color: var(--md-sys-color-surface-container-low) !important; border-radius: 20px !important;">
+            <h5 class="fw-bold mb-3 d-flex align-items-center gap-2" style="color: var(--md-sys-color-on-surface);">
+                <span class="material-symbols-outlined" style="font-size: 22px;">burst_mode</span>
+                Bulk Upload Photos
+            </h5>
+            <p class="text-muted small mb-3">Upload multiple photos at once. Each photo will become a separate lost & found item.</p>
+            <form method="POST" action="/lost-and-found/bulk-upload" enctype="multipart/form-data" id="bulkUploadForm">
+                <div class="mb-3">
+                    <label for="bulkPhotos" class="form-label fw-semibold d-flex align-items-center gap-1" style="color: var(--md-sys-color-on-surface);">
+                        <span class="material-symbols-outlined" style="font-size: 20px;">add_photo_alternate</span>
+                        Select Photos
+                    </label>
+                    <input type="file" class="form-control" id="bulkPhotos" name="photos[]" accept="image/*" multiple>
+                    <div class="form-text" style="color: var(--md-sys-color-on-surface-variant);">
+                        Accepted: JPG, PNG, GIF, WEBP &middot; You can select multiple files at once
+                    </div>
+                    <div id="bulkFileCount" class="mt-2 small fw-semibold" style="color: var(--md-sys-color-primary); display: none;"></div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="defaultCaption" class="form-label fw-semibold d-flex align-items-center gap-1" style="color: var(--md-sys-color-on-surface);">
+                        <span class="material-symbols-outlined" style="font-size: 20px;">edit</span>
+                        Default Caption <span class="text-muted fw-normal">(optional)</span>
+                    </label>
+                    <input type="text" class="form-control" id="defaultCaption" name="default_caption"
+                           placeholder="e.g. Found on Day 2 — if empty, filename will be used as caption" maxlength="255">
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="bulkUploadBtn">
+                    <span class="material-symbols-outlined" style="font-size: 18px; vertical-align: text-bottom;">cloud_upload</span> Upload All Photos
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 const photoInput = document.getElementById('photo');
 const preview = document.getElementById('photoPreview');
@@ -126,7 +165,19 @@ function compressImage(file, maxDim, quality) {
                 }, 'image/jpeg', quality);
             });
         };
-        img.src = URL.createObjectURL(file);
+    img.src = URL.createObjectURL(file);
     });
 }
+
+// Bulk upload file count display
+document.getElementById('bulkPhotos').addEventListener('change', function(e) {
+    var count = this.files.length;
+    var display = document.getElementById('bulkFileCount');
+    if (count > 0) {
+        display.textContent = count + ' file(s) selected';
+        display.style.display = 'block';
+    } else {
+        display.style.display = 'none';
+    }
+});
 </script>
