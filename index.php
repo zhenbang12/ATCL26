@@ -132,6 +132,8 @@ $router->get('/governance/proposals', 'GovernanceController@proposals');
 $router->get('/lost-and-found', 'LostAndFoundController@index');
 $router->get('/lost-and-found/create', 'LostAndFoundController@create');
 $router->post('/lost-and-found/store', 'LostAndFoundController@store');
+$router->get('/lost-and-found/edit', 'LostAndFoundController@edit');
+$router->post('/lost-and-found/update', 'LostAndFoundController@update');
 $router->post('/lost-and-found/delete', 'LostAndFoundController@delete');
 $router->post('/lost-and-found/mark-returned', 'LostAndFoundController@markReturned');
 $router->get('/lost-and-found/public', 'LostAndFoundController@publicView');

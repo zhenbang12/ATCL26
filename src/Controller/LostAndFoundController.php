@@ -95,7 +95,7 @@ class LostAndFoundController
         // Handle photo upload
         $photoFilename = null;
         if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-            $uploadDir = $_SERVER['DOCUMENT_ROOT'] . '/uploads/lost_and_found/';
+            $uploadDir = __DIR__ . '/../../uploads/lost_and_found/';
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0755, true);
             }
@@ -140,6 +140,134 @@ class LostAndFoundController
         }
     }
 
+    // Admin: Show edit form
+    public function edit(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db = Container::get('db');
+        $id = (int)($_GET['id'] ?? 0);
+
+        if ($id <= 0) {
+            $_SESSION['lf_message'] = 'Invalid item.';
+            $_SESSION['lf_message_type'] = 'danger';
+            header('Location: /lost-and-found');
+            exit;
+        }
+
+        $stmt = $db->prepare("SELECT * FROM lost_and_found_items WHERE id = ?");
+        $stmt->execute([$id]);
+        $item = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$item) {
+            $_SESSION['lf_message'] = 'Item not found.';
+            $_SESSION['lf_message_type'] = 'danger';
+            header('Location: /lost-and-found');
+            exit;
+        }
+
+        $title = 'Edit Lost & Found Item';
+        include __DIR__ . '/../../views/layout/header.php';
+        include __DIR__ . '/../../views/lost_and_found/edit.php';
+        include __DIR__ . '/../../views/layout/footer.php';
+    }
+
+    // Admin: Update a lost and found item
+    public function update(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db = Container::get('db');
+        $id = (int)($_POST['id'] ?? 0);
+        $caption = trim((string)($_POST['caption'] ?? ''));
+        $description = trim((string)($_POST['description'] ?? ''));
+        $removePhoto = isset($_POST['remove_photo']);
+
+        if ($id <= 0 || $caption === '') {
+            $_SESSION['lf_message'] = 'Caption is required.';
+            $_SESSION['lf_message_type'] = 'danger';
+            header('Location: /lost-and-found/edit?id=' . $id);
+            exit;
+        }
+
+        // Get current item
+        $stmt = $db->prepare("SELECT * FROM lost_and_found_items WHERE id = ?");
+        $stmt->execute([$id]);
+        $item = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$item) {
+            $_SESSION['lf_message'] = 'Item not found.';
+            $_SESSION['lf_message_type'] = 'danger';
+            header('Location: /lost-and-found');
+            exit;
+        }
+
+        $uploadDir = __DIR__ . '/../../uploads/lost_and_found/';
+        $photoFilename = $item['photo_filename'];
+
+        // Handle photo removal
+        if ($removePhoto && $photoFilename) {
+            $oldPath = $uploadDir . $photoFilename;
+            if (file_exists($oldPath)) {
+                unlink($oldPath);
+            }
+            $photoFilename = null;
+        }
+
+        // Handle new photo upload
+        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+
+            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            $mimeType = mime_content_type($_FILES['photo']['tmp_name']);
+
+            if (!in_array($mimeType, $allowedTypes)) {
+                $_SESSION['lf_message'] = 'Invalid image type. Allowed: JPG, PNG, GIF, WEBP.';
+                $_SESSION['lf_message_type'] = 'danger';
+                header('Location: /lost-and-found/edit?id=' . $id);
+                exit;
+            }
+
+            // Delete old photo
+            if ($photoFilename) {
+                $oldPath = $uploadDir . $photoFilename;
+                if (file_exists($oldPath)) {
+                    unlink($oldPath);
+                }
+            }
+
+            $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
+            $photoFilename = 'lf_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
+            $targetPath = $uploadDir . $photoFilename;
+
+            if (!move_uploaded_file($_FILES['photo']['tmp_name'], $targetPath)) {
+                $_SESSION['lf_message'] = 'Failed to upload photo.';
+                $_SESSION['lf_message_type'] = 'danger';
+                header('Location: /lost-and-found/edit?id=' . $id);
+                exit;
+            }
+        }
+
+        try {
+            $stmt = $db->prepare(
+                "UPDATE lost_and_found_items SET photo_filename = ?, caption = ?, description = ? WHERE id = ?"
+            );
+            $stmt->execute([$photoFilename, $caption, $description, $id]);
+
+            $_SESSION['lf_message'] = 'Item updated successfully.';
+            $_SESSION['lf_message_type'] = 'success';
+            header('Location: /lost-and-found');
+            exit;
+        } catch (\Exception $e) {
+            $_SESSION['lf_message'] = 'Failed to update item: ' . $e->getMessage();
+            $_SESSION['lf_message_type'] = 'danger';
+            header('Location: /lost-and-found/edit?id=' . $id);
+            exit;
+        }
+    }
+
     // Admin: Delete a lost and found item
     public function delete(): void
     {
@@ -161,7 +289,7 @@ class LostAndFoundController
         $item = $stmt->fetch(\PDO::FETCH_ASSOC);
 
         if ($item && $item['photo_filename']) {
-            $photoPath = $_SERVER['DOCUMENT_ROOT'] . '/uploads/lost_and_found/' . $item['photo_filename'];
+            $photoPath = __DIR__ . '/../../uploads/lost_and_found/' . $item['photo_filename'];
             if (file_exists($photoPath)) {
                 unlink($photoPath);
             }

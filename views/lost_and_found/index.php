@@ -189,7 +189,10 @@ $counts = $counts ?? ['all' => 0, 'unclaimed' => 0, 'claimed' => 0];
                         <?php endif; ?>
                     </div>
 
-                    <div class="card-footer d-flex gap-2" style="background-color: var(--md-sys-color-surface-container-lowest); border-top: 1px solid var(--md-sys-color-outline-variant); padding: 0.75rem 1.25rem;">
+                    <div class="card-footer d-flex flex-wrap gap-2" style="background-color: var(--md-sys-color-surface-container-lowest); border-top: 1px solid var(--md-sys-color-outline-variant); padding: 0.75rem 1.25rem;">
+                        <a href="/lost-and-found/edit?id=<?= (int)$item['id'] ?>" class="btn btn-outline-secondary btn-sm">
+                            <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: text-bottom;">edit</span> Edit
+                        </a>
                         <?php if ($item['status'] === 'claimed'): ?>
                             <form method="POST" action="/lost-and-found/mark-returned" class="d-inline">
                                 <input type="hidden" name="id" value="<?= (int)$item['id'] ?>">
