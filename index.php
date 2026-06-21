@@ -138,7 +138,6 @@ $router->post('/lost-and-found/delete', 'LostAndFoundController@delete');
 $router->post('/lost-and-found/mark-returned', 'LostAndFoundController@markReturned');
 $router->post('/lost-and-found/bulk-delete', 'LostAndFoundController@bulkDelete');
 $router->post('/lost-and-found/bulk-unclaim', 'LostAndFoundController@bulkMarkUnclaimed');
-$router->post('/lost-and-found/bulk-upload', 'LostAndFoundController@bulkUpload');
 $router->get('/lost-and-found/public', 'LostAndFoundController@publicView');
 $router->get('/lost-and-found/claim', 'LostAndFoundController@claimForm');
 $router->post('/lost-and-found/submit-claim', 'LostAndFoundController@submitClaim');
