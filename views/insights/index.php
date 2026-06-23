@@ -406,15 +406,20 @@ $dropoutRate = $summary['total_active'] > 0
 
             <!-- Detailed Stats Table -->
             <div class="col-md-6">
-                <div class="chart-card card d-flex flex-column justify-content-between">
+                <div class="chart-card card d-flex flex-column justify-content-between" id="turnoutDetailsCard">
                     <div>
                         <div class="chart-title-container">
                             <div>
                                 <h2 class="h5 mb-1 fw-bold">Registration Mode Turnout Details</h2>
                                 <p class="text-muted small mb-0">Turnout and no-show stats with percentage rates</p>
                             </div>
-                            <div class="chart-icon-box" style="background-color: var(--md-sys-color-tertiary-container); color: var(--md-sys-color-on-tertiary-container);">
-                                <span class="material-symbols-outlined">table_chart</span>
+                            <div class="d-flex align-items-center gap-2">
+                                <button class="chart-download-btn" onclick="downloadTable('turnoutDetailsCard', 'registration-mode-turnout-details')" title="Download table">
+                                    <span class="material-symbols-outlined">download</span>
+                                </button>
+                                <div class="chart-icon-box" style="background-color: var(--md-sys-color-tertiary-container); color: var(--md-sys-color-on-tertiary-container);">
+                                    <span class="material-symbols-outlined">table_chart</span>
+                                </div>
                             </div>
                         </div>
                         <div class="table-responsive">
@@ -478,9 +483,9 @@ $dropoutRate = $summary['total_active'] > 0
             </div>
         </div>
 
+        <!-- Faculty Distribution - Full Width -->
         <div class="row g-4 mb-4">
-            <!-- Faculty Distribution -->
-            <div class="col-md-7">
+            <div class="col-12">
                 <div class="chart-card card">
                     <div class="chart-title-container">
                         <div>
@@ -496,14 +501,16 @@ $dropoutRate = $summary['total_active'] > 0
                             </div>
                         </div>
                     </div>
-                    <div style="height: 320px; position: relative;">
+                    <div style="height: 280px; position: relative;">
                         <canvas id="facultyDistributionChart"></canvas>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Group Allocation & Balancing -->
-            <div class="col-md-5">
+        <!-- Group Sizes - Full Width -->
+        <div class="row g-4 mb-4">
+            <div class="col-12">
                 <div class="chart-card card">
                     <div class="chart-title-container">
                         <div>
@@ -519,7 +526,7 @@ $dropoutRate = $summary['total_active'] > 0
                             </div>
                         </div>
                     </div>
-                    <div style="height: 320px; position: relative;">
+                    <div style="height: 280px; position: relative;">
                         <canvas id="groupSizesChart"></canvas>
                     </div>
                 </div>
@@ -584,12 +591,29 @@ $dropoutRate = $summary['total_active'] > 0
     <?php endif; ?>
 </div>
 
-<!-- Load Chart.js CDN + Datalabels Plugin -->
+<!-- Load Chart.js CDN + Datalabels Plugin + html2canvas for table download -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 <script>
 // --- Download helper (global, available immediately) ---
+// --- Download table card as PNG using html2canvas ---
+function downloadTable(elementId, filename) {
+    var el = document.getElementById(elementId);
+    if (!el || typeof html2canvas === 'undefined') return;
+    html2canvas(el, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true
+    }).then(function(canvas) {
+        var link = document.createElement('a');
+        link.download = filename + '.png';
+        link.href = canvas.toDataURL('image/png', 1.0);
+        link.click();
+    });
+}
+
 function downloadChart(canvasId, filename, title) {
     var canvas = document.getElementById(canvasId);
     if (!canvas) return;
@@ -815,6 +839,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const hoursLabels = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
 
+        // --- Common bar datalabels config ---
+        const barDatalabels = {
+            display: true,
+            anchor: 'end',
+            align: 'end',
+            offset: 4,
+            color: '#1C1B1F',
+            font: { weight: 'bold', size: 11, family: "'Plus Jakarta Sans', system-ui, sans-serif" },
+            textStrokeColor: '#ffffff',
+            textStrokeWidth: 3,
+            formatter: function(value) { return value > 0 ? value : ''; }
+        };
+        // Common layout padding to prevent top bar labels from clipping
+        const barLayoutPadding = { padding: { top: 24 } };
+
         // --- 4.1 Registration Peak Hours Chart ---
         const ctxRegHours = document.getElementById('registrationHoursChart').getContext('2d');
         const regHoursChart = new Chart(ctxRegHours, {
@@ -831,9 +870,11 @@ document.addEventListener('DOMContentLoaded', function() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: barLayoutPadding,
                 plugins: {
                     legend: { display: false },
-                    tooltip: { padding: 10, cornerRadius: 8 }
+                    tooltip: { padding: 10, cornerRadius: 8 },
+                    datalabels: barDatalabels
                 },
                 scales: {
                     x: {
@@ -862,16 +903,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     label: 'Check-ins',
                     data: initialCheckinData,
-                    backgroundColor: successColor + 'CC', // 80% opacity
+                    backgroundColor: successColor + 'CC',
                     borderRadius: 6
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: barLayoutPadding,
                 plugins: {
                     legend: { display: false },
-                    tooltip: { padding: 10, cornerRadius: 8 }
+                    tooltip: { padding: 10, cornerRadius: 8 },
+                    datalabels: barDatalabels
                 },
                 scales: {
                     x: {
@@ -922,15 +965,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: { padding: { right: 40 } },
                 plugins: {
                     legend: { display: false },
                     tooltip: { padding: 10, cornerRadius: 8 },
                     datalabels: {
                         display: true,
                         anchor: 'end',
-                        align: 'end',
+                        align: 'right',
+                        clamp: true,
+                        clip: false,
                         color: computedStyle.getPropertyValue('--md-sys-color-on-surface').trim() || '#1C1B1F',
                         font: { weight: 'bold', size: 12 },
+                        textStrokeColor: '#ffffff',
+                        textStrokeWidth: 3,
                         formatter: function(value) { return value; }
                     }
                 },
@@ -973,9 +1021,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: barLayoutPadding,
                     plugins: {
                         legend: { display: false },
-                        tooltip: { padding: 10, cornerRadius: 8 }
+                        tooltip: { padding: 10, cornerRadius: 8 },
+                        datalabels: barDatalabels
                     },
                     scales: {
                         x: { grid: { display: false } },
@@ -1018,11 +1068,13 @@ document.addEventListener('DOMContentLoaded', function() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: barLayoutPadding,
                 plugins: {
                     legend: {
                         position: 'top',
                         labels: { boxWidth: 16, usePointStyle: true, pointStyle: 'circle' }
                     },
+                    datalabels: barDatalabels,
                     tooltip: {
                         padding: 12,
                         cornerRadius: 12,
