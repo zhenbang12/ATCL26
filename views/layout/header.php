@@ -121,12 +121,12 @@ $theme = $registrationSettings['theme'] ?? 'violet';
                         Audit Logs
                     </a>
                 </li>
-                <?php /* <li>
+                <li>
                     <a href="/lost-and-found" class="m3-nav-item <?= ($title ?? '') === 'Lost & Found' || strpos($_SERVER['REQUEST_URI'], '/lost-and-found') !== false ? 'active' : '' ?>">
                         <span class="material-symbols-outlined">search_check_2</span>
                         Claim My Belongings
                     </a>
-                </li> */ ?>
+                </li>
                 <li>
                     <a href="/insights" class="m3-nav-item <?= ($title ?? '') === 'Insights & Graphs' || strpos($_SERVER['REQUEST_URI'], '/insights') !== false ? 'active' : '' ?>">
                         <span class="material-symbols-outlined">insights</span>

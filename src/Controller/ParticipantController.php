@@ -2651,6 +2651,18 @@ class ParticipantController
         $stmt->execute([$sid]);
         $participants = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
+        // Separate email_pattern constraints from others (for OR-logic evaluation)
+        $emailPatternConstraints = [];
+        $otherConstraints = [];
+        foreach ($constraints as $constraint) {
+            if (!$constraint['is_enabled']) continue;
+            if ($constraint['constraint_type'] === 'email_pattern') {
+                $emailPatternConstraints[] = $constraint;
+            } else {
+                $otherConstraints[] = $constraint;
+            }
+        }
+
         $anomalies = [];
         foreach ($participants as $p) {
             $email = trim((string)($p['student_email'] ?? ''));
@@ -2664,8 +2676,30 @@ class ParticipantController
                 $anomalies[] = ['participant' => $p, 'reason' => 'Not a TARC student domain (@student.tarc.edu.my)'];
                 continue;
             }
-            foreach ($constraints as $constraint) {
-                if (!$constraint['is_enabled']) continue;
+
+            // Email pattern constraints: use OR logic — email passes if it matches ANY pattern
+            if (!empty($emailPatternConstraints)) {
+                $passesAnyPattern = false;
+                foreach ($emailPatternConstraints as $epc) {
+                    if (!$this->evaluateConstraint($p, $epc)) {
+                        // evaluateConstraint returns true when anomalous (pattern didn't match)
+                        // So if it returns false, the email matched this pattern → passes
+                        $passesAnyPattern = true;
+                        break;
+                    }
+                }
+                if (!$passesAnyPattern) {
+                    // Collect all email pattern descriptions as the reason
+                    $descriptions = [];
+                    foreach ($emailPatternConstraints as $epc) {
+                        $descriptions[] = $epc['description'] ?: 'Email pattern check';
+                    }
+                    $anomalies[] = ['participant' => $p, 'reason' => implode(' AND ', $descriptions)];
+                }
+            }
+
+            // Other constraints: standard evaluation
+            foreach ($otherConstraints as $constraint) {
                 if ($this->evaluateConstraint($p, $constraint)) {
                     $anomalies[] = ['participant' => $p, 'reason' => $constraint['description'] ?: ('Custom constraint: ' . $constraint['constraint_type'])];
                 }
