@@ -2700,7 +2700,8 @@ class ParticipantController
         }
         $yy = date('y');
         $emailCheckALevel = $emailCheckMap['A-Level student email must start with ' . $yy . ' (intake ' . date('Y') . ')'] ?? 1;
-        $emailCheckXX26 = $emailCheckMap['Other student email must end with XX' . $yy . ' (intake ' . date('Y') . ', e.g. wm' . $yy . ', wb' . $yy . ')'] ?? 1;
+        $nextYy = date('y', strtotime('+1 year'));
+        $emailCheckXX26 = $emailCheckMap['Other student email must contain XX' . $yy . ' or XX' . $nextYy . ' (e.g. wm' . $yy . ', wb' . $nextYy . ')'] ?? 1;
 
         // Intake blocking constraints (simplified UI)
         $thisYear = date('Y');
@@ -3035,7 +3036,7 @@ class ParticipantController
         $year = (int)date('Y');
         $defaults = [
             ['email_pattern', 'student_email', '/^' . $yy . '/i', 'A-Level student email must start with ' . $yy . ' (intake ' . $year . ')', 1, 0],
-            ['email_pattern', 'student_email', '/[a-z0-9]' . $yy . '$/i', 'Other student email must end with XX' . $yy . ' (intake ' . $year . ', e.g. wm' . $yy . ', wb' . $yy . ')', 1, 0],
+            ['email_pattern', 'student_email', '/[a-z]{2}(' . $yy . '|' . date('y', strtotime('+1 year')) . ')$/i', 'Other student email must contain XX' . $yy . ' or XX' . date('y', strtotime('+1 year')) . ' (e.g. wm' . $yy . ', wb' . date('y', strtotime('+1 year')) . ')', 1, 0],
         ];
         $lastYear = $year - 1;
         $intakeOptions = [
@@ -3091,7 +3092,8 @@ class ParticipantController
             $yy = date('y');
             $year = date('Y');
             $aLevelDesc = 'A-Level student email must start with ' . $yy . ' (intake ' . $year . ')';
-            $xxDesc = 'Other student email must end with XX' . $yy . ' (intake ' . $year . ', e.g. wm' . $yy . ', wb' . $yy . ')';
+            $nextYy = date('y', strtotime('+1 year'));
+            $xxDesc = 'Other student email must contain XX' . $yy . ' or XX' . $nextYy . ' (e.g. wm' . $yy . ', wb' . $nextYy . ')';
 
             // The hidden field sends 0, the submit button sends 1 — check the submitted value
             $aLevelVal = (int)($_POST['check_email_a_level'] ?? 0);
@@ -3110,15 +3112,26 @@ class ParticipantController
                 $stmt->execute([$sid, 'email_pattern', 'student_email', '/^' . $yy . '/i', $aLevelDesc, $checkALevel ? 1 : 0]);
             }
 
+            // Look up by new description first, then fall back to old description
             $xx = $db->prepare('SELECT id FROM anomaly_constraints WHERE session_id = ? AND field_name = ? AND description = ?');
             $xx->execute([$sid, 'student_email', $xxDesc]);
             $xRow = $xx->fetch(\PDO::FETCH_ASSOC);
+            if (!$xRow) {
+                $oldXxDesc = 'Other student email must end with XX' . $yy . ' (intake ' . $year . ', e.g. wm' . $yy . ', wb' . $yy . ')';
+                $xx->execute([$sid, 'student_email', $oldXxDesc]);
+                $xRow = $xx->fetch(\PDO::FETCH_ASSOC);
+                // If found with old description, update the description and pattern to new
+                if ($xRow) {
+                    $updDesc = $db->prepare('UPDATE anomaly_constraints SET description = ?, pattern = ? WHERE id = ?');
+                    $updDesc->execute([$xxDesc, '/[a-z]{2}(' . $yy . '|' . $nextYy . ')$/i', (int)$xRow['id']]);
+                }
+            }
             if ($xRow) {
                 $stmt = $db->prepare('UPDATE anomaly_constraints SET is_enabled = ? WHERE id = ?');
                 $stmt->execute([$checkXX26 ? 1 : 0, (int)$xRow['id']]);
             } else {
                 $stmt = $db->prepare('INSERT INTO anomaly_constraints (session_id, constraint_type, field_name, pattern, description, is_enabled) VALUES (?, ?, ?, ?, ?, ?)');
-                $stmt->execute([$sid, 'email_pattern', 'student_email', '/[a-z0-9]' . $yy . '$/i', $xxDesc, $checkXX26 ? 1 : 0]);
+                $stmt->execute([$sid, 'email_pattern', 'student_email', '/[a-z]{2}(' . $yy . '|' . $nextYy . ')$/i', $xxDesc, $checkXX26 ? 1 : 0]);
             }
         }
 
@@ -3381,8 +3394,8 @@ class ParticipantController
             [
                 'constraint_type' => 'email_pattern',
                 'field_name' => 'student_email',
-                'pattern' => '/[a-z0-9]' . $yy . '$/i',
-                'description' => 'Other student email must end with XX' . $yy . ' (intake ' . $year . ', e.g. wm' . $yy . ', wb' . $yy . ')',
+                'pattern' => '/[a-z]{2}(' . $yy . '|' . date('y', strtotime('+1 year')) . ')$/i',
+                'description' => 'Other student email must contain XX' . $yy . ' or XX' . date('y', strtotime('+1 year')) . ' (e.g. wm' . $yy . ', wb' . date('y', strtotime('+1 year')) . ')',
             ],
         ];
 
