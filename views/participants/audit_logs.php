@@ -56,15 +56,25 @@ if (isset($_SESSION['participants_message'])) {
                         <td>
                             <?php 
                             $badgeClass = 'bg-secondary';
+                            $actionLabel = str_replace('_', ' ', $log['action']);
                             if ($log['action'] === 'created') {
                                 $badgeClass = 'bg-success';
                             } elseif ($log['action'] === 'deleted') {
                                 $badgeClass = 'bg-danger';
                             } elseif ($log['action'] === 'excluded_from_anomalies') {
                                 $badgeClass = 'bg-warning text-dark';
+                            } elseif ($log['action'] === 'group_move') {
+                                $badgeClass = 'bg-primary';
+                                $actionLabel = 'Group Move';
+                            } elseif ($log['action'] === 'group_undo') {
+                                $badgeClass = 'bg-info text-dark';
+                                $actionLabel = 'Group Undo';
+                            } elseif ($log['action'] === 'group_auto_assign') {
+                                $badgeClass = 'bg-dark';
+                                $actionLabel = 'Auto-Assign';
                             }
                             ?>
-                            <span class="badge <?= $badgeClass ?>"><?= htmlspecialchars(str_replace('_', ' ', $log['action'])) ?></span>
+                            <span class="badge <?= $badgeClass ?>"><?= htmlspecialchars($actionLabel) ?></span>
                         </td>
                         <td style="font-size: 0.85rem; max-width: 400px; word-wrap: break-word; white-space: normal;">
                             <?= htmlspecialchars($log['changed_fields'] ?? '') ?>

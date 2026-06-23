@@ -1796,6 +1796,41 @@ class ParticipantController
         exit;
     }
 
+    /**
+     * AJAX endpoint: Returns a snapshot of all active participants for smart-merge live updates.
+     * Used by the grouping workspace to detect new check-ins without full page reload.
+     */
+    public function groupsSnapshot(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+        $db = Container::get('db');
+        $sid = $this->sid();
+
+        $stmt = $db->prepare(
+            "SELECT id, full_name, student_id, preferred_language, registration_type, group_code, checked_in_at
+             FROM participants
+             WHERE duplicate_of IS NULL AND session_id = ?
+             ORDER BY full_name ASC"
+        );
+        $stmt->execute([$sid]);
+        $participants = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        // Count by group for efficient counter updates
+        $groupCounts = [];
+        foreach ($participants as $p) {
+            $gc = $p['group_code'] ?? '';
+            $groupCounts[$gc] = ($groupCounts[$gc] ?? 0) + 1;
+        }
+
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true,
+            'participants' => $participants,
+            'group_counts' => $groupCounts,
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
     public function edit(): void
     {
         Auth::requireRole(['advisor', 'committee']);
@@ -2666,9 +2701,58 @@ class ParticipantController
         $title = 'Audit Logs';
         $sid = $this->sid();
 
+        // Fetch participant audit logs (created, updated, deleted, etc.)
         $stmt = $db->prepare('SELECT * FROM participant_audit_logs WHERE session_id = ? ORDER BY performed_at DESC');
         $stmt->execute([$sid]);
         $logs = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+
+        // Fetch group move logs (manual moves, undo, and system auto-assign at check-in)
+        try {
+            $moveStmt = $db->prepare("
+                SELECT
+                    gml.id,
+                    gml.participant_id,
+                    gml.participant_name,
+                    gml.from_group_code,
+                    gml.to_group_code,
+                    gml.moved_by,
+                    gml.action_type,
+                    gml.moved_at
+                FROM group_move_logs gml
+                WHERE gml.session_id = ?
+                ORDER BY gml.moved_at DESC
+            ");
+            $moveStmt->execute([$sid]);
+            $moveLogs = $moveStmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+
+            // Merge move logs into the unified log format
+            foreach ($moveLogs as $ml) {
+                $fromLabel = !empty($ml['from_group_code']) ? 'Group ' . $ml['from_group_code'] : 'Ungrouped';
+                $toLabel = !empty($ml['to_group_code']) ? 'Group ' . $ml['to_group_code'] : 'Ungrouped';
+                $verb = ($ml['action_type'] ?? 'move') === 'undo' ? 'restored' : 'moved';
+                $isAuto = strpos($ml['moved_by'] ?? '', 'System') !== false || strpos($ml['moved_by'] ?? '', 'Check-in') !== false;
+
+                $logs[] = [
+                    'id' => 'move_' . $ml['id'],
+                    'session_id' => $sid,
+                    'participant_id' => (int)$ml['participant_id'],
+                    'participant_name' => $ml['participant_name'] ?? 'Participant',
+                    'action' => $isAuto ? 'group_auto_assign' : (($ml['action_type'] ?? 'move') === 'undo' ? 'group_undo' : 'group_move'),
+                    'changed_fields' => $isAuto
+                        ? "Auto-assigned to {$toLabel} by {$ml['moved_by']}"
+                        : ucfirst($verb) . " from {$fromLabel} to {$toLabel} by {$ml['moved_by']}",
+                    'performed_by' => $ml['moved_by'] ?? 'Unknown',
+                    'performed_at' => $ml['moved_at'] ?? '',
+                ];
+            }
+
+            // Sort merged logs by timestamp descending
+            usort($logs, function ($a, $b) {
+                return strcmp($b['performed_at'] ?? '', $a['performed_at'] ?? '');
+            });
+        } catch (\Exception $e) {
+            // group_move_logs table may not exist yet; just show audit logs
+        }
 
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/participants/audit_logs.php';

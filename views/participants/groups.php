@@ -1367,34 +1367,188 @@ usort($allParticipants, function($a, $b) {
             });
         });
 
-        window.setInterval(async () => {
-            try {
-                const response = await fetch('/participants/groups/state', {
-                    method: 'GET',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                if (!response.ok) {
-                    return;
-                }
-                const data = await response.json();
-                if (!data || !data.success) {
-                    return;
-                }
+        // ---- Smart Merge: live participant polling without page reload ----
+        const knownParticipants = new Set();
+        document.querySelectorAll('.participant-item').forEach(function(item) {
+            const id = item.dataset.participantId;
+            if (id) knownParticipants.add(id);
+        });
 
-                const serverLatestId = Number(data.latest_move_log_id || 0);
-                if (serverLatestId > latestKnownMoveLogId) {
-                    latestKnownMoveLogId = serverLatestId;
-                    if (draggedItem) {
-                        showAlert('info', 'Another user updated groups. Page will refresh after your drag ends.');
+        // Also track the bulk table known IDs
+        const bulkKnownIds = new Set();
+        document.querySelectorAll('#bulkTableBody tr').forEach(function(row) {
+            const id = row.dataset.id;
+            if (id) bulkKnownIds.add(String(id));
+        });
+
+        function createParticipantCard(p) {
+            const div = document.createElement('div');
+            div.className = 'participant-item card mb-2';
+            div.draggable = true;
+            div.dataset.participantId = p.id;
+            div.dataset.participantName = p.full_name;
+            const regLabel = p.registration_type === 'walk_in' ? 'Walk-in' : 'Pre-register';
+            const checkinHtml = p.checked_in_at
+                ? '<div class="checkin-pill checked">Checked in</div>'
+                : '<div class="checkin-pill pending">Not checked in</div>';
+            div.innerHTML =
+                '<div class="card-body p-2">' +
+                '<div class="d-flex align-items-center gap-2">' +
+                '<span class="badge bg-secondary member-number">#</span>' +
+                '<div class="fw-semibold">' + escapeHtmlSmart(p.full_name) + '</div>' +
+                '</div>' +
+                '<div class="small text-muted">' + escapeHtmlSmart(p.student_id || '') +
+                (p.preferred_language ? ' · ' + escapeHtmlSmart(p.preferred_language) : '') +
+                ' · ' + regLabel + '</div>' +
+                checkinHtml +
+                '</div>';
+            bindDragItem(div);
+            return div;
+        }
+
+        function createBulkRow(p) {
+            const tr = document.createElement('tr');
+            tr.dataset.id = String(p.id);
+            tr.dataset.name = (p.full_name || '').toLowerCase();
+            tr.dataset.studentId = (p.student_id || '').toLowerCase();
+            tr.dataset.language = (p.preferred_language || '').toLowerCase();
+            tr.dataset.group = p.group_code || '';
+
+            let langClass = 'bg-secondary';
+            const lang = (p.preferred_language || '').toLowerCase();
+            if (lang.includes('both')) langClass = 'bg-dark';
+            else if (lang.includes('mandarin')) langClass = 'bg-tertiary';
+
+            const groupBadge = p.group_code
+                ? '<span class="badge bg-primary" style="font-size:0.72rem">Group ' + escapeHtmlSmart(p.group_code) + '</span>'
+                : '<span class="badge bg-surface" style="font-size:0.72rem">Ungrouped</span>';
+            const checkBadge = p.checked_in_at
+                ? '<span class="badge bg-success" style="font-size:0.72rem">✓ Checked In</span>'
+                : '<span class="text-muted small">—</span>';
+
+            tr.innerHTML =
+                '<td><input type="checkbox" class="form-check-input bulk-checkbox" value="' + p.id + '"></td>' +
+                '<td class="fw-semibold">' + escapeHtmlSmart(p.full_name) + '</td>' +
+                '<td class="text-muted small">' + escapeHtmlSmart(p.student_id || '—') + '</td>' +
+                '<td><span class="badge ' + langClass + '" style="font-size:0.72rem">' + escapeHtmlSmart(p.preferred_language || '—') + '</span></td>' +
+                '<td>' + groupBadge + '</td>' +
+                '<td>' + checkBadge + '</td>';
+            return tr;
+        }
+
+        function escapeHtmlSmart(s) {
+            if (!s) return '';
+            const map = { '&': '\x26amp;', '<': '\x26lt;', '>': '\x26gt;', '"': '\x26quot;', "'": '\x26#039;' };
+            return String(s).replace(/[&<>"']/g, function(c) { return map[c]; });
+        }
+
+        async function smartMerge() {
+            try {
+                const response = await fetch('/participants/groups/snapshot', {
+                    method: 'GET',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                if (!response.ok) return;
+                const data = await response.json();
+                if (!data || !data.success) return;
+
+                const serverParticipants = data.participants || [];
+                const serverGroupCounts = data.group_counts || {};
+                let newCount = 0;
+                let updatedCount = 0;
+
+                serverParticipants.forEach(function(p) {
+                    const pid = String(p.id);
+
+                    // 1. Update existing cards: check-in status & group changes
+                    if (knownParticipants.has(pid)) {
+                        const existingCard = document.querySelector('.participant-item[data-participant-id="' + pid + '"]');
+                        if (existingCard) {
+                            const pill = existingCard.querySelector('.checkin-pill');
+                            if (pill) {
+                                if (p.checked_in_at && pill.classList.contains('pending')) {
+                                    pill.className = 'checkin-pill checked';
+                                    pill.textContent = 'Checked in';
+                                    updatedCount++;
+                                } else if (!p.checked_in_at && pill.classList.contains('checked')) {
+                                    pill.className = 'checkin-pill pending';
+                                    pill.textContent = 'Not checked in';
+                                    updatedCount++;
+                                }
+                            }
+                            // If participant was auto-assigned to a group, move their card
+                            const currentZone = existingCard.closest('.drop-zone');
+                            const currentGroup = currentZone ? (currentZone.dataset.targetGroup || '') : '__none__';
+                            const serverGroup = p.group_code || '';
+                            if (currentGroup !== serverGroup) {
+                                const targetZone = document.getElementById('group-zone-' + serverGroup) || document.getElementById('group-zone-ungrouped');
+                                if (targetZone && currentZone) {
+                                    targetZone.appendChild(existingCard);
+                                    updateZoneCount(currentZone, -1);
+                                    updateZoneCount(targetZone, 1);
+                                    renumberAllLanes();
+                                }
+                            }
+                        }
+                        // Update bulk table row
+                        const bulkRow = document.querySelector('#bulkTableBody tr[data-id="' + pid + '"]');
+                        if (bulkRow) {
+                            const groupCell = bulkRow.querySelector('td:nth-child(5)');
+                            if (groupCell) {
+                                groupCell.innerHTML = p.group_code
+                                    ? '<span class="badge bg-primary" style="font-size:0.72rem">Group ' + escapeHtmlSmart(p.group_code) + '</span>'
+                                    : '<span class="badge bg-surface" style="font-size:0.72rem">Ungrouped</span>';
+                            }
+                            const checkCell = bulkRow.querySelector('td:nth-child(6)');
+                            if (checkCell) {
+                                checkCell.innerHTML = p.checked_in_at
+                                    ? '<span class="badge bg-success" style="font-size:0.72rem">✓ Checked In</span>'
+                                    : '<span class="text-muted small">—</span>';
+                            }
+                            bulkRow.dataset.group = p.group_code || '';
+                        }
                         return;
                     }
-                    window.location.reload();
+
+                    // 2. New participant — add to correct lane + bulk table
+                    knownParticipants.add(pid);
+                    newCount++;
+
+                    const groupCode = p.group_code || '';
+                    const targetZoneId = groupCode ? 'group-zone-' + groupCode : 'group-zone-ungrouped';
+                    const targetZone = document.getElementById(targetZoneId);
+                    if (targetZone) {
+                        const card = createParticipantCard(p);
+                        targetZone.appendChild(card);
+                        updateZoneCount(targetZone, 1);
+                    }
+
+                    // Add to bulk table
+                    if (!bulkKnownIds.has(pid)) {
+                        bulkKnownIds.add(pid);
+                        const bulkBody = document.getElementById('bulkTableBody');
+                        if (bulkBody) {
+                            const row = createBulkRow(p);
+                            bulkBody.appendChild(row);
+                        }
+                    }
+                });
+
+                renumberAllLanes();
+
+                // Show notification if anything changed
+                if (newCount > 0 || updatedCount > 0) {
+                    const parts = [];
+                    if (newCount > 0) parts.push(newCount + ' new participant' + (newCount > 1 ? 's' : '') + ' joined');
+                    if (updatedCount > 0) parts.push(updatedCount + ' status update' + (updatedCount > 1 ? 's' : ''));
+                    showAlert('info', '🔄 Live: ' + parts.join(', ') + '. No page refresh needed.');
                 }
             } catch (error) {
                 // Ignore transient polling errors.
             }
-        }, 3000);
+        }
+
+        // Poll every 8 seconds (gentle on the server)
+        window.setInterval(smartMerge, 8000);
     })();
 </script>

@@ -61,6 +61,7 @@ $router->post('/participants/groups/assign-facilitator', 'ParticipantController@
 $router->post('/participants/groups/assign-facilitators-bulk', 'ParticipantController@assignFacilitatorsBulk');
 $router->get('/participants/assign-buddy', 'ParticipantController@assignBuddy');
 $router->get('/participants/groups/state', 'ParticipantController@groupsState');
+$router->get('/participants/groups/snapshot', 'ParticipantController@groupsSnapshot');
 $router->post('/participants/clear-groups', 'ParticipantController@clearGroups');
 $router->post('/participants/clear-group-shells', 'ParticipantController@clearGroupShells');
 $router->get('/participants/export', 'ParticipantController@export');
