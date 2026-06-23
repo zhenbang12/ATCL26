@@ -2923,20 +2923,22 @@ class ParticipantController
 
             // Merge move logs into the unified log format
             foreach ($moveLogs as $ml) {
+                // Skip system auto-assign entries (check-in auto-grouping)
+                if (strpos($ml['moved_by'] ?? '', 'System') !== false) {
+                    continue;
+                }
+
                 $fromLabel = !empty($ml['from_group_code']) ? 'Group ' . $ml['from_group_code'] : 'Ungrouped';
                 $toLabel = !empty($ml['to_group_code']) ? 'Group ' . $ml['to_group_code'] : 'Ungrouped';
                 $verb = ($ml['action_type'] ?? 'move') === 'undo' ? 'restored' : 'moved';
-                $isAuto = strpos($ml['moved_by'] ?? '', 'System') !== false || strpos($ml['moved_by'] ?? '', 'Check-in') !== false;
 
                 $logs[] = [
                     'id' => 'move_' . $ml['id'],
                     'session_id' => $sid,
                     'participant_id' => (int)$ml['participant_id'],
                     'participant_name' => $ml['participant_name'] ?? 'Participant',
-                    'action' => $isAuto ? 'group_auto_assign' : (($ml['action_type'] ?? 'move') === 'undo' ? 'group_undo' : 'group_move'),
-                    'changed_fields' => $isAuto
-                        ? "Auto-assigned to {$toLabel} by {$ml['moved_by']}"
-                        : ucfirst($verb) . " from {$fromLabel} to {$toLabel} by {$ml['moved_by']}",
+                    'action' => ($ml['action_type'] ?? 'move') === 'undo' ? 'group_undo' : 'group_move',
+                    'changed_fields' => ucfirst($verb) . " from {$fromLabel} to {$toLabel} by {$ml['moved_by']}",
                     'performed_by' => $ml['moved_by'] ?? 'Unknown',
                     'performed_at' => $ml['moved_at'] ?? '',
                 ];
@@ -3108,12 +3110,13 @@ class ParticipantController
 
         $intakePeriod = trim((string)($_POST['intake_period'] ?? ''));
 
-        if ($intakePeriod !== '') {
+            if ($intakePeriod !== '') {
             // Intake blocking toggle
             $enabled = (int)($_POST['enabled'] ?? 0);
-            $existing = $db->prepare('SELECT id FROM anomaly_constraints WHERE session_id = ? AND field_name = ? AND pattern = ?');
+            $existing = $db->prepare('SELECT id, blocks_registration FROM anomaly_constraints WHERE session_id = ? AND field_name = ? AND pattern = ?');
             $existing->execute([$sid, 'intake_period', $intakePeriod]);
             $row = $existing->fetch(\PDO::FETCH_ASSOC);
+            $oldEnabled = $row ? (int)($row['blocks_registration'] ?? 0) : 0;
             if ($row) {
                 $stmt = $db->prepare('UPDATE anomaly_constraints SET blocks_registration = ? WHERE id = ?');
                 $stmt->execute([$enabled, (int)$row['id']]);
@@ -3121,6 +3124,9 @@ class ParticipantController
                 $stmt = $db->prepare('INSERT INTO anomaly_constraints (session_id, constraint_type, field_name, pattern, blocks_registration, is_enabled) VALUES (?, ?, ?, ?, ?, ?)');
                 $stmt->execute([$sid, 'field_contains', 'intake_period', $intakePeriod, $enabled, $enabled]);
             }
+            $action = $enabled ? 'intake_blocked' : 'intake_unblocked';
+            $detail = ($enabled ? 'Blocked' : 'Unblocked') . ' intake: ' . $intakePeriod;
+            $this->logAudit($db, 0, 'Intake Period', $action, $detail);
         } else {
             // Email check toggle — each toggle is a separate form, so only update the one that was submitted
             $yy = date('y');

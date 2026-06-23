@@ -220,6 +220,15 @@ class SettingsController
 
             $_SESSION['settings_message'] = 'Landing page settings saved.';
             $_SESSION['settings_message_type'] = 'success';
+
+            // Log to audit
+            try {
+                $user = Auth::user();
+                $performedBy = $user ? $user['username'] : 'System';
+                $logStmt = $db->prepare('INSERT INTO participant_audit_logs (session_id, participant_id, participant_name, action, changed_fields, performed_by) VALUES (?, ?, ?, ?, ?, ?)');
+                $logStmt->execute([\App\Core\SessionHelper::currentSessionId(), 0, 'System', 'landing_page_changed', 'Landing page settings updated', $performedBy]);
+            } catch (\Exception $e2) { /* ignore */ }
+
         } catch (\Exception $e) {
             $_SESSION['settings_message'] = 'Could not save. Run migrations if needed: ' . $e->getMessage();
             $_SESSION['settings_message_type'] = 'danger';
@@ -279,6 +288,15 @@ class SettingsController
                     theme = VALUES(theme)
             ');
             $stmt->execute([$preRegisterEnabled, $walkInEnabled, $theme]);
+
+            // Log to audit
+            try {
+                $user = Auth::user();
+                $performedBy = $user ? $user['username'] : 'System';
+                $regLabel = $regMode === 'pre_reg' ? 'Pre-registration only' : ($regMode === 'walk_in' ? 'Walk-in only' : 'All closed');
+                $logStmt = $db->prepare('INSERT INTO participant_audit_logs (session_id, participant_id, participant_name, action, changed_fields, performed_by) VALUES (?, ?, ?, ?, ?, ?)');
+                $logStmt->execute([\App\Core\SessionHelper::currentSessionId(), 0, 'System', 'settings_changed', 'Registration mode changed to: ' . $regLabel, $performedBy]);
+            } catch (\Exception $e) { /* ignore */ }
 
             if ($isAjax) {
                 header('Content-Type: application/json');
