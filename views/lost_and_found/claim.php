@@ -21,7 +21,7 @@
         <p class="text-muted small mb-0 mt-1">Confirm this item is yours by filling in your details below.</p>
     </div>
     <a href="/lost-and-found/public" class="btn btn-outline-primary btn-sm">
-        <span class="material-symbols-outlined" style="font-size: 18px; vertical-align: text-bottom;">arrow_back</span> Back to Lost & Found
+        <span class="material-symbols-outlined" style="font-size: 18px; vertical-align: text-bottom;">arrow_back</span> Back to Claim My Belongings
     </a>
 </div>
 

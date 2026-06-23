@@ -1,5 +1,5 @@
 <?php
-// Public: Lost & Found browsing page (M3 styled)
+// Public: Claim My Belongings browsing page (M3 styled)
 // Available: $items (array of unclaimed lost_and_found_items rows)
 ?>
 
@@ -15,7 +15,7 @@
 <div class="text-center mb-4">
     <h2 class="fw-bold d-flex align-items-center justify-content-center gap-2" style="color: var(--md-sys-color-on-surface);">
         <span class="material-symbols-outlined" style="font-size: 32px;">search_check_2</span>
-        Lost & Found
+        Claim My Belongings
     </h2>
     <p class="text-muted" style="max-width: 500px; margin: 0 auto;">Lost something? Browse the items below and claim what belongs to you.</p>
 </div>

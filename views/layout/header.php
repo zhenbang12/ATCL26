@@ -124,7 +124,7 @@ $theme = $registrationSettings['theme'] ?? 'violet';
                 <li>
                     <a href="/lost-and-found" class="m3-nav-item <?= ($title ?? '') === 'Lost & Found' || strpos($_SERVER['REQUEST_URI'], '/lost-and-found') !== false ? 'active' : '' ?>">
                         <span class="material-symbols-outlined">search_check_2</span>
-                        Lost & Found
+                        Claim My Belongings
                     </a>
                 </li>
                 <li>
@@ -237,7 +237,7 @@ $theme = $registrationSettings['theme'] ?? 'violet';
         <div class="d-flex align-items-center gap-2">
             <a href="/lost-and-found/public" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1">
                 <span class="material-symbols-outlined" style="font-size: 16px;">search_check_2</span>
-                Lost & Found
+                Claim My Belongings
             </a>
             <a href="/participants/lookup" class="btn btn-outline-primary btn-sm">Find My QR</a>
             <?php /* <a href="/login" class="btn btn-primary btn-sm">Login as Committee</a> */ ?>

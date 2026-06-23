@@ -19,7 +19,7 @@ class LostAndFoundController
     {
         Auth::requireRole(['advisor', 'committee']);
 
-        $title = 'Lost & Found';
+        $title = 'Claim My Belongings';
         $db = Container::get('db');
         $sid = $this->sid();
 
@@ -69,7 +69,7 @@ class LostAndFoundController
     {
         Auth::requireRole(['advisor', 'committee']);
 
-        $title = 'Add Lost & Found Item';
+        $title = 'Add Claim Item';
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/lost_and_found/create.php';
         include __DIR__ . '/../../views/layout/footer.php';
@@ -179,7 +179,7 @@ class LostAndFoundController
             );
             $stmt->execute([$sid, $photoFilename, $caption, $description]);
 
-            $_SESSION['lf_message'] = 'Item added to Lost & Found.';
+        $_SESSION['lf_message'] = 'Item added to Claim My Belongings.';
             $_SESSION['lf_message_type'] = 'success';
             header('Location: /lost-and-found');
             exit;
@@ -217,7 +217,7 @@ class LostAndFoundController
             exit;
         }
 
-        $title = 'Edit Lost & Found Item';
+        $title = 'Edit Claim Item';
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/lost_and_found/edit.php';
         include __DIR__ . '/../../views/layout/footer.php';
@@ -393,7 +393,7 @@ class LostAndFoundController
     // Public: Show all unclaimed lost and found items
     public function publicView(): void
     {
-        $title = 'Lost & Found';
+        $title = 'Claim My Belongings';
         $db = Container::get('db');
         $sid = $this->sid();
 

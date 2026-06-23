@@ -123,6 +123,29 @@ $dropoutRate = $summary['total_active'] > 0
         background-color: var(--md-sys-color-surface-container-low) !important;
     }
 
+    .chart-download-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border: 1px solid var(--md-sys-color-outline-variant);
+        border-radius: 8px;
+        background: var(--md-sys-color-surface-container-lowest);
+        color: var(--md-sys-color-on-surface-variant);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+    .chart-download-btn:hover {
+        background: var(--md-sys-color-primary-container);
+        color: var(--md-sys-color-on-primary-container);
+        border-color: var(--md-sys-color-primary);
+    }
+    .chart-download-btn .material-symbols-outlined {
+        font-size: 18px;
+    }
+
     .empty-state-icon {
         font-size: 64px;
         color: var(--md-sys-color-outline);
@@ -290,8 +313,13 @@ $dropoutRate = $summary['total_active'] > 0
                             <h2 class="h5 mb-1 fw-bold">Registration Trend</h2>
                             <p class="text-muted small mb-0">Timeline showing daily registration frequency and cumulative growth</p>
                         </div>
-                        <div class="chart-icon-box">
-                            <span class="material-symbols-outlined">show_chart</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <button class="chart-download-btn" onclick="downloadChart('registrationTrendChart', 'registration-trend', 'Registration Trend')" title="Download chart">
+                                <span class="material-symbols-outlined">download</span>
+                            </button>
+                            <div class="chart-icon-box">
+                                <span class="material-symbols-outlined">show_chart</span>
+                            </div>
                         </div>
                     </div>
                     <div style="height: 320px; position: relative;">
@@ -313,6 +341,9 @@ $dropoutRate = $summary['total_active'] > 0
                             <select id="rushHourDateSelector" class="form-select form-select-sm" style="font-size: 0.8rem; padding: 0.25rem 1.75rem 0.25rem 0.75rem;" aria-label="Select Date for Registration Peak Hours">
                                 <option value="all">All Dates</option>
                             </select>
+                            <button class="chart-download-btn" onclick="downloadChart('registrationHoursChart', 'registration-peak-hours', 'Registration Peak Hours')" title="Download chart">
+                                <span class="material-symbols-outlined">download</span>
+                            </button>
                             <div class="chart-icon-box">
                                 <span class="material-symbols-outlined">how_to_reg</span>
                             </div>
@@ -332,8 +363,13 @@ $dropoutRate = $summary['total_active'] > 0
                             <h2 class="h5 mb-1 fw-bold">Check-in Peak Hours</h2>
                             <p class="text-muted small mb-0">Hourly arrival traffic at registration desks</p>
                         </div>
-                        <div class="chart-icon-box">
-                            <span class="material-symbols-outlined">login</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <button class="chart-download-btn" onclick="downloadChart('checkinHoursChart', 'checkin-peak-hours', 'Check-in Peak Hours')" title="Download chart">
+                                <span class="material-symbols-outlined">download</span>
+                            </button>
+                            <div class="chart-icon-box">
+                                <span class="material-symbols-outlined">login</span>
+                            </div>
                         </div>
                     </div>
                     <div style="height: 280px; position: relative;">
@@ -353,8 +389,13 @@ $dropoutRate = $summary['total_active'] > 0
                             <h2 class="h5 mb-1 fw-bold">Turnout vs. Dropout Comparison</h2>
                             <p class="text-muted small mb-0">Turnout (Checked-in) vs. Dropout (No-show) for each registration mode</p>
                         </div>
-                        <div class="chart-icon-box">
-                            <span class="material-symbols-outlined">compare_arrows</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <button class="chart-download-btn" onclick="downloadChart('regTypeBreakdownChart', 'turnout-dropout-comparison', 'Turnout vs. Dropout Comparison')" title="Download chart">
+                                <span class="material-symbols-outlined">download</span>
+                            </button>
+                            <div class="chart-icon-box">
+                                <span class="material-symbols-outlined">compare_arrows</span>
+                            </div>
                         </div>
                     </div>
                     <div style="height: 280px; position: relative;">
@@ -446,8 +487,13 @@ $dropoutRate = $summary['total_active'] > 0
                             <h2 class="h5 mb-1 fw-bold">Faculty Distribution</h2>
                             <p class="text-muted small mb-0">Number of participants enrolled by faculty</p>
                         </div>
-                        <div class="chart-icon-box">
-                            <span class="material-symbols-outlined">school</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <button class="chart-download-btn" onclick="downloadChart('facultyDistributionChart', 'faculty-distribution', 'Faculty Distribution')" title="Download chart">
+                                <span class="material-symbols-outlined">download</span>
+                            </button>
+                            <div class="chart-icon-box">
+                                <span class="material-symbols-outlined">school</span>
+                            </div>
                         </div>
                     </div>
                     <div style="height: 320px; position: relative;">
@@ -464,8 +510,13 @@ $dropoutRate = $summary['total_active'] > 0
                             <h2 class="h5 mb-1 fw-bold">Group Sizes (Balancing)</h2>
                             <p class="text-muted small mb-0">Headcount in active groups for event slots</p>
                         </div>
-                        <div class="chart-icon-box">
-                            <span class="material-symbols-outlined">group_work</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <button class="chart-download-btn" onclick="downloadChart('groupSizesChart', 'group-sizes', 'Group Sizes')" title="Download chart">
+                                <span class="material-symbols-outlined">download</span>
+                            </button>
+                            <div class="chart-icon-box">
+                                <span class="material-symbols-outlined">group_work</span>
+                            </div>
                         </div>
                     </div>
                     <div style="height: 320px; position: relative;">
@@ -482,30 +533,50 @@ $dropoutRate = $summary['total_active'] > 0
             <div class="row g-4">
                 <!-- Reg Type Doughnut -->
                 <div class="col-lg-3 col-sm-6 text-center">
-                    <h3 class="h6 mb-2 fw-semibold">Registration Mode</h3>
-                    <div style="height: 200px; position: relative; margin: 0 auto;" class="d-flex justify-content-center">
-                        <canvas id="regTypeDoughnut" style="max-width: 200px; max-height: 200px;"></canvas>
+                    <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                        <h3 class="h6 mb-0 fw-semibold">Registration Mode</h3>
+                        <button class="chart-download-btn" onclick="downloadChart('regTypeDoughnut', 'registration-mode', 'Registration Mode')" title="Download chart" style="width:26px;height:26px;">
+                            <span class="material-symbols-outlined" style="font-size:15px;">download</span>
+                        </button>
+                    </div>
+                    <div style="height: 220px; position: relative; margin: 0 auto;" class="d-flex justify-content-center">
+                        <canvas id="regTypeDoughnut" style="max-width: 220px; max-height: 220px;"></canvas>
                     </div>
                 </div>
                 <!-- Language Doughnut -->
                 <div class="col-lg-3 col-sm-6 text-center">
-                    <h3 class="h6 mb-2 fw-semibold">Preferred Language</h3>
-                    <div style="height: 200px; position: relative; margin: 0 auto;" class="d-flex justify-content-center">
-                        <canvas id="languageDoughnut" style="max-width: 200px; max-height: 200px;"></canvas>
+                    <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                        <h3 class="h6 mb-0 fw-semibold">Preferred Language</h3>
+                        <button class="chart-download-btn" onclick="downloadChart('languageDoughnut', 'preferred-language', 'Preferred Language')" title="Download chart" style="width:26px;height:26px;">
+                            <span class="material-symbols-outlined" style="font-size:15px;">download</span>
+                        </button>
+                    </div>
+                    <div style="height: 220px; position: relative; margin: 0 auto;" class="d-flex justify-content-center">
+                        <canvas id="languageDoughnut" style="max-width: 220px; max-height: 220px;"></canvas>
                     </div>
                 </div>
                 <!-- Gender Doughnut -->
                 <div class="col-lg-3 col-sm-6 text-center">
-                    <h3 class="h6 mb-2 fw-semibold">Gender Breakdown</h3>
-                    <div style="height: 200px; position: relative; margin: 0 auto;" class="d-flex justify-content-center">
-                        <canvas id="genderDoughnut" style="max-width: 200px; max-height: 200px;"></canvas>
+                    <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                        <h3 class="h6 mb-0 fw-semibold">Gender Breakdown</h3>
+                        <button class="chart-download-btn" onclick="downloadChart('genderDoughnut', 'gender-breakdown', 'Gender Breakdown')" title="Download chart" style="width:26px;height:26px;">
+                            <span class="material-symbols-outlined" style="font-size:15px;">download</span>
+                        </button>
+                    </div>
+                    <div style="height: 220px; position: relative; margin: 0 auto;" class="d-flex justify-content-center">
+                        <canvas id="genderDoughnut" style="max-width: 220px; max-height: 220px;"></canvas>
                     </div>
                 </div>
                 <!-- Attendance/Dropout Doughnut -->
                 <div class="col-lg-3 col-sm-6 text-center">
-                    <h3 class="h6 mb-2 fw-semibold">Attendance vs. Dropout</h3>
-                    <div style="height: 200px; position: relative; margin: 0 auto;" class="d-flex justify-content-center">
-                        <canvas id="attendanceDropoutDoughnut" style="max-width: 200px; max-height: 200px;"></canvas>
+                    <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                        <h3 class="h6 mb-0 fw-semibold">Attendance vs. Dropout</h3>
+                        <button class="chart-download-btn" onclick="downloadChart('attendanceDropoutDoughnut', 'attendance-dropout', 'Attendance vs. Dropout')" title="Download chart" style="width:26px;height:26px;">
+                            <span class="material-symbols-outlined" style="font-size:15px;">download</span>
+                        </button>
+                    </div>
+                    <div style="height: 220px; position: relative; margin: 0 auto;" class="d-flex justify-content-center">
+                        <canvas id="attendanceDropoutDoughnut" style="max-width: 220px; max-height: 220px;"></canvas>
                     </div>
                 </div>
             </div>
@@ -513,10 +584,46 @@ $dropoutRate = $summary['total_active'] > 0
     <?php endif; ?>
 </div>
 
-<!-- Load Chart.js CDN -->
+<!-- Load Chart.js CDN + Datalabels Plugin -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
 <script>
+// --- Download helper (global, available immediately) ---
+function downloadChart(canvasId, filename, title) {
+    var canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    var dpr = window.devicePixelRatio || 1;
+    // Title area: 50px in CSS, scaled by DPR for pixel accuracy
+    var titleCssHeight = title ? 50 : 0;
+    var titlePx = titleCssHeight * dpr;
+    // Create a new canvas with white background + title space
+    var newCanvas = document.createElement('canvas');
+    newCanvas.width = canvas.width;
+    newCanvas.height = canvas.height + titlePx;
+    var ctx = newCanvas.getContext('2d');
+    // Fill entire canvas white
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, newCanvas.width, newCanvas.height);
+    // Draw title if provided
+    if (title) {
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.fillStyle = '#1C1B1F';
+        ctx.font = 'bold 22px "Plus Jakarta Sans", system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(title, (newCanvas.width / dpr) / 2, titleCssHeight / 2);
+        ctx.restore();
+    }
+    // Draw chart below title
+    ctx.drawImage(canvas, 0, titlePx);
+    var link = document.createElement('a');
+    link.download = filename + '.png';
+    link.href = newCanvas.toDataURL('image/png', 1.0);
+    link.click();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     <?php if ($summary['total_active'] > 0): ?>
         // --- 1. Fetch data from PHP variables ---
@@ -528,6 +635,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const genderData = <?= json_encode($genderDistribution) ?>;
         const groupSizesData = <?= json_encode($groupSizes) ?>;
         
+        // --- Register Datalabels plugin globally, disable by default ---
+        Chart.register(ChartDataLabels);
+        Chart.defaults.plugins.datalabels = { display: false };
+
         // --- 2. Chart Styling Helpers (Material Design Harmonious Color Palettes) ---
         // Fetch variables from document body/style computed tokens if needed, else use beautiful modern hues.
         const computedStyle = getComputedStyle(document.body);
@@ -792,7 +903,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
-                    tooltip: { padding: 10, cornerRadius: 8 }
+                    tooltip: { padding: 10, cornerRadius: 8 },
+                    datalabels: {
+                        display: true,
+                        anchor: 'end',
+                        align: 'end',
+                        color: computedStyle.getPropertyValue('--md-sys-color-on-surface').trim() || '#1C1B1F',
+                        font: { weight: 'bold', size: 12 },
+                        formatter: function(value) { return value; }
+                    }
                 },
                 scales: {
                     x: {
@@ -913,6 +1032,23 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+        // --- Doughnut datalabels config (high readability with stroke) ---
+        const doughnutDatalabels = {
+            display: true,
+            color: '#ffffff',
+            font: { weight: 'bold', size: 14, family: "'Plus Jakarta Sans', system-ui, sans-serif" },
+            textStrokeColor: 'rgba(0,0,0,0.85)',
+            textStrokeWidth: 3,
+            textShadowBlur: 0,
+            textShadowColor: 'transparent',
+            formatter: function(value, ctx) {
+                const sum = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                const pct = sum > 0 ? ((value / sum) * 100).toFixed(0) : 0;
+                return value + '\n(' + pct + '%)';
+            },
+            textAlign: 'center'
+        };
+
         // --- 7. Demographics - Registration Mode (Doughnut) ---
         const preRegCount = <?= (int)($summary['pre_register'] ?? 0) ?>;
         const walkInCount = <?= (int)($summary['walk_in'] ?? 0) ?>;
@@ -931,7 +1067,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: 'bottom', labels: { boxWidth: 12 } }
+                    legend: { position: 'bottom', labels: { boxWidth: 12 } },
+                    datalabels: doughnutDatalabels
                 },
                 cutout: '65%'
             }
@@ -955,7 +1092,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: 'bottom', labels: { boxWidth: 12 } }
+                    legend: { position: 'bottom', labels: { boxWidth: 12 } },
+                    datalabels: doughnutDatalabels
                 },
                 cutout: '65%'
             }
@@ -979,7 +1117,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: 'bottom', labels: { boxWidth: 12 } }
+                    legend: { position: 'bottom', labels: { boxWidth: 12 } },
+                    datalabels: doughnutDatalabels
                 },
                 cutout: '65%'
             }
@@ -1003,7 +1142,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: 'bottom', labels: { boxWidth: 12 } }
+                    legend: { position: 'bottom', labels: { boxWidth: 12 } },
+                    datalabels: doughnutDatalabels
                 },
                 cutout: '65%'
             }
