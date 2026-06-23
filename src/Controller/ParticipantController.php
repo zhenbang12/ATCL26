@@ -367,10 +367,6 @@ class ParticipantController
         $stmt->execute([$id]);
         $participant = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-        if ($participant) {
-            $regTypeLabel = ($participant['registration_type'] === 'walk_in') ? 'walk-in' : 'pre-registered';
-            $this->logAudit($db, $id, $participant['full_name'], 'created', "Registered as $regTypeLabel");
-        }
 
         // Generate QR image as base64 PNG data URI (in-memory, no file saved)
         $options = new QROptions([
@@ -3138,6 +3134,7 @@ class ParticipantController
             // Only update A-Level check if that specific toggle was submitted
             if (array_key_exists('check_email_a_level', $_POST)) {
                 $checkALevel = (int)($_POST['check_email_a_level'] ?? 0);
+                $this->logAudit($db, 0, 'Email Constraint', $checkALevel ? 'constraint_enabled' : 'constraint_disabled', 'A-Level email check: ' . ($checkALevel ? 'enabled' : 'disabled'));
                 $aLevel = $db->prepare('SELECT id FROM anomaly_constraints WHERE session_id = ? AND field_name = ? AND description = ?');
                 $aLevel->execute([$sid, 'student_email', $aLevelDesc]);
                 $aRow = $aLevel->fetch(\PDO::FETCH_ASSOC);
@@ -3153,6 +3150,7 @@ class ParticipantController
             // Only update XX check if that specific toggle was submitted
             if (array_key_exists('check_email_xx26', $_POST)) {
                 $checkXX26 = (int)($_POST['check_email_xx26'] ?? 0);
+                $this->logAudit($db, 0, 'Email Constraint', $checkXX26 ? 'constraint_enabled' : 'constraint_disabled', 'XX email pattern check: ' . ($checkXX26 ? 'enabled' : 'disabled'));
                 // Look up by new description first, then fall back to old description
                 $xx = $db->prepare('SELECT id FROM anomaly_constraints WHERE session_id = ? AND field_name = ? AND description = ?');
                 $xx->execute([$sid, 'student_email', $xxDesc]);
@@ -3393,6 +3391,7 @@ class ParticipantController
 
             $enabled = $row ? (int)$row['is_enabled'] : 0;
             $msg = $enabled ? 'Constraint enabled.' : 'Constraint disabled.';
+            $this->logAudit($db, $id, 'Constraint', $enabled ? 'constraint_enabled' : 'constraint_disabled', "Constraint #$id: {$msg}");
 
             if ($isAjax) {
                 header('Content-Type: application/json');
