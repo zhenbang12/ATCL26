@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS participants (
     student_id VARCHAR(50),
     student_email VARCHAR(255),
     intake VARCHAR(255),
+    study_level VARCHAR(20),
+    intake_period VARCHAR(50),
     programme_name VARCHAR(255),
     faculty VARCHAR(255),
     gender VARCHAR(20),
@@ -358,6 +360,20 @@ CREATE TABLE IF NOT EXISTS users (
     role VARCHAR(30) NOT NULL DEFAULT 'committee',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS anomaly_constraints (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    session_id INT NOT NULL DEFAULT 1,
+    constraint_type ENUM('email_pattern', 'field_contains', 'field_equals', 'field_empty', 'field_not_empty', 'field_regex') NOT NULL,
+    field_name VARCHAR(100) NOT NULL DEFAULT 'student_email',
+    pattern VARCHAR(500) NOT NULL DEFAULT '',
+    description VARCHAR(500) NOT NULL DEFAULT '',
+    is_enabled TINYINT(1) NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_anomaly_constraints_session_id (session_id),
+    INDEX idx_anomaly_constraints_enabled (is_enabled),
+    CONSTRAINT fk_anomaly_constraints_session FOREIGN KEY (session_id) REFERENCES sessions(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS lost_and_found_items (

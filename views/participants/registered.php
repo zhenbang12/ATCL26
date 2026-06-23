@@ -1,11 +1,31 @@
 <?php
 // Show registration success and QR code for check-in
+$isWalkIn = ($participant['registration_type'] ?? 'pre_register') === 'walk_in';
+$regLabel = $isWalkIn ? 'Walk-in' : 'Pre-registered';
+$regColor = $isWalkIn ? 'var(--md-sys-color-tertiary)' : 'var(--md-sys-color-primary)';
+$regBg = $isWalkIn ? 'var(--md-sys-color-tertiary-container)' : 'var(--md-sys-color-primary-container)';
+$regFg = $isWalkIn ? 'var(--md-sys-color-on-tertiary-container)' : 'var(--md-sys-color-on-primary-container)';
 ?>
 <div class="mx-auto" style="max-width: 640px;">
     <h2 class="mb-3 fw-bold" style="color: var(--md-sys-color-on-surface);">
         <span class="material-symbols-outlined" style="font-size: 28px; vertical-align: text-bottom; color: var(--md-sys-color-success);">check_circle</span>
         Registration Successful
     </h2>
+
+    <!-- Registration Type Banner -->
+    <div class="card p-3 mb-3 border-0 text-center" style="background-color: <?= $regBg ?> !important; border-radius: 16px !important; color: <?= $regFg ?> !important;">
+        <div class="d-flex align-items-center justify-content-center gap-2">
+            <span class="material-symbols-outlined" style="font-size: 22px;"><?= $isWalkIn ? 'directions_walk' : 'event' ?></span>
+            <strong style="font-size: 1.05rem;"><?= $regLabel ?> Participant</strong>
+        </div>
+        <p class="mb-0 mt-1 small" style="opacity: 0.85;">
+            <?php if ($isWalkIn): ?>
+                Please proceed to the <strong>Walk-in Check-in Counter</strong> on event day.
+            <?php else: ?>
+                Please proceed to the <strong>Pre-registered Check-in Counter</strong> on event day.
+            <?php endif; ?>
+        </p>
+    </div>
 
     <?php if (!empty($participant)): ?>
         <!-- Participant Info Card -->

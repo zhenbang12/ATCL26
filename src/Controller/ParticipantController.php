@@ -245,12 +245,68 @@ class ParticipantController
             }
         }
 
+        // Check blocking constraints before saving
+        $studyLevelEarly = trim((string)($_POST['study_level'] ?? ''));
+        $intakePeriodEarly = trim((string)($_POST['intake_period'] ?? ''));
+        try {
+            $this->ensureAnomalyConstraintsTable($db);
+            $blockingStmt = $db->prepare('SELECT * FROM anomaly_constraints WHERE blocks_registration = 1 AND session_id = ?');
+            $blockingStmt->execute([$sid]);
+            $blockingConstraints = $blockingStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            if (!empty($blockingConstraints)) {
+                $checkData = [
+                    'full_name' => $fullName,
+                    'student_email' => $studentEmail,
+                    'student_id' => $studentId,
+                    'ic_passport_no' => trim((string)($_POST['ic_passport_no'] ?? '')),
+                    'intake' => trim((string)($_POST['intake'] ?? '')),
+                    'programme_name' => $programmeName,
+                    'faculty' => $faculty,
+                    'gender' => $gender,
+                    'contact_no' => $contactNo,
+                    'preferred_language' => $preferredLanguage,
+                    'registration_type' => $registrationType,
+                    'intake_period' => $intakePeriodEarly,
+                    'study_level' => $studyLevelEarly,
+                ];
+                $blockedReasons = [];
+                foreach ($blockingConstraints as $bc) {
+                    if ($this->evaluateConstraint($checkData, $bc)) {
+                        if (!empty($bc['description'])) {
+                            $blockedReasons[] = $bc['description'];
+                        } elseif ($bc['field_name'] === 'intake_period') {
+                            $blockedReasons[] = "Intake period \"" . ($bc['pattern'] ?? '') . "\" is not currently accepting registrations.";
+                        } else {
+                            $blockedReasons[] = "Blocked by constraint: {$bc['field_name']} {$bc['constraint_type']}";
+                        }
+                    }
+                }
+                if (!empty($blockedReasons)) {
+                    $_SESSION['blocked_reasons'] = $blockedReasons;
+                    header('Location: /participants/blocked');
+                    exit;
+                }
+            }
+        } catch (\Exception $e) {
+            // Silently fail - don't block registration if constraint check fails
+        }
+
         // Generate a unique QR code value for this participant
         $qrCode = bin2hex(random_bytes(8));
 
         // Convert emergency phone number from 0XXXXXXXXX to 60XXXXXXXXX format
         $emergencyContactNo = $this->formatPhoneNumber($_POST['emergency_contact_no'] ?? '');
         $preferredLanguage = trim((string)($_POST['preferred_language'] ?? ''));
+        $studyLevel = trim((string)($_POST['study_level'] ?? ''));
+        $intakePeriod = trim((string)($_POST['intake_period'] ?? ''));
+        $validStudyLevels = ['Foundation', 'Diploma', 'Degree', 'Degree (Other Campus)'];
+        if (!in_array($studyLevel, $validStudyLevels, true)) {
+            $studyLevel = null;
+        }
+        if ($intakePeriod === '') {
+            $intakePeriod = null;
+        }
 
         try {
             $stmt = $db->prepare('INSERT INTO participants (
@@ -260,6 +316,8 @@ class ParticipantController
                 student_id,
                 student_email,
                 intake,
+                study_level,
+                intake_period,
                 programme_name,
                 faculty,
                 gender,
@@ -270,7 +328,7 @@ class ParticipantController
                 registration_type,
                 group_code,
                 qr_code
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
             $stmt->execute([
                 $sid,
                 $_POST['full_name'] ?? '',
@@ -278,6 +336,8 @@ class ParticipantController
                 $studentId,
                 $_POST['student_email'] ?? '',
                 $_POST['intake'] ?? '',
+                $studyLevel,
+                $intakePeriod,
                 $_POST['programme_name'] ?? '',
                 $_POST['faculty'] ?? '',
                 $_POST['gender'] ?? '',
@@ -2573,10 +2633,20 @@ class ParticipantController
         Auth::requireRole(['advisor', 'committee']);
 
         $db = Container::get('db');
-        $title = 'Email Anomalies';
+        $title = 'Anomalies & Constraints';
         $sid = $this->sid();
 
-        // Fetch all active participants for the current session (excluding resolved duplicates and whitelisted anomalies)
+        // Ensure the anomaly_constraints table exists
+        $this->ensureAnomalyConstraintsTable($db);
+
+        // Load constraints and auto-seed defaults if needed
+        $constraints = $this->loadConstraints($db, $sid);
+        if (empty($constraints)) {
+            $this->seedAnomaliesDefaults($db, $sid);
+            $constraints = $this->loadConstraints($db, $sid);
+        }
+
+        // Fetch all active participants (excluding resolved duplicates and whitelisted)
         $stmt = $db->prepare("SELECT * FROM participants WHERE duplicate_of IS NULL AND exclude_from_anomalies = 0 AND session_id = ? ORDER BY created_at DESC");
         $stmt->execute([$sid]);
         $participants = $stmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -2584,50 +2654,85 @@ class ParticipantController
         $anomalies = [];
         foreach ($participants as $p) {
             $email = trim((string)($p['student_email'] ?? ''));
-
             if ($email === '') {
-                $anomalies[] = [
-                    'participant' => $p,
-                    'reason' => 'Email is empty'
-                ];
+                $anomalies[] = ['participant' => $p, 'reason' => 'Email is empty'];
                 continue;
             }
-
-            // Parse username and domain
             $parts = explode('@', $email);
-            $username = $parts[0] ?? '';
             $domain = isset($parts[1]) ? strtolower(trim($parts[1])) : '';
-
             if ($domain !== 'student.tarc.edu.my') {
-                $anomalies[] = [
-                    'participant' => $p,
-                    'reason' => 'Not a TARC student domain (@student.tarc.edu.my)'
-                ];
+                $anomalies[] = ['participant' => $p, 'reason' => 'Not a TARC student domain (@student.tarc.edu.my)'];
                 continue;
             }
-
-            // Pattern checks:
-            // 1. Starts with '26' (ID-based: e.g. 26wcy80490)
-            $is26IntakeID = preg_match('/^26/i', $username);
-
-            // 2. Ends with 'w' + campus code + '26' (Name-based: e.g. adellynabna-wb26)
-            $is26IntakeName = preg_match('/w[a-z0-9]26$/i', $username);
-
-            if (!$is26IntakeID && !$is26IntakeName) {
-                $anomalies[] = [
-                    'participant' => $p,
-                    'reason' => 'Email does not match 2026 intake format (starts with 26 or ends with wX26)'
-                ];
+            foreach ($constraints as $constraint) {
+                if (!$constraint['is_enabled']) continue;
+                if ($this->evaluateConstraint($p, $constraint)) {
+                    $anomalies[] = ['participant' => $p, 'reason' => $constraint['description'] ?: ('Custom constraint: ' . $constraint['constraint_type'])];
+                }
             }
         }
 
         $totalAnomalies = count($anomalies);
         $totalParticipants = count($participants);
-
-        // Total registered (including excluded from anomalies) for context
         $totalRegStmt = $db->prepare('SELECT COUNT(*) FROM participants WHERE duplicate_of IS NULL AND session_id = ?');
         $totalRegStmt->execute([$sid]);
         $totalRegistered = (int)$totalRegStmt->fetchColumn();
+
+        // Deduplicate anomalies
+        $deduped = [];
+        foreach ($anomalies as $item) {
+            $pid = (int)$item['participant']['id'];
+            if (isset($deduped[$pid])) {
+                $deduped[$pid]['reason'] .= '; ' . $item['reason'];
+            } else {
+                $deduped[$pid] = $item;
+            }
+        }
+        $anomalies = array_values($deduped);
+        $totalAnomalies = count($anomalies);
+
+        // Email check constraints (simplified UI)
+        $emailCheckMap = [];
+        foreach ($constraints as $c) {
+            if ($c['field_name'] === 'student_email' && $c['constraint_type'] === 'email_pattern') {
+                $emailCheckMap[$c['description']] = (int)$c['is_enabled'];
+            }
+        }
+        $yy = date('y');
+        $emailCheckALevel = $emailCheckMap['A-Level student email must start with ' . $yy . ' (intake ' . date('Y') . ')'] ?? 1;
+        $emailCheckXX26 = $emailCheckMap['Other student email must end with XX' . $yy . ' (intake ' . date('Y') . ', e.g. wm' . $yy . ', wb' . $yy . ')'] ?? 1;
+
+        // Intake blocking constraints (simplified UI)
+        $thisYear = date('Y');
+        $lastYear = $thisYear - 1;
+        $intakeBlockingMap = [];
+        foreach ($constraints as $c) {
+            if ($c['field_name'] === 'intake_period' && $c['constraint_type'] === 'field_contains') {
+                $intakeBlockingMap[$c['pattern']] = (int)$c['blocks_registration'];
+            }
+        }
+        $intakePeriodOptions = [
+            'Foundation May ' . $lastYear,
+            'Foundation September ' . $lastYear,
+            'Foundation May ' . $thisYear,
+            'Foundation September ' . $thisYear,
+            'Diploma June ' . $lastYear,
+            'Diploma November ' . $lastYear,
+            'Diploma June ' . $thisYear,
+            'Diploma November ' . $thisYear,
+            'Degree June ' . $lastYear,
+            'Degree November ' . $lastYear,
+            'Degree June ' . $thisYear,
+            'Degree November ' . $thisYear,
+            'Degree (Other Campus) June ' . $lastYear,
+            'Degree (Other Campus) November ' . $lastYear,
+            'Degree (Other Campus) June ' . $thisYear,
+            'Degree (Other Campus) November ' . $thisYear,
+        ];
+        $intakeBlocking = [];
+        foreach ($intakePeriodOptions as $opt) {
+            $intakeBlocking[$opt] = $intakeBlockingMap[$opt] ?? 0;
+        }
 
         include __DIR__ . '/../../views/layout/header.php';
         include __DIR__ . '/../../views/participants/anomalies.php';
@@ -2668,6 +2773,62 @@ class ParticipantController
 
         header('Location: /participants/anomalies');
         exit;
+    }
+
+    public function blocked(): void
+    {
+        $reasons = $_SESSION['blocked_reasons'] ?? [];
+        unset($_SESSION['blocked_reasons']);
+
+        // Determine which intakes are blocked and allowed
+        $allowedIntakes = [];
+        $blockedIntakes = [];
+        try {
+            $db = Container::get('db');
+            $sid = $this->sid();
+            $this->ensureAnomalyConstraintsTable($db);
+            $thisYear = (int)date('Y');
+            $lastYear = $thisYear - 1;
+            $allIntakes = [
+                'Foundation May ' . $lastYear, 'Foundation September ' . $lastYear,
+                'Foundation May ' . $thisYear, 'Foundation September ' . $thisYear,
+                'Diploma June ' . $lastYear, 'Diploma November ' . $lastYear,
+                'Diploma June ' . $thisYear, 'Diploma November ' . $thisYear,
+                'Degree June ' . $lastYear, 'Degree November ' . $lastYear,
+                'Degree June ' . $thisYear, 'Degree November ' . $thisYear,
+                'Degree (Other Campus) June ' . $lastYear, 'Degree (Other Campus) November ' . $lastYear,
+                'Degree (Other Campus) June ' . $thisYear, 'Degree (Other Campus) November ' . $thisYear,
+            ];
+            $stmt = $db->prepare('SELECT pattern, blocks_registration FROM anomaly_constraints WHERE field_name = ? AND constraint_type = ? AND session_id = ?');
+            $stmt->execute(['intake_period', 'field_contains', $sid]);
+            $intakeConstraints = [];
+            foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $c) {
+                $intakeConstraints[$c['pattern']] = (int)$c['blocks_registration'];
+            }
+            foreach ($allIntakes as $intake) {
+                if ($intakeConstraints[$intake] ?? 0) {
+                    $blockedIntakes[] = $intake;
+                } else {
+                    $allowedIntakes[] = $intake;
+                }
+            }
+            // If no specific reasons were set via session, generate from blocked intakes
+            if (empty($reasons) && !empty($blockedIntakes)) {
+                $reasons[] = 'Your selected intake period is not currently accepting registrations. The following intakes are blocked: ' . implode(', ', $blockedIntakes) . '.';
+            }
+        } catch (\Exception $e) {
+            // Silently fail
+        }
+
+        // Final fallback
+        if (empty($reasons)) {
+            $reasons[] = 'Registration has been blocked by the administrator. Please contact the event committee for assistance.';
+        }
+
+        $title = 'Registration Blocked';
+        include __DIR__ . '/../../views/layout/header.php';
+        include __DIR__ . '/../../views/participants/blocked.php';
+        include __DIR__ . '/../../views/layout/footer.php';
     }
 
     public function checkStatus(): void
@@ -2818,5 +2979,426 @@ class ParticipantController
             }
         }
         return implode(', ', $changes);
+    }
+
+    /**
+     * Ensure the anomaly_constraints table exists (auto-migrate).
+     */
+    private function ensureAnomalyConstraintsTable(\PDO $db): void
+    {
+        try {
+            $db->exec("CREATE TABLE IF NOT EXISTS anomaly_constraints (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                session_id INT NOT NULL DEFAULT 1,
+                constraint_type ENUM('email_pattern', 'field_contains', 'field_equals', 'field_empty', 'field_not_empty', 'field_regex') NOT NULL,
+                field_name VARCHAR(100) NOT NULL DEFAULT 'student_email',
+                pattern VARCHAR(500) NOT NULL DEFAULT '',
+                description VARCHAR(500) NOT NULL DEFAULT '',
+                is_enabled TINYINT(1) NOT NULL DEFAULT 1,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_anomaly_constraints_session_id (session_id),
+                INDEX idx_anomaly_constraints_enabled (is_enabled),
+                CONSTRAINT fk_anomaly_constraints_session FOREIGN KEY (session_id) REFERENCES sessions(id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        } catch (\Exception $e) {
+            // Table may already exist; ignore.
+        }
+
+        // Ensure blocks_registration column exists
+        try {
+            $db->exec("ALTER TABLE anomaly_constraints ADD COLUMN blocks_registration TINYINT(1) NOT NULL DEFAULT 0 AFTER is_enabled");
+        } catch (\Exception $e) {
+            // Column already exists; ignore.
+        }
+    }
+
+    /**
+     * Load all anomaly constraints for the current session.
+     */
+    private function loadConstraints(\PDO $db, int $sid): array
+    {
+        try {
+            $stmt = $db->prepare('SELECT * FROM anomaly_constraints WHERE session_id = ? ORDER BY id ASC');
+            $stmt->execute([$sid]);
+            return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Auto-seed default constraints: 2 email checks + intake period blocking options.
+     */
+    private function seedAnomaliesDefaults(\PDO $db, int $sid): void
+    {
+        $yy = date('y');
+        $year = (int)date('Y');
+        $defaults = [
+            ['email_pattern', 'student_email', '/^' . $yy . '/i', 'A-Level student email must start with ' . $yy . ' (intake ' . $year . ')', 1, 0],
+            ['email_pattern', 'student_email', '/[a-z0-9]' . $yy . '$/i', 'Other student email must end with XX' . $yy . ' (intake ' . $year . ', e.g. wm' . $yy . ', wb' . $yy . ')', 1, 0],
+        ];
+        $lastYear = $year - 1;
+        $intakeOptions = [
+            'Foundation May ' . $lastYear, 'Foundation September ' . $lastYear,
+            'Foundation May ' . $year, 'Foundation September ' . $year,
+            'Diploma June ' . $lastYear, 'Diploma November ' . $lastYear,
+            'Diploma June ' . $year, 'Diploma November ' . $year,
+            'Degree June ' . $lastYear, 'Degree November ' . $lastYear,
+            'Degree June ' . $year, 'Degree November ' . $year,
+            'Degree (Other Campus) June ' . $lastYear, 'Degree (Other Campus) November ' . $lastYear,
+            'Degree (Other Campus) June ' . $year, 'Degree (Other Campus) November ' . $year,
+        ];
+        foreach ($intakeOptions as $opt) {
+            $defaults[] = ['field_contains', 'intake_period', $opt, '', 0, 1];
+        }
+        try {
+            $stmt = $db->prepare('INSERT IGNORE INTO anomaly_constraints (session_id, constraint_type, field_name, pattern, description, is_enabled, blocks_registration) VALUES (?, ?, ?, ?, ?, ?, ?)');
+            foreach ($defaults as $d) {
+                $stmt->execute([$sid, $d[0], $d[1], $d[2], $d[3], $d[4], $d[5]]);
+            }
+        } catch (\Exception $e) {
+            // Silently fail
+        }
+    }
+
+    /**
+     * Save anomalies settings (email checks + intake blocking) from simplified UI.
+     */
+    public function saveAnomaliesSettings(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+        $db = Container::get('db');
+        $sid = $this->sid();
+        $this->ensureAnomalyConstraintsTable($db);
+
+        $intakePeriod = trim((string)($_POST['intake_period'] ?? ''));
+
+        if ($intakePeriod !== '') {
+            // Intake blocking toggle
+            $enabled = (int)($_POST['enabled'] ?? 0);
+            $existing = $db->prepare('SELECT id FROM anomaly_constraints WHERE session_id = ? AND field_name = ? AND pattern = ?');
+            $existing->execute([$sid, 'intake_period', $intakePeriod]);
+            $row = $existing->fetch(\PDO::FETCH_ASSOC);
+            if ($row) {
+                $stmt = $db->prepare('UPDATE anomaly_constraints SET blocks_registration = ? WHERE id = ?');
+                $stmt->execute([$enabled, (int)$row['id']]);
+            } else {
+                $stmt = $db->prepare('INSERT INTO anomaly_constraints (session_id, constraint_type, field_name, pattern, blocks_registration, is_enabled) VALUES (?, ?, ?, ?, ?, ?)');
+                $stmt->execute([$sid, 'field_contains', 'intake_period', $intakePeriod, $enabled, $enabled]);
+            }
+        } else {
+            // Email check toggle
+            $yy = date('y');
+            $year = date('Y');
+            $aLevelDesc = 'A-Level student email must start with ' . $yy . ' (intake ' . $year . ')';
+            $xxDesc = 'Other student email must end with XX' . $yy . ' (intake ' . $year . ', e.g. wm' . $yy . ', wb' . $yy . ')';
+
+            // The hidden field sends 0, the submit button sends 1 — check the submitted value
+            $aLevelVal = (int)($_POST['check_email_a_level'] ?? 0);
+            $xx26Val = (int)($_POST['check_email_xx26'] ?? 0);
+            $checkALevel = $aLevelVal;
+            $checkXX26 = $xx26Val;
+
+            $aLevel = $db->prepare('SELECT id FROM anomaly_constraints WHERE session_id = ? AND field_name = ? AND description = ?');
+            $aLevel->execute([$sid, 'student_email', $aLevelDesc]);
+            $aRow = $aLevel->fetch(\PDO::FETCH_ASSOC);
+            if ($aRow) {
+                $stmt = $db->prepare('UPDATE anomaly_constraints SET is_enabled = ? WHERE id = ?');
+                $stmt->execute([$checkALevel ? 1 : 0, (int)$aRow['id']]);
+            } else {
+                $stmt = $db->prepare('INSERT INTO anomaly_constraints (session_id, constraint_type, field_name, pattern, description, is_enabled) VALUES (?, ?, ?, ?, ?, ?)');
+                $stmt->execute([$sid, 'email_pattern', 'student_email', '/^' . $yy . '/i', $aLevelDesc, $checkALevel ? 1 : 0]);
+            }
+
+            $xx = $db->prepare('SELECT id FROM anomaly_constraints WHERE session_id = ? AND field_name = ? AND description = ?');
+            $xx->execute([$sid, 'student_email', $xxDesc]);
+            $xRow = $xx->fetch(\PDO::FETCH_ASSOC);
+            if ($xRow) {
+                $stmt = $db->prepare('UPDATE anomaly_constraints SET is_enabled = ? WHERE id = ?');
+                $stmt->execute([$checkXX26 ? 1 : 0, (int)$xRow['id']]);
+            } else {
+                $stmt = $db->prepare('INSERT INTO anomaly_constraints (session_id, constraint_type, field_name, pattern, description, is_enabled) VALUES (?, ?, ?, ?, ?, ?)');
+                $stmt->execute([$sid, 'email_pattern', 'student_email', '/[a-z0-9]' . $yy . '$/i', $xxDesc, $checkXX26 ? 1 : 0]);
+            }
+        }
+
+        $_SESSION['participants_message'] = 'Anomaly settings saved.';
+        $_SESSION['participants_message_type'] = 'success';
+        header('Location: /participants/anomalies');
+        exit;
+    }
+
+    /**
+     * Evaluate a single constraint against a participant row.
+     * Returns true if the participant matches the constraint (i.e. is anomalous).
+     */
+    private function evaluateConstraint(array $participant, array $constraint): bool
+    {
+        $fieldName = $constraint['field_name'] ?? '';
+        $constraintType = $constraint['constraint_type'] ?? '';
+        $pattern = $constraint['pattern'] ?? '';
+        $fieldValue = trim((string)($participant[$fieldName] ?? ''));
+
+        switch ($constraintType) {
+            case 'field_empty':
+                return $fieldValue === '';
+
+            case 'field_not_empty':
+                return $fieldValue !== '';
+
+            case 'field_contains':
+                return $pattern !== '' && stripos($fieldValue, $pattern) !== false;
+
+            case 'field_equals':
+                return $pattern !== '' && strtolower($fieldValue) === strtolower($pattern);
+
+            case 'email_pattern':
+                if ($fieldName === 'student_email' && $fieldValue !== '') {
+                    $parts = explode('@', $fieldValue);
+                    $username = $parts[0] ?? '';
+                    return $pattern !== '' && !preg_match($pattern, $username);
+                }
+                return false;
+
+            case 'field_regex':
+                if ($pattern === '') return false;
+                // The regex pattern should match normal values; if it DOESN'T match, it's an anomaly.
+                return !preg_match($pattern, $fieldValue);
+
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * AJAX endpoint: Add a new anomaly constraint.
+     */
+    public function addConstraint(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db = Container::get('db');
+        $sid = $this->sid();
+        $this->ensureAnomalyConstraintsTable($db);
+
+        $constraintType = trim((string)($_POST['constraint_type'] ?? ''));
+        $fieldName = trim((string)($_POST['field_name'] ?? 'student_email'));
+        $pattern = trim((string)($_POST['pattern'] ?? ''));
+        $description = trim((string)($_POST['description'] ?? ''));
+        $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+
+        $validTypes = ['email_pattern', 'field_contains', 'field_equals', 'field_empty', 'field_not_empty', 'field_regex'];
+        if (!in_array($constraintType, $validTypes, true)) {
+            $msg = 'Invalid constraint type.';
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => $msg], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+            $_SESSION['participants_message'] = $msg;
+            $_SESSION['participants_message_type'] = 'danger';
+            header('Location: /participants/anomalies');
+            exit;
+        }
+
+        // Field name validation
+        $validFields = [
+            'student_email', 'full_name', 'student_id', 'ic_passport_no',
+            'intake', 'programme_name', 'faculty', 'gender',
+            'contact_no', 'preferred_language', 'registration_type', 'group_code'
+        ];
+        if (!in_array($fieldName, $validFields, true)) {
+            $fieldName = 'student_email';
+        }
+
+        // For types that don't need a pattern, ensure it's empty
+        if (in_array($constraintType, ['field_empty', 'field_not_empty'], true)) {
+            $pattern = '';
+        }
+
+        // Validate regex pattern if type is field_regex or email_pattern
+        if (in_array($constraintType, ['field_regex', 'email_pattern'], true) && $pattern !== '') {
+            if (@preg_match($pattern, '') === false) {
+                $msg = 'Invalid regex pattern provided.';
+                if ($isAjax) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => false, 'message' => $msg], JSON_UNESCAPED_UNICODE);
+                    exit;
+                }
+                $_SESSION['participants_message'] = $msg;
+                $_SESSION['participants_message_type'] = 'danger';
+                header('Location: /participants/anomalies');
+                exit;
+            }
+        }
+
+        try {
+            $stmt = $db->prepare('INSERT INTO anomaly_constraints (session_id, constraint_type, field_name, pattern, description) VALUES (?, ?, ?, ?, ?)');
+            $stmt->execute([$sid, $constraintType, $fieldName, $pattern, $description]);
+            $newId = (int)$db->lastInsertId();
+
+            $msg = 'Anomaly constraint added successfully.';
+            if ($isAjax) {
+                // Fetch the newly created constraint for return
+                $fetchStmt = $db->prepare('SELECT * FROM anomaly_constraints WHERE id = ?');
+                $fetchStmt->execute([$newId]);
+                $constraint = $fetchStmt->fetch(\PDO::FETCH_ASSOC);
+                header('Content-Type: application/json');
+                echo json_encode(['success' => true, 'message' => $msg, 'constraint' => $constraint], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
+            $_SESSION['participants_message'] = $msg;
+            $_SESSION['participants_message_type'] = 'success';
+        } catch (\Exception $e) {
+            $msg = 'Error adding constraint: ' . $e->getMessage();
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => $msg], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+            $_SESSION['participants_message'] = $msg;
+            $_SESSION['participants_message_type'] = 'danger';
+        }
+
+        header('Location: /participants/anomalies');
+        exit;
+    }
+
+    /**
+     * Delete an anomaly constraint.
+     */
+    public function deleteConstraint(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db = Container::get('db');
+        $sid = $this->sid();
+        $id = (int)($_POST['constraint_id'] ?? 0);
+
+        if ($id <= 0) {
+            $_SESSION['participants_message'] = 'Invalid constraint ID.';
+            $_SESSION['participants_message_type'] = 'danger';
+            header('Location: /participants/anomalies');
+            exit;
+        }
+
+        try {
+            $stmt = $db->prepare('DELETE FROM anomaly_constraints WHERE id = ? AND session_id = ?');
+            $stmt->execute([$id, $sid]);
+            if ($stmt->rowCount() > 0) {
+                $_SESSION['participants_message'] = 'Constraint removed successfully.';
+                $_SESSION['participants_message_type'] = 'success';
+            } else {
+                $_SESSION['participants_message'] = 'Constraint not found or already removed.';
+                $_SESSION['participants_message_type'] = 'warning';
+            }
+        } catch (\Exception $e) {
+            $_SESSION['participants_message'] = 'Error removing constraint: ' . $e->getMessage();
+            $_SESSION['participants_message_type'] = 'danger';
+        }
+
+        header('Location: /participants/anomalies');
+        exit;
+    }
+
+    /**
+     * Toggle enable/disable for an anomaly constraint.
+     */
+    public function toggleConstraint(): void
+    {
+        Auth::requireRole(['advisor', 'committee']);
+
+        $db = Container::get('db');
+        $sid = $this->sid();
+        $id = (int)($_POST['constraint_id'] ?? 0);
+        $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+
+        if ($id <= 0) {
+            $msg = 'Invalid constraint ID.';
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => $msg], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+            $_SESSION['participants_message'] = $msg;
+            $_SESSION['participants_message_type'] = 'danger';
+            header('Location: /participants/anomalies');
+            exit;
+        }
+
+        try {
+            $stmt = $db->prepare('UPDATE anomaly_constraints SET is_enabled = NOT is_enabled WHERE id = ? AND session_id = ?');
+            $stmt->execute([$id, $sid]);
+
+            // Fetch updated state
+            $fetchStmt = $db->prepare('SELECT is_enabled FROM anomaly_constraints WHERE id = ? AND session_id = ?');
+            $fetchStmt->execute([$id, $sid]);
+            $row = $fetchStmt->fetch(\PDO::FETCH_ASSOC);
+
+            $enabled = $row ? (int)$row['is_enabled'] : 0;
+            $msg = $enabled ? 'Constraint enabled.' : 'Constraint disabled.';
+
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => true, 'message' => $msg, 'is_enabled' => $enabled], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+
+            $_SESSION['participants_message'] = $msg;
+            $_SESSION['participants_message_type'] = 'success';
+        } catch (\Exception $e) {
+            $msg = 'Error toggling constraint: ' . $e->getMessage();
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => $msg], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+            $_SESSION['participants_message'] = $msg;
+            $_SESSION['participants_message_type'] = 'danger';
+        }
+
+        header('Location: /participants/anomalies');
+        exit;
+    }
+
+    /**
+     * Seed default anomaly constraints for a session.
+     * Creates 2 default email pattern constraints based on the current year.
+     */
+    private function seedDefaultConstraints(\PDO $db, int $sid): void
+    {
+        $year = (int)date('Y');
+        $yy = date('y'); // e.g., "26" for 2026
+
+        $defaults = [
+            [
+                'constraint_type' => 'email_pattern',
+                'field_name' => 'student_email',
+                'pattern' => '/^' . $yy . '/i',
+                'description' => 'A-Level student email must start with ' . $yy . ' (intake ' . $year . ')',
+            ],
+            [
+                'constraint_type' => 'email_pattern',
+                'field_name' => 'student_email',
+                'pattern' => '/[a-z0-9]' . $yy . '$/i',
+                'description' => 'Other student email must end with XX' . $yy . ' (intake ' . $year . ', e.g. wm' . $yy . ', wb' . $yy . ')',
+            ],
+        ];
+
+        try {
+            $stmt = $db->prepare('INSERT INTO anomaly_constraints (session_id, constraint_type, field_name, pattern, description, is_enabled) VALUES (?, ?, ?, ?, ?, 0)');
+            foreach ($defaults as $def) {
+                $stmt->execute([
+                    $sid,
+                    $def['constraint_type'],
+                    $def['field_name'],
+                    $def['pattern'],
+                    $def['description'],
+                ]);
+            }
+        } catch (\Exception $e) {
+            // Silently fail; constraints will just not be seeded.
+        }
     }
 }

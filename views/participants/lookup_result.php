@@ -11,6 +11,27 @@ $registrationLabel = $lookupFrom === 'walk-in' ? 'Back to walk-in' : 'Back to pr
     </h2>
 
     <?php if (!empty($participant) && !empty($qrImage)): ?>
+        <?php
+        $isWalkIn = ($participant['registration_type'] ?? 'pre_register') === 'walk_in';
+        $regLabel = $isWalkIn ? 'Walk-in' : 'Pre-registered';
+        $regBg = $isWalkIn ? 'var(--md-sys-color-tertiary-container)' : 'var(--md-sys-color-primary-container)';
+        $regFg = $isWalkIn ? 'var(--md-sys-color-on-tertiary-container)' : 'var(--md-sys-color-on-primary-container)';
+        ?>
+        <!-- Registration Type Banner -->
+        <div class="card p-3 mb-3 border-0 text-center" style="background-color: <?= $regBg ?> !important; border-radius: 16px !important; color: <?= $regFg ?> !important;">
+            <div class="d-flex align-items-center justify-content-center gap-2">
+                <span class="material-symbols-outlined" style="font-size: 22px;"><?= $isWalkIn ? 'directions_walk' : 'event' ?></span>
+                <strong style="font-size: 1.05rem;"><?= $regLabel ?> Participant</strong>
+            </div>
+            <p class="mb-0 mt-1 small" style="opacity: 0.85;">
+                <?php if ($isWalkIn): ?>
+                    Please proceed to the <strong>Walk-in Check-in Counter</strong> on event day.
+                <?php else: ?>
+                    Please proceed to the <strong>Pre-registered Check-in Counter</strong> on event day.
+                <?php endif; ?>
+            </p>
+        </div>
+
         <!-- Participant Info Card -->
         <div class="card p-4 border-0 mb-3" style="background-color: var(--md-sys-color-surface-container-low) !important; border-radius: 20px !important;">
             <div class="d-flex align-items-center gap-3 mb-3">

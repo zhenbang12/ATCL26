@@ -89,6 +89,22 @@ if (isset($_SESSION['registration_input'])) {
                     >
                 </div>
                 <div class="mb-3">
+                    <label class="form-label" for="study_level">Study Level</label>
+                    <select name="study_level" id="study_level" class="form-select" required onchange="updateIntakePeriod()">
+                        <option value="" disabled <?= empty($savedInput['study_level']) ? 'selected' : '' ?>>Select study level…</option>
+                        <option value="Foundation" <?= ($savedInput['study_level'] ?? '') === 'Foundation' ? 'selected' : '' ?>>Foundation</option>
+                        <option value="Diploma" <?= ($savedInput['study_level'] ?? '') === 'Diploma' ? 'selected' : '' ?>>Diploma</option>
+                        <option value="Degree" <?= ($savedInput['study_level'] ?? '') === 'Degree' ? 'selected' : '' ?>>Degree</option>
+                        <option value="Degree (Other Campus)" <?= ($savedInput['study_level'] ?? '') === 'Degree (Other Campus)' ? 'selected' : '' ?>>Degree from other campus (Johor, Penang, Sabah etc)</option>
+                    </select>
+                </div>
+                <div class="mb-3" id="intake_period_group" style="display: none;">
+                    <label class="form-label" for="intake_period">Intake Period</label>
+                    <select name="intake_period" id="intake_period" class="form-select">
+                        <option value="" disabled selected>Select intake period…</option>
+                    </select>
+                </div>
+                <div class="mb-3">
                     <label class="form-label" for="faculty">Faculty</label>
                     <select name="faculty" id="faculty" class="form-select" required>
                         <option value="" disabled <?= empty($savedInput['faculty']) ? 'selected' : '' ?>>Select faculty…</option>
@@ -140,3 +156,58 @@ if (isset($_SESSION['registration_input'])) {
         </div>
     </div>
 </div>
+
+<script>
+function updateIntakePeriod() {
+    var level = document.getElementById('study_level').value;
+    var group = document.getElementById('intake_period_group');
+    var select = document.getElementById('intake_period');
+    var savedValue = '<?= htmlspecialchars($savedInput['intake_period'] ?? '') ?>';
+
+    if (!level) {
+        group.style.display = 'none';
+        select.innerHTML = '<option value="" disabled selected>Select intake period…</option>';
+        return;
+    }
+
+    group.style.display = 'block';
+    select.innerHTML = '<option value="" disabled' + (savedValue === '' ? ' selected' : '') + '>Select intake period…</option>';
+
+    var now = new Date();
+    var thisYear = now.getFullYear();
+    var lastYear = thisYear - 1;
+
+    var options = [];
+    if (level === 'Foundation') {
+        options = [
+            { value: 'Foundation May ' + lastYear, label: 'Foundation May ' + lastYear },
+            { value: 'Foundation September ' + lastYear, label: 'Foundation September ' + lastYear },
+            { value: 'Foundation May ' + thisYear, label: 'Foundation May ' + thisYear },
+            { value: 'Foundation September ' + thisYear, label: 'Foundation September ' + thisYear }
+        ];
+    } else {
+        options = [
+            { value: level + ' June ' + lastYear, label: level + ' June ' + lastYear },
+            { value: level + ' November ' + lastYear, label: level + ' November ' + lastYear },
+            { value: level + ' June ' + thisYear, label: level + ' June ' + thisYear },
+            { value: level + ' November ' + thisYear, label: level + ' November ' + thisYear }
+        ];
+    }
+
+    for (var i = 0; i < options.length; i++) {
+        var opt = document.createElement('option');
+        opt.value = options[i].value;
+        opt.textContent = options[i].label;
+        if (savedValue === options[i].value) opt.selected = true;
+        select.appendChild(opt);
+    }
+}
+
+// Restore intake period on page load if study_level was saved
+document.addEventListener('DOMContentLoaded', function() {
+    var savedLevel = '<?= htmlspecialchars($savedInput['study_level'] ?? '') ?>';
+    if (savedLevel) {
+        updateIntakePeriod();
+    }
+});
+</script>
