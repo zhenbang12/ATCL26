@@ -700,6 +700,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             display: true,
                             anchor: 'end',
                             align: 'top',
+                            offset: 8,
                             color: '#1C1B1F',
                             font: { weight: 'bold', size: 12, family: "'Plus Jakarta Sans', system-ui, sans-serif" },
                             textStrokeColor: '#ffffff',
@@ -718,11 +719,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         yAxisID: 'yDaily',
                         datalabels: {
                             display: true,
-                            anchor: 'end',
-                            align: 'top',
-                            color: primaryColor,
+                            anchor: 'center',
+                            align: 'inside',
+                            color: '#ffffff',
                             font: { weight: 'bold', size: 11, family: "'Plus Jakarta Sans', system-ui, sans-serif" },
-                            textStrokeColor: '#ffffff',
+                            textStrokeColor: primaryColor,
                             textStrokeWidth: 3,
                             formatter: function(value) { return value > 0 ? value : ''; }
                         }
