@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS anomaly_constraints (
     pattern VARCHAR(500) NOT NULL DEFAULT '',
     description VARCHAR(500) NOT NULL DEFAULT '',
     is_enabled TINYINT(1) NOT NULL DEFAULT 1,
+    blocks_registration TINYINT(1) NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_anomaly_constraints_session_id (session_id),
     INDEX idx_anomaly_constraints_enabled (is_enabled),
