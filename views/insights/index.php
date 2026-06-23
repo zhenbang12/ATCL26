@@ -695,7 +695,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         pointBorderColor: '#FFFFFF',
                         pointHoverRadius: 7,
                         pointRadius: 4,
-                        yAxisID: 'yCumulative'
+                        yAxisID: 'yCumulative',
+                        datalabels: {
+                            display: true,
+                            anchor: 'end',
+                            align: 'top',
+                            color: '#1C1B1F',
+                            font: { weight: 'bold', size: 12, family: "'Plus Jakarta Sans', system-ui, sans-serif" },
+                            textStrokeColor: '#ffffff',
+                            textStrokeWidth: 3,
+                            formatter: function(value) { return value; }
+                        }
                     },
                     {
                         type: 'bar',
@@ -705,7 +715,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         borderColor: '#6750A460',
                         borderWidth: 1,
                         borderRadius: 4,
-                        yAxisID: 'yDaily'
+                        yAxisID: 'yDaily',
+                        datalabels: {
+                            display: true,
+                            anchor: 'end',
+                            align: 'top',
+                            color: primaryColor,
+                            font: { weight: 'bold', size: 11, family: "'Plus Jakarta Sans', system-ui, sans-serif" },
+                            textStrokeColor: '#ffffff',
+                            textStrokeWidth: 3,
+                            formatter: function(value) { return value > 0 ? value : ''; }
+                        }
                     }
                 ]
             },
