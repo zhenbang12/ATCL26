@@ -43,14 +43,23 @@ class ThemeHelper
             'name' => 'Midnight Slate',
             'hex'  => '#475569',
         ],
+        'rgb' => [
+            'name' => 'RGB Gamer Mode 🌈',
+            'hex'  => 'rgb',
+            'superuser_only' => true,
+        ],
     ];
 
     /**
-     * Resolve a theme string (preset name or hex code) to a valid hex color.
+     * Resolve a theme string (preset name or hex code) to a valid hex color or 'rgb'.
      */
     public static function resolveHex(string $theme): string
     {
         $theme = trim($theme);
+        if (strtolower($theme) === 'rgb') {
+            return 'rgb';
+        }
+
         if (isset(self::PRESETS[strtolower($theme)])) {
             return self::PRESETS[strtolower($theme)]['hex'];
         }
@@ -177,6 +186,10 @@ class ThemeHelper
      */
     public static function renderCssBlock(string $theme): string
     {
+        if (strtolower(trim($theme)) === 'rgb') {
+            return self::renderRgbBlock();
+        }
+
         $tokens = self::generateM3Palette($theme);
         $css = ":root, html {\n";
         foreach ($tokens as $property => $value) {
@@ -185,5 +198,91 @@ class ThemeHelper
         $css .= "}\n";
 
         return "<style id=\"m3-dynamic-theme-vars\">\n{$css}</style>";
+    }
+
+    /**
+     * Render the dynamic RGB chroma cycle engine for superuser RGB Mode.
+     */
+    public static function renderRgbBlock(): string
+    {
+        return <<<'HTML'
+<style id="m3-dynamic-theme-vars">
+:root, html {
+    --rgb-hue: 0;
+    --md-sys-color-primary: hsl(var(--rgb-hue), 90%, 48%);
+    --md-sys-color-primary-hover: hsl(var(--rgb-hue), 90%, 40%);
+    --md-sys-color-on-primary: #FFFFFF;
+    --md-sys-color-primary-container: hsl(var(--rgb-hue), 85%, 92%);
+    --md-sys-color-on-primary-container: hsl(var(--rgb-hue), 95%, 15%);
+    --md-sys-color-secondary: hsl(calc(var(--rgb-hue) + 60), 85%, 44%);
+    --md-sys-color-on-secondary: #FFFFFF;
+    --md-sys-color-secondary-container: hsl(calc(var(--rgb-hue) + 60), 75%, 92%);
+    --md-sys-color-on-secondary-container: hsl(calc(var(--rgb-hue) + 60), 90%, 14%);
+    --md-sys-color-tertiary: hsl(calc(var(--rgb-hue) + 180), 85%, 45%);
+    --md-sys-color-on-tertiary: #FFFFFF;
+    --md-sys-color-tertiary-container: hsl(calc(var(--rgb-hue) + 180), 75%, 92%);
+    --md-sys-color-on-tertiary-container: hsl(calc(var(--rgb-hue) + 180), 90%, 14%);
+    --md-sys-color-background: hsl(var(--rgb-hue), 25%, 98.5%);
+    --md-sys-color-on-background: hsl(var(--rgb-hue), 15%, 12%);
+    --md-sys-color-surface: hsl(var(--rgb-hue), 25%, 98.5%);
+    --md-sys-color-surface-dim: hsl(var(--rgb-hue), 18%, 88%);
+    --md-sys-color-surface-bright: hsl(var(--rgb-hue), 25%, 98.5%);
+    --md-sys-color-surface-container-lowest: #FFFFFF;
+    --md-sys-color-surface-container-low: hsl(var(--rgb-hue), 18%, 96%);
+    --md-sys-color-surface-container: hsl(var(--rgb-hue), 18%, 94%);
+    --md-sys-color-surface-container-high: hsl(var(--rgb-hue), 18%, 91%);
+    --md-sys-color-surface-container-highest: hsl(var(--rgb-hue), 18%, 88%);
+    --md-sys-color-on-surface: hsl(var(--rgb-hue), 15%, 12%);
+    --md-sys-color-on-surface-variant: hsl(var(--rgb-hue), 12%, 32%);
+    --md-sys-color-outline: hsl(var(--rgb-hue), 15%, 55%);
+    --md-sys-color-outline-variant: hsl(var(--rgb-hue), 20%, 82%);
+    --md-sys-color-shadow: hsla(var(--rgb-hue), 90%, 40%, 0.15);
+}
+
+/* RGB Rainbow gradient header title glow */
+.m3-brand-name {
+    background: linear-gradient(90deg, #ff0055, #ff7700, #ffe600, #00e676, #00b0ff, #d500f9, #ff0055);
+    background-size: 300% 300%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: rgb-rainbow-flow 6s linear infinite;
+}
+
+@keyframes rgb-rainbow-flow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+</style>
+<script>
+(function() {
+    let rgbHue = 0;
+    let lastTime = performance.now();
+    const speed = 0.08; // degrees per ms -> complete 360 deg cycle every 4.5s
+
+    function cycleRgb(now) {
+        const delta = now - lastTime;
+        lastTime = now;
+        rgbHue = (rgbHue + delta * speed) % 360;
+
+        const h = rgbHue.toFixed(1);
+        const root = document.documentElement;
+
+        root.style.setProperty('--rgb-hue', h);
+        root.style.setProperty('--md-sys-color-primary', `hsl(${h}, 90%, 48%)`);
+        root.style.setProperty('--md-sys-color-primary-hover', `hsl(${h}, 90%, 40%)`);
+        root.style.setProperty('--md-sys-color-primary-container', `hsl(${h}, 85%, 92%)`);
+        root.style.setProperty('--md-sys-color-on-primary-container', `hsl(${h}, 95%, 15%)`);
+        root.style.setProperty('--md-sys-color-secondary', `hsl(${(rgbHue + 60) % 360}, 85%, 44%)`);
+        root.style.setProperty('--md-sys-color-secondary-container', `hsl(${(rgbHue + 60) % 360}, 75%, 92%)`);
+        root.style.setProperty('--md-sys-color-tertiary', `hsl(${(rgbHue + 180) % 360}, 85%, 45%)`);
+        root.style.setProperty('--md-sys-color-shadow', `hsla(${h}, 90%, 40%, 0.15)`);
+
+        requestAnimationFrame(cycleRgb);
+    }
+    requestAnimationFrame(cycleRgb);
+})();
+</script>
+HTML;
     }
 }

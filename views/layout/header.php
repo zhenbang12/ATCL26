@@ -199,6 +199,9 @@ $themeHex = \App\Core\ThemeHelper::resolveHex($theme);
                         <button type="button" class="theme-swatch-btn rounded-circle p-0 <?= $themeHex === '#0061A4' ? 'active' : '' ?>" data-theme-val="#0061A4" title="Ocean Blue" style="width: 16px; height: 16px; background-color: #0061A4; border: 1px solid #D1E4FF; cursor: pointer; transition: all 0.2s;"></button>
                         <button type="button" class="theme-swatch-btn rounded-circle p-0 <?= $themeHex === '#2E6B4E' ? 'active' : '' ?>" data-theme-val="#2E6B4E" title="Emerald Green" style="width: 16px; height: 16px; background-color: #2E6B4E; border: 1px solid #C8E6C9; cursor: pointer; transition: all 0.2s;"></button>
                         <button type="button" class="theme-swatch-btn rounded-circle p-0 <?= $themeHex === '#A2396C' ? 'active' : '' ?>" data-theme-val="#A2396C" title="Rose Berry" style="width: 16px; height: 16px; background-color: #A2396C; border: 1px solid #FFD8E7; cursor: pointer; transition: all 0.2s;"></button>
+                        <?php if (\App\Core\Auth::isSuperuser()): ?>
+                        <button type="button" class="theme-swatch-btn rounded-circle p-0 rgb-swatch-btn <?= $theme === 'rgb' ? 'active' : '' ?>" data-theme-val="rgb" title="RGB Mode (Superuser Only)" style="width: 16px; height: 16px; background: linear-gradient(135deg, #ff0055, #ffe600, #00e676, #00b0ff); border: 1px solid #fff; cursor: pointer; transition: all 0.2s;"></button>
+                        <?php endif; ?>
                         <a href="/settings/theme" class="text-muted d-flex align-items-center text-decoration-none" title="Custom Colors & Full Palette"><span class="material-symbols-outlined" style="font-size: 16px;">tune</span></a>
                     </div>
                 </div>

@@ -58,6 +58,7 @@ $resolvedHex = ThemeHelper::resolveHex($currentTheme ?? '#6750A4');
 
                         <div class="row row-cols-2 row-cols-sm-4 g-2" id="presetSwatchesGrid">
                             <?php foreach (ThemeHelper::PRESETS as $key => $preset): 
+                                if (!empty($preset['superuser_only'])) continue; // Handled separately
                                 $isActive = strtoupper($preset['hex']) === strtoupper($resolvedHex);
                             ?>
                                 <div class="col">
@@ -79,6 +80,54 @@ $resolvedHex = ThemeHelper::resolveHex($currentTheme ?? '#6750A4');
                         </div>
                     </div>
                 </div>
+
+                <!-- RGB Gamer Mode (Superuser Only) -->
+                <?php if (Auth::isSuperuser()): ?>
+                <div class="card border-0 shadow-sm rounded-4 mb-4 position-relative overflow-hidden" 
+                     id="rgbModeCard"
+                     style="background: linear-gradient(135deg, rgba(255,0,85,0.06), rgba(0,229,255,0.06), rgba(213,0,249,0.06)); border: 2px solid <?= $resolvedHex === 'rgb' ? '#ff0055' : 'rgba(0,0,0,0.08)' ?> !important;">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="material-symbols-outlined" style="font-size: 24px; color: #ff0055;">auto_awesome</span>
+                                <h2 class="h6 fw-bold mb-0" style="color: var(--md-sys-color-on-surface);">RGB Gamer Mode 🌈</h2>
+                            </div>
+                            <span class="badge rounded-pill px-3 py-1 small fw-bold text-white shadow-sm" 
+                                  style="background: linear-gradient(90deg, #ff0055, #ff7700, #ffe600, #00e676, #00b0ff, #d500f9); font-size: 0.70rem; letter-spacing: 0.5px;">
+                                SUPERUSER ONLY
+                            </span>
+                        </div>
+                        <p class="small text-muted mb-3">
+                            Enables a dynamic 360° chromatic wave cycling through the full rainbow spectrum across buttons, active navigation, badges, chips, and outlines in real-time.
+                        </p>
+                        <div class="d-flex align-items-center justify-content-between p-3 rounded-3 bg-white border shadow-sm">
+                            <div>
+                                <span class="fw-semibold small d-block" id="rgbStatusText">
+                                    <?= $resolvedHex === 'rgb' ? '⚡ RGB Chroma Active' : 'RGB Mode is Off' ?>
+                                </span>
+                                <span class="text-muted" style="font-size: 0.75rem;">Continuous live rainbow spectrum cycling.</span>
+                            </div>
+                            <button type="button" 
+                                    id="toggleRgbBtn" 
+                                    class="btn rounded-pill px-3 py-2 btn-sm fw-bold shadow-sm d-flex align-items-center gap-2 text-white" 
+                                    style="background: linear-gradient(90deg, #ff0055, #ff7700, #00e676, #00b0ff); border: none;">
+                                <span class="material-symbols-outlined" style="font-size: 18px;">power_settings_new</span>
+                                <span id="rgbBtnLabel"><?= $resolvedHex === 'rgb' ? 'Disable RGB' : 'Enable RGB' ?></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <?php else: ?>
+                <div class="card border-0 shadow-sm rounded-4 mb-4 opacity-75" style="background-color: var(--md-sys-color-surface-container-low, #f7f2fa);">
+                    <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="material-symbols-outlined text-muted" style="font-size: 20px;">lock</span>
+                            <span class="small fw-semibold text-muted">RGB Gamer Mode (Chroma Cycle)</span>
+                        </div>
+                        <span class="badge rounded-pill text-bg-secondary small fw-normal">Superuser Only</span>
+                    </div>
+                </div>
+                <?php endif; ?>
 
                 <!-- Custom Color Picker Card -->
                 <div class="card border-0 shadow-sm rounded-4 mb-4" style="background-color: var(--md-sys-color-surface-container-low, #f7f2fa);">
@@ -361,6 +410,69 @@ $resolvedHex = ThemeHelper::resolveHex($currentTheme ?? '#6750A4');
     const selectedThemeInput = document.getElementById('selectedThemeInput');
     const presetButtons = document.querySelectorAll('.preset-card');
     const resetDefaultBtn = document.getElementById('resetDefaultBtn');
+    const toggleRgbBtn = document.getElementById('toggleRgbBtn');
+    const rgbModeCard = document.getElementById('rgbModeCard');
+    const rgbStatusText = document.getElementById('rgbStatusText');
+    const rgbBtnLabel = document.getElementById('rgbBtnLabel');
+
+    let isRgbActive = false;
+    let rgbAnimId = null;
+    let rgbHue = 0;
+    let lastTime = performance.now();
+
+    function startRgbMode() {
+        isRgbActive = true;
+        selectedThemeInput.value = 'rgb';
+
+        if (rgbModeCard) rgbModeCard.style.borderColor = '#ff0055';
+        if (rgbStatusText) rgbStatusText.textContent = '⚡ RGB Chroma Active';
+        if (rgbBtnLabel) rgbBtnLabel.textContent = 'Disable RGB';
+
+        presetButtons.forEach(btn => {
+            btn.style.borderColor = '#e0e0e0';
+            const check = btn.querySelector('.preset-check');
+            if (check) check.style.display = 'none';
+        });
+
+        lastTime = performance.now();
+
+        function rgbLoop(now) {
+            if (!isRgbActive) return;
+            const delta = now - lastTime;
+            lastTime = now;
+            rgbHue = (rgbHue + delta * 0.08) % 360;
+
+            const h = rgbHue.toFixed(1);
+            const root = document.documentElement;
+
+            root.style.setProperty('--rgb-hue', h);
+            root.style.setProperty('--md-sys-color-primary', `hsl(${h}, 90%, 48%)`);
+            root.style.setProperty('--md-sys-color-primary-hover', `hsl(${h}, 90%, 40%)`);
+            root.style.setProperty('--md-sys-color-primary-container', `hsl(${h}, 85%, 92%)`);
+            root.style.setProperty('--md-sys-color-on-primary-container', `hsl(${h}, 95%, 15%)`);
+            root.style.setProperty('--md-sys-color-secondary', `hsl(${(rgbHue + 60) % 360}, 85%, 44%)`);
+            root.style.setProperty('--md-sys-color-secondary-container', `hsl(${(rgbHue + 60) % 360}, 75%, 92%)`);
+            root.style.setProperty('--md-sys-color-tertiary', `hsl(${(rgbHue + 180) % 360}, 85%, 45%)`);
+            root.style.setProperty('--md-sys-color-shadow', `hsla(${h}, 90%, 40%, 0.15)`);
+
+            rgbAnimId = requestAnimationFrame(rgbLoop);
+        }
+
+        if (rgbAnimId) cancelAnimationFrame(rgbAnimId);
+        rgbAnimId = requestAnimationFrame(rgbLoop);
+    }
+
+    function stopRgbMode() {
+        if (!isRgbActive) return;
+        isRgbActive = false;
+        if (rgbAnimId) {
+            cancelAnimationFrame(rgbAnimId);
+            rgbAnimId = null;
+        }
+        if (rgbModeCard) rgbModeCard.style.borderColor = 'rgba(0,0,0,0.08)';
+        if (rgbStatusText) rgbStatusText.textContent = 'RGB Mode is Off';
+        if (rgbBtnLabel) rgbBtnLabel.textContent = 'Enable RGB';
+    }
 
     function updateActiveState(currentHex) {
         currentHex = currentHex.toUpperCase();
@@ -378,6 +490,7 @@ $resolvedHex = ThemeHelper::resolveHex($currentTheme ?? '#6750A4');
     }
 
     function syncColor(hex) {
+        stopRgbMode();
         if (!hex.startsWith('#')) hex = '#' + hex;
         if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
             nativeColorPicker.value = hex;
@@ -386,6 +499,18 @@ $resolvedHex = ThemeHelper::resolveHex($currentTheme ?? '#6750A4');
             applyLiveTokens(hex);
             updateActiveState(hex);
         }
+    }
+
+    // Toggle RGB Button
+    if (toggleRgbBtn) {
+        toggleRgbBtn.addEventListener('click', function() {
+            if (isRgbActive) {
+                stopRgbMode();
+                syncColor('#6750A4');
+            } else {
+                startRgbMode();
+            }
+        });
     }
 
     // Listeners
@@ -418,6 +543,11 @@ $resolvedHex = ThemeHelper::resolveHex($currentTheme ?? '#6750A4');
     }
 
     // Initial sync
-    syncColor('<?= htmlspecialchars($resolvedHex) ?>');
+    const initialTheme = '<?= htmlspecialchars($resolvedHex) ?>';
+    if (initialTheme === 'rgb') {
+        startRgbMode();
+    } else {
+        syncColor(initialTheme);
+    }
 })();
 </script>

@@ -358,6 +358,28 @@ class SettingsController
 
         $db = Container::get('db');
         $themeInput = trim((string)($_POST['theme'] ?? '#6750A4'));
+
+        // RGB mode can only be enabled by superusers
+        if (strtolower($themeInput) === 'rgb' && !Auth::isSuperuser()) {
+            $isAjax = (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+                      || (isset($_GET['format']) && $_GET['format'] === 'json');
+
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                http_response_code(403);
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Unauthorized: Only superusers can activate RGB Mode.',
+                ]);
+                exit;
+            }
+
+            $_SESSION['theme_message'] = 'Unauthorized: Only superusers can activate RGB Mode.';
+            $_SESSION['theme_message_type'] = 'danger';
+            header('Location: /settings/theme');
+            exit;
+        }
+
         $resolvedHex = \App\Core\ThemeHelper::resolveHex($themeInput);
 
         try {
