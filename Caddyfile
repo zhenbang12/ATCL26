@@ -1,0 +1,9 @@
+atcl.site, www.atcl.site {
+    # Allow file uploads up to 50MB for receipts, photos, and media
+    request_body {
+        max_size 50MB
+    }
+
+    # Proxy all traffic to the Apache PHP container
+    reverse_proxy web:80
+}
