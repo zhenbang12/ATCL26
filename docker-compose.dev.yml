@@ -1,0 +1,18 @@
+# Local Docker testing configuration (without Caddy/SSL requirements)
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: atcl26_web_local
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      DB_HOST: ls-c3d8514ce12a75dbc20ba0d470549242c4ead39a.cpqysuqk8rgb.ap-southeast-1.rds.amazonaws.com
+      DB_NAME: atcl26
+      DB_USER: dbmasteruser
+      DB_PASS: ATCL26zhenbang
+      APP_BASE_URL: "/"
+    volumes:
+      - ./uploads:/var/www/html/uploads
