@@ -42,6 +42,45 @@ $resolvedHex = ThemeHelper::resolveHex($currentTheme ?? '#6750A4');
         <div class="row g-4">
             <!-- Left Column: Palette Selection & Custom Picker -->
             <div class="col-lg-6">
+                <!-- Appearance Mode Card (Light / Dark) -->
+                <div class="card border-0 shadow-sm rounded-4 mb-4" style="background-color: var(--md-sys-color-surface-container-low, #f7f2fa);">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <h2 class="h6 fw-bold mb-0 d-flex align-items-center gap-2" style="color: var(--md-sys-color-on-surface);">
+                                <span class="material-symbols-outlined" style="font-size: 20px;">brightness_medium</span>
+                                Appearance Mode
+                            </h2>
+                            <span class="badge rounded-pill text-bg-light small fw-normal border" id="activeModeBadge">Light</span>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <button type="button" 
+                                        id="setLightModeBtn" 
+                                        class="btn w-100 p-3 text-start rounded-3 d-flex align-items-center gap-3 transition-all mode-card-btn active-mode" 
+                                        style="background: #ffffff; border: 2px solid var(--md-sys-color-primary); cursor: pointer;">
+                                    <span class="material-symbols-outlined text-warning" style="font-size: 28px;">light_mode</span>
+                                    <div>
+                                        <div class="fw-bold small" style="color: #1d1b20;">Light Mode</div>
+                                        <div class="text-muted" style="font-size: 0.72rem;">Clean &amp; crisp</div>
+                                    </div>
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button type="button" 
+                                        id="setDarkModeBtn" 
+                                        class="btn w-100 p-3 text-start rounded-3 d-flex align-items-center gap-3 transition-all mode-card-btn" 
+                                        style="background: #1e1b24; border: 2px solid #36343b; cursor: pointer;">
+                                    <span class="material-symbols-outlined text-info" style="font-size: 28px;">dark_mode</span>
+                                    <div>
+                                        <div class="fw-bold small text-white">Dark Mode</div>
+                                        <div class="text-white-50" style="font-size: 0.72rem;">Sleek &amp; luminous</div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Preset Palettes Card -->
                 <div class="card border-0 shadow-sm rounded-4 mb-4" style="background-color: var(--md-sys-color-surface-container-low, #f7f2fa);">
                     <div class="card-body p-4">
@@ -338,7 +377,7 @@ $resolvedHex = ThemeHelper::resolveHex($currentTheme ?? '#6750A4');
         };
     }
 
-    function generateM3Tokens(sourceHex) {
+    function generateM3Tokens(sourceHex, isDark = false) {
         const hsl = hexToHsl(sourceHex);
         const h = hsl.h;
         const s = Math.max(25, Math.min(85, hsl.s));
@@ -348,6 +387,43 @@ $resolvedHex = ThemeHelper::resolveHex($currentTheme ?? '#6750A4');
 
         const hTer = (h + 60) % 360;
         const sTer = Math.max(20, s * 0.50);
+
+        if (isDark) {
+            return {
+                '--md-sys-color-primary': `hsl(${h}, ${Math.min(85, s * 0.9)}%, 78%)`,
+                '--md-sys-color-primary-hover': `hsl(${h}, ${Math.min(85, s * 0.9)}%, 84%)`,
+                '--md-sys-color-on-primary': `hsl(${h}, 90%, 15%)`,
+                '--md-sys-color-primary-container': `hsl(${h}, ${Math.round(s * 0.8)}%, 30%)`,
+                '--md-sys-color-on-primary-container': `hsl(${h}, 80%, 90%)`,
+
+                '--md-sys-color-secondary': `hsl(${hSec}, ${Math.round(sSec * 1.2)}%, 75%)`,
+                '--md-sys-color-on-secondary': `hsl(${hSec}, 70%, 15%)`,
+                '--md-sys-color-secondary-container': `hsl(${hSec}, ${Math.round(sSec)}%, 28%)`,
+                '--md-sys-color-on-secondary-container': `hsl(${hSec}, 70%, 90%)`,
+
+                '--md-sys-color-tertiary': `hsl(${hTer}, ${Math.round(sTer * 1.2)}%, 76%)`,
+                '--md-sys-color-on-tertiary': `hsl(${hTer}, 75%, 15%)`,
+                '--md-sys-color-tertiary-container': `hsl(${hTer}, ${Math.round(sTer)}%, 28%)`,
+                '--md-sys-color-on-tertiary-container': `hsl(${hTer}, 75%, 90%)`,
+
+                '--md-sys-color-background': `hsl(${h}, 12%, 9%)`,
+                '--md-sys-color-on-background': '#E6E0E9',
+                '--md-sys-color-surface': `hsl(${h}, 12%, 10%)`,
+                '--md-sys-color-surface-dim': `hsl(${h}, 12%, 8%)`,
+                '--md-sys-color-surface-bright': `hsl(${h}, 10%, 22%)`,
+                '--md-sys-color-surface-container-lowest': `hsl(${h}, 12%, 6%)`,
+                '--md-sys-color-surface-container-low': `hsl(${h}, 12%, 11%)`,
+                '--md-sys-color-surface-container': `hsl(${h}, 12%, 13%)`,
+                '--md-sys-color-surface-container-high': `hsl(${h}, 12%, 16%)`,
+                '--md-sys-color-surface-container-highest': `hsl(${h}, 12%, 19%)`,
+                '--md-sys-color-on-surface': '#E6E0E9',
+                '--md-sys-color-on-surface-variant': '#CAC4D0',
+
+                '--md-sys-color-outline': `hsl(${h}, 10%, 55%)`,
+                '--md-sys-color-outline-variant': `hsl(${h}, 12%, 28%)`,
+                '--md-sys-color-shadow': 'rgba(0, 0, 0, 0.45)'
+            };
+        }
 
         return {
             '--md-sys-color-primary': `hsl(${h}, ${s}%, 45%)`,
@@ -387,7 +463,8 @@ $resolvedHex = ThemeHelper::resolveHex($currentTheme ?? '#6750A4');
 
     // Apply tokens live to document
     function applyLiveTokens(hex) {
-        const tokens = generateM3Tokens(hex);
+        const isDark = document.documentElement.getAttribute('data-color-mode') === 'dark';
+        const tokens = generateM3Tokens(hex, isDark);
         let styleTag = document.getElementById('m3-dynamic-theme-vars');
         if (!styleTag) {
             styleTag = document.createElement('style');
@@ -541,6 +618,45 @@ $resolvedHex = ThemeHelper::resolveHex($currentTheme ?? '#6750A4');
             syncColor('#6750A4');
         });
     }
+
+    // Mode Toggle Elements
+    const setLightModeBtn = document.getElementById('setLightModeBtn');
+    const setDarkModeBtn = document.getElementById('setDarkModeBtn');
+    const activeModeBadge = document.getElementById('activeModeBadge');
+
+    function updateModeUI(mode) {
+        if (activeModeBadge) activeModeBadge.textContent = mode === 'dark' ? 'Dark' : 'Light';
+        if (setLightModeBtn && setDarkModeBtn) {
+            if (mode === 'dark') {
+                setDarkModeBtn.style.border = '2px solid var(--md-sys-color-primary)';
+                setLightModeBtn.style.border = '2px solid #e0e0e0';
+            } else {
+                setLightModeBtn.style.border = '2px solid var(--md-sys-color-primary)';
+                setDarkModeBtn.style.border = '2px solid #36343b';
+            }
+        }
+    }
+
+    function setColorMode(mode) {
+        document.documentElement.setAttribute('data-color-mode', mode);
+        localStorage.setItem('color-mode', mode);
+        updateModeUI(mode);
+        const currentHex = selectedThemeInput.value;
+        if (currentHex !== 'rgb') {
+            applyLiveTokens(currentHex);
+        }
+    }
+
+    if (setLightModeBtn) {
+        setLightModeBtn.addEventListener('click', () => setColorMode('light'));
+    }
+    if (setDarkModeBtn) {
+        setDarkModeBtn.addEventListener('click', () => setColorMode('dark'));
+    }
+
+    // Initialize mode UI from current document state
+    const currentMode = document.documentElement.getAttribute('data-color-mode') || 'light';
+    updateModeUI(currentMode);
 
     // Initial sync
     const initialTheme = '<?= htmlspecialchars($resolvedHex) ?>';
