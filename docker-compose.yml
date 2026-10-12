@@ -8,7 +8,7 @@ services:
     ports:
       - "${APP_PORT:-80}:80"
     environment:
-      DB_HOST: db
+      DB_HOST: ${DB_HOST:-db}
       DB_NAME: ${DB_NAME:-atcl26}
       DB_USER: ${DB_USER:-atcl_user}
       DB_PASS: ${DB_PASSWORD:-secret_db_password}
