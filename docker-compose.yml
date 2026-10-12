@@ -1,0 +1,58 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: atcl26_web
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-80}:80"
+    environment:
+      DB_HOST: db
+      DB_NAME: ${DB_NAME:-atcl26}
+      DB_USER: ${DB_USER:-atcl_user}
+      DB_PASS: ${DB_PASSWORD:-secret_db_password}
+      APP_BASE_URL: ${APP_BASE_URL:-/}
+    volumes:
+      # Persistent bind mount for uploaded photos/documents
+      - ./uploads:/var/www/html/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - atcl26_net
+
+  db:
+    image: mysql:8.0
+    container_name: atcl26_db
+    restart: unless-stopped
+    command: >
+      --default-time-zone=+08:00
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-secret_root_password}
+      MYSQL_DATABASE: ${DB_NAME:-atcl26}
+      MYSQL_USER: ${DB_USER:-atcl_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret_db_password}
+    volumes:
+      # CRITICAL: Persistent volume for database tables, records, and users
+      - db_data:/var/lib/mysql
+      # Any .sql file placed here will run automatically on the first container startup
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-secret_root_password}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - atcl26_net
+
+volumes:
+  db_data:
+    name: atcl26_db_data
+
+networks:
+  atcl26_net:
+    driver: bridge

@@ -1,0 +1,12 @@
+.git
+.github
+.gitignore
+.gitattributes
+*.zip
+*.tar.gz
+*.sql
+atcl26_backup*
+vendor
+start-ngrok*
+.DS_Store
+Thumbs.db
