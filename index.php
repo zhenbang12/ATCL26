@@ -20,6 +20,8 @@ $router->get('/insights', 'InsightsController@index');
 // Site settings (advisor / committee)
 $router->get('/settings/landing', 'SettingsController@landingPage');
 $router->post('/settings/landing/save', 'SettingsController@landingPageSave');
+$router->get('/settings/theme', 'SettingsController@themePage');
+$router->post('/settings/theme/save', 'SettingsController@themeSave');
 $router->post('/settings/registration/save', 'SettingsController@registrationSettingsSave');
 $router->get('/settings/backup', 'BackupController@showPage');
 $router->post('/settings/backup/run', 'BackupController@runBackup');

@@ -14,7 +14,8 @@ if (!isset($registrationSettings)) {
         ];
     }
 }
-$theme = $registrationSettings['theme'] ?? 'violet';
+$theme = $registrationSettings['theme'] ?? '#6750A4';
+$themeHex = \App\Core\ThemeHelper::resolveHex($theme);
 ?>
 <!DOCTYPE html>
 <html lang="en" data-theme="<?= htmlspecialchars($theme) ?>">
@@ -25,6 +26,7 @@ $theme = $registrationSettings['theme'] ?? 'violet';
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <link rel="stylesheet" href="/css/material3.css?v=<?= filemtime($_SERVER['DOCUMENT_ROOT'] . '/css/material3.css') ?>">
+    <?= \App\Core\ThemeHelper::renderCssBlock($theme) ?>
     <script>
         // Apply sidebar state immediately to prevent layout shift/flicker
         if (localStorage.getItem('sidebar-collapsed') === 'true') {
@@ -163,6 +165,12 @@ $theme = $registrationSettings['theme'] ?? 'violet';
                 <?php endif; ?>
                 <?php if (in_array(\App\Core\Auth::role(), ['advisor', 'committee', 'superuser'], true)): ?>
                     <li>
+                        <a href="/settings/theme" class="m3-nav-item <?= strpos($_SERVER['REQUEST_URI'], '/settings/theme') !== false ? 'active' : '' ?>">
+                            <span class="material-symbols-outlined">palette</span>
+                            Theme &amp; Appearance
+                        </a>
+                    </li>
+                    <li>
                         <a href="/settings/landing" class="m3-nav-item <?= strpos($_SERVER['REQUEST_URI'], '/settings/landing') !== false ? 'active' : '' ?>">
                             <span class="material-symbols-outlined">settings</span>
                             Settings
@@ -179,15 +187,19 @@ $theme = $registrationSettings['theme'] ?? 'violet';
         </nav>
         
         <div class="mt-auto pt-3 border-top">
-            <!-- Sidebar Theme Switcher (Superuser Only) -->
-            <?php if (\App\Core\Auth::isSuperuser()): ?>
+            <!-- Sidebar Theme Switcher -->
+            <?php if (in_array(\App\Core\Auth::role(), ['advisor', 'committee', 'superuser'], true)): ?>
             <div class="px-2 mb-3 theme-switcher-sidebar">
                 <div class="d-flex align-items-center justify-content-between">
-                    <span class="small text-muted fw-semibold" style="font-size: 0.70rem; letter-spacing: 0.5px;">THEME</span>
+                    <a href="/settings/theme" class="small text-muted fw-semibold text-decoration-none d-flex align-items-center gap-1" style="font-size: 0.70rem; letter-spacing: 0.5px;">
+                        <span>THEME</span>
+                    </a>
                     <div class="d-flex align-items-center gap-2" id="sidebarThemeSwitcher">
-                        <button type="button" class="theme-swatch-btn rounded-circle p-0 <?= $theme === 'violet' ? 'active' : '' ?>" data-theme-val="violet" title="Violet Theme" style="width: 16px; height: 16px; background-color: #6750A4; border: 1px solid #EADDFF; cursor: pointer; transition: all 0.2s;"></button>
-                        <button type="button" class="theme-swatch-btn rounded-circle p-0 <?= $theme === 'pink' ? 'active' : '' ?>" data-theme-val="pink" title="Pink Theme" style="width: 16px; height: 16px; background-color: #A2396C; border: 1px solid #FFD8E7; cursor: pointer; transition: all 0.2s;"></button>
-                        <button type="button" class="theme-swatch-btn rounded-circle p-0 <?= $theme === 'yellow' ? 'active' : '' ?>" data-theme-val="yellow" title="Yellow Theme" style="width: 16px; height: 16px; background-color: #765B00; border: 1px solid #FFE08E; cursor: pointer; transition: all 0.2s;"></button>
+                        <button type="button" class="theme-swatch-btn rounded-circle p-0 <?= $themeHex === '#6750A4' ? 'active' : '' ?>" data-theme-val="#6750A4" title="Violet" style="width: 16px; height: 16px; background-color: #6750A4; border: 1px solid #EADDFF; cursor: pointer; transition: all 0.2s;"></button>
+                        <button type="button" class="theme-swatch-btn rounded-circle p-0 <?= $themeHex === '#0061A4' ? 'active' : '' ?>" data-theme-val="#0061A4" title="Ocean Blue" style="width: 16px; height: 16px; background-color: #0061A4; border: 1px solid #D1E4FF; cursor: pointer; transition: all 0.2s;"></button>
+                        <button type="button" class="theme-swatch-btn rounded-circle p-0 <?= $themeHex === '#2E6B4E' ? 'active' : '' ?>" data-theme-val="#2E6B4E" title="Emerald Green" style="width: 16px; height: 16px; background-color: #2E6B4E; border: 1px solid #C8E6C9; cursor: pointer; transition: all 0.2s;"></button>
+                        <button type="button" class="theme-swatch-btn rounded-circle p-0 <?= $themeHex === '#A2396C' ? 'active' : '' ?>" data-theme-val="#A2396C" title="Rose Berry" style="width: 16px; height: 16px; background-color: #A2396C; border: 1px solid #FFD8E7; cursor: pointer; transition: all 0.2s;"></button>
+                        <a href="/settings/theme" class="text-muted d-flex align-items-center text-decoration-none" title="Custom Colors & Full Palette"><span class="material-symbols-outlined" style="font-size: 16px;">tune</span></a>
                     </div>
                 </div>
             </div>

@@ -67,19 +67,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.classList.add('active');
                 this.classList.add('saving');
                 
-                // 3. Sync to any dashboard theme inputs if they exist on the page
-                const regFormThemeInput = document.getElementById('regFormThemeVal');
-                if (regFormThemeInput) {
-                    regFormThemeInput.value = selectedTheme;
-                }
-                
-                // 4. Save to server via AJAX using the global window.currentRegMode
-                const activeRegMode = window.currentRegMode || 'pre_reg';
+                // 3. Save to server via AJAX
                 const formData = new FormData();
-                formData.append('reg_mode', activeRegMode);
                 formData.append('theme', selectedTheme);
                 
-                fetch('/settings/registration/save?format=json', {
+                fetch('/settings/theme/save?format=json', {
                     method: 'POST',
                     body: formData,
                     headers: {
@@ -94,6 +86,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .then(data => {
                     this.classList.remove('saving');
+                    window.location.reload();
                 })
                 .catch(error => {
                     console.error('Error saving theme settings:', error);

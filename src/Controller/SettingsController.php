@@ -331,6 +331,77 @@ class SettingsController
         exit;
     }
 
+    public function themePage(): void
+    {
+        Auth::requireRole(['advisor', 'committee', 'superuser']);
+
+        $title = 'Theme & Appearance';
+        $db = Container::get('db');
+        $registrationSettings = self::loadRegistrationSettings($db);
+        $currentTheme = $registrationSettings['theme'] ?? '#6750A4';
+        $resolvedHex = \App\Core\ThemeHelper::resolveHex($currentTheme);
+        $presets = \App\Core\ThemeHelper::PRESETS;
+        $message = $_SESSION['theme_message'] ?? null;
+        $messageType = $_SESSION['theme_message_type'] ?? 'info';
+        if (isset($_SESSION['theme_message'])) {
+            unset($_SESSION['theme_message'], $_SESSION['theme_message_type']);
+        }
+
+        include __DIR__ . '/../../views/layout/header.php';
+        include __DIR__ . '/../../views/settings/theme.php';
+        include __DIR__ . '/../../views/layout/footer.php';
+    }
+
+    public function themeSave(): void
+    {
+        Auth::requireRole(['advisor', 'committee', 'superuser']);
+
+        $db = Container::get('db');
+        $themeInput = trim((string)($_POST['theme'] ?? '#6750A4'));
+        $resolvedHex = \App\Core\ThemeHelper::resolveHex($themeInput);
+
+        try {
+            // Ensure table and column exist
+            $db->exec('CREATE TABLE IF NOT EXISTS registration_settings (
+                id TINYINT UNSIGNED PRIMARY KEY DEFAULT 1,
+                pre_register_enabled TINYINT(1) NOT NULL DEFAULT 1,
+                walk_in_enabled TINYINT(1) NOT NULL DEFAULT 1,
+                theme VARCHAR(20) NOT NULL DEFAULT \'#6750A4\',
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )');
+
+            $stmt = $db->prepare('
+                INSERT INTO registration_settings (id, pre_register_enabled, walk_in_enabled, theme)
+                VALUES (1, 1, 1, ?)
+                ON DUPLICATE KEY UPDATE
+                    theme = VALUES(theme)
+            ');
+            $stmt->execute([$resolvedHex]);
+
+            $isAjax = (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+                      || (isset($_GET['format']) && $_GET['format'] === 'json');
+
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => true,
+                    'theme' => $resolvedHex,
+                    'message' => 'Theme updated successfully.',
+                ]);
+                exit;
+            }
+
+            $_SESSION['theme_message'] = 'Theme color updated successfully.';
+            $_SESSION['theme_message_type'] = 'success';
+        } catch (\Exception $e) {
+            $_SESSION['theme_message'] = 'Failed to update theme: ' . $e->getMessage();
+            $_SESSION['theme_message_type'] = 'danger';
+        }
+
+        header('Location: /settings/theme');
+        exit;
+    }
+
 
     /**
      * @return array<string, array{filename: ?string, alt_text: string}>
