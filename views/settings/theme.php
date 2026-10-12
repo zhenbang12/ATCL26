@@ -47,7 +47,7 @@ $resolvedHex = ThemeHelper::resolveHex($currentTheme ?? '#6750A4');
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center justify-content-between mb-3">
                             <h2 class="h6 fw-bold mb-0 d-flex align-items-center gap-2" style="color: var(--md-sys-color-on-surface);">
-                                <span class="material-symbols-outlined" style="font-size: 20px;">swatch</span>
+                                <span class="material-symbols-outlined" style="font-size: 20px;">color_lens</span>
                                 Material 3 Preset Palettes
                             </h2>
                             <span class="badge rounded-pill text-bg-light small fw-normal border">Curated</span>
@@ -58,7 +58,7 @@ $resolvedHex = ThemeHelper::resolveHex($currentTheme ?? '#6750A4');
 
                         <div class="row row-cols-2 row-cols-sm-4 g-2" id="presetSwatchesGrid">
                             <?php foreach (ThemeHelper::PRESETS as $key => $preset): 
-                                if (!empty($preset['superuser_only'])) continue; // Handled separately
+                                if ($key === 'rgb' || !empty($preset['superuser_only'])) continue; // RGB is rendered in its own dedicated card
                                 $isActive = strtoupper($preset['hex']) === strtoupper($resolvedHex);
                             ?>
                                 <div class="col">
@@ -71,7 +71,7 @@ $resolvedHex = ThemeHelper::resolveHex($currentTheme ?? '#6750A4');
                                             <span class="material-symbols-outlined preset-check text-primary" style="font-size: 18px; display: <?= $isActive ? 'inline-block' : 'none' ?>;">check_circle</span>
                                         </div>
                                         <div>
-                                            <div class="fw-semibold small text-truncate" style="font-size: 0.8rem;"><?= htmlspecialchars($preset['name']) ?></div>
+                                            <div class="fw-semibold small" style="font-size: 0.78rem; line-height: 1.25;"><?= htmlspecialchars($preset['name']) ?></div>
                                             <div class="text-muted" style="font-size: 0.7rem; font-family: monospace;"><?= htmlspecialchars($preset['hex']) ?></div>
                                         </div>
                                     </button>

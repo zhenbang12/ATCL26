@@ -12,7 +12,7 @@ class ThemeHelper
     /** @var array<string, array{name: string, hex: string}> */
     public const PRESETS = [
         'violet' => [
-            'name' => 'Violet (Classic M3)',
+            'name' => 'Classic Violet',
             'hex'  => '#6750A4',
         ],
         'blue' => [
