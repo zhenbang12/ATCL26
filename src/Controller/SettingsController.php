@@ -215,8 +215,33 @@ class SettingsController
                 $this->safeUnlink($uploadDir, $oldLogo3File);
             }
 
-            $upd = $db->prepare('UPDATE landing_settings SET logo_1_filename = ?, logo_1_alt_text = ?, logo_2_filename = ?, logo_2_alt_text = ?, logo_3_filename = ?, logo_3_alt_text = ?, background_color = ?, main_title = ?, main_caption = ?, section_1_title = ?, section_1_caption = ?, section_2_title = ?, section_2_caption = ?, section_3_title = ?, section_3_caption = ?, section_4_title = ?, section_4_caption = ?, section_4_url = ?, section_4_button_text = ?');
-            $upd->execute([$logo1Name, $logo1Alt, $logo2Name, $logo2Alt, $logo3Name, $logo3Alt, $backgroundColor, $mainTitle, $mainCaption, $section1Title, $section1Caption, $section2Title, $section2Caption, $section3Title, $section3Caption, $section4Title, $section4Caption, $section4Url, $section4ButtonText]);
+            $ctaTitle = trim((string)($_POST['cta_title'] ?? 'Ready to join?'));
+            if (mb_strlen($ctaTitle) > 255) {
+                $ctaTitle = mb_substr($ctaTitle, 0, 255);
+            }
+            $ctaCaption = trim((string)($_POST['cta_caption'] ?? ''));
+            $ctaMode = trim((string)($_POST['cta_mode'] ?? 'closed_walkin'));
+            if (!in_array($ctaMode, ['closed', 'open', 'closed_walkin'], true)) {
+                $ctaMode = 'closed_walkin';
+            }
+            $walkinLocation = trim((string)($_POST['walkin_location'] ?? 'DTAR'));
+            if (mb_strlen($walkinLocation) > 255) {
+                $walkinLocation = mb_substr($walkinLocation, 0, 255);
+            }
+            $walkinTime = trim((string)($_POST['walkin_time'] ?? 'tomorrow 1PM'));
+            if (mb_strlen($walkinTime) > 255) {
+                $walkinTime = mb_substr($walkinTime, 0, 255);
+            }
+            $ctaCustomNotice = trim((string)($_POST['cta_custom_notice'] ?? ''));
+
+            $upd = $db->prepare('UPDATE landing_settings SET logo_1_filename = ?, logo_1_alt_text = ?, logo_2_filename = ?, logo_2_alt_text = ?, logo_3_filename = ?, logo_3_alt_text = ?, background_color = ?, main_title = ?, main_caption = ?, cta_title = ?, cta_caption = ?, cta_mode = ?, walkin_location = ?, walkin_time = ?, cta_custom_notice = ?, section_1_title = ?, section_1_caption = ?, section_2_title = ?, section_2_caption = ?, section_3_title = ?, section_3_caption = ?, section_4_title = ?, section_4_caption = ?, section_4_url = ?, section_4_button_text = ?');
+            $upd->execute([$logo1Name, $logo1Alt, $logo2Name, $logo2Alt, $logo3Name, $logo3Alt, $backgroundColor, $mainTitle, $mainCaption, $ctaTitle, $ctaCaption, $ctaMode, $walkinLocation, $walkinTime, $ctaCustomNotice, $section1Title, $section1Caption, $section2Title, $section2Caption, $section3Title, $section3Caption, $section4Title, $section4Caption, $section4Url, $section4ButtonText]);
+
+            // Synchronize registration_settings so backend registration routes reflect the choice
+            try {
+                $preReg = ($ctaMode === 'open') ? 1 : 0;
+                $db->prepare('UPDATE registration_settings SET pre_register_enabled = ? WHERE id = 1')->execute([$preReg]);
+            } catch (\Exception $eReg) { /* ignore */ }
 
             $_SESSION['settings_message'] = 'Landing page settings saved.';
             $_SESSION['settings_message_type'] = 'success';
@@ -536,7 +561,7 @@ class SettingsController
     public static function loadLandingSettings(\PDO $db): array
     {
         try {
-            $stmt = $db->query('SELECT logo_1_filename, logo_1_alt_text, logo_2_filename, logo_2_alt_text, logo_3_filename, logo_3_alt_text, background_color, main_title, main_caption, section_1_title, section_1_caption, section_2_title, section_2_caption, section_3_title, section_3_caption, section_4_title, section_4_caption, section_4_url, section_4_button_text FROM landing_settings LIMIT 1');
+            $stmt = $db->query('SELECT * FROM landing_settings LIMIT 1');
             $row = $stmt->fetch(\PDO::FETCH_ASSOC);
             if ($row) {
                 return [
@@ -549,6 +574,12 @@ class SettingsController
                     'background_color' => (string)($row['background_color'] ?? '#ffffff'),
                     'main_title' => (string)($row['main_title'] ?? 'Welcome to Adjustment To Campus Life'),
                     'main_caption' => (string)($row['main_caption'] ?? 'A few days of games, teamwork, and community—built for TAR UMT students to connect, learn, and make memories together.'),
+                    'cta_title' => (string)($row['cta_title'] ?? 'Ready to join?'),
+                    'cta_caption' => (string)($row['cta_caption'] ?? 'Takes only a minute. You will need your student ID and TAR UMT student email.'),
+                    'cta_mode' => (string)($row['cta_mode'] ?? 'closed_walkin'),
+                    'walkin_location' => (string)($row['walkin_location'] ?? 'DTAR'),
+                    'walkin_time' => (string)($row['walkin_time'] ?? 'tomorrow 1PM'),
+                    'cta_custom_notice' => (string)($row['cta_custom_notice'] ?? ''),
                     'section_1_title' => (string)($row['section_1_title'] ?? 'What is it?'),
                     'section_1_caption' => (string)($row['section_1_caption'] ?? 'ATCL is our annual camp-style programme. You will join a small group, take part in station games and activities, and get to know facilitators and participants from across programmes. It is run by student leaders and advisors with safety and inclusion in mind.'),
                     'section_2_title' => (string)($row['section_2_title'] ?? 'What to expect'),
@@ -575,6 +606,12 @@ class SettingsController
             'background_color' => '#ffffff',
             'main_title' => 'Welcome to Adjustment To Campus Life',
             'main_caption' => 'A few days of games, teamwork, and community—built for TAR UMT students to connect, learn, and make memories together.',
+            'cta_title' => 'Ready to join?',
+            'cta_caption' => 'Takes only a minute. You will need your student ID and TAR UMT student email.',
+            'cta_mode' => 'closed_walkin',
+            'walkin_location' => 'DTAR',
+            'walkin_time' => 'tomorrow 1PM',
+            'cta_custom_notice' => '',
             'section_1_title' => 'What is it?',
             'section_1_caption' => 'ATCL is our annual camp-style programme. You will join a small group, take part in station games and activities, and get to know facilitators and participants from across programmes. It is run by student leaders and advisors with safety and inclusion in mind.',
             'section_2_title' => 'What to expect',

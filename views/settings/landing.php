@@ -149,6 +149,105 @@ $contentSections = [
         </div>
     </div>
 
+    <!-- Registration Call-to-Action Card Settings -->
+    <div class="card mb-4 border-0 shadow-sm rounded-4" style="background-color: var(--md-sys-color-surface-container-low, #f7f2fa);">
+        <div class="card-body p-4">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="material-symbols-outlined text-primary" style="font-size: 26px;">campaign</span>
+                    <h5 class="card-title fw-bold mb-0">Registration Call-to-Action Card</h5>
+                </div>
+                <span class="badge rounded-pill text-bg-primary px-3 py-1">Public Landing</span>
+            </div>
+            <p class="small text-muted mb-4">
+                This configures the join/registration card located directly below the main title on the public home page.
+            </p>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold" for="cta_title">Card Headline</label>
+                    <input type="text" name="cta_title" id="cta_title" class="form-control" maxlength="255" value="<?= htmlspecialchars($settings['cta_title'] ?? 'Ready to join?') ?>">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold" for="cta_caption">Card Subtitle / Description</label>
+                    <input type="text" name="cta_caption" id="cta_caption" class="form-control" maxlength="500" value="<?= htmlspecialchars($settings['cta_caption'] ?? 'Takes only a minute. You will need your student ID and TAR UMT student email.') ?>">
+                </div>
+            </div>
+
+            <label class="form-label fw-bold d-block mb-2">Registration Status &amp; Action Options:</label>
+            
+            <div class="d-flex flex-column gap-2 mb-3">
+                <!-- Option 1: Registration closed -->
+                <div class="form-check p-3 rounded-3 border bg-white shadow-sm">
+                    <input class="form-check-input ms-0 me-3" type="radio" name="cta_mode" id="ctaModeClosed" value="closed" <?= ($settings['cta_mode'] ?? 'closed_walkin') === 'closed' ? 'checked' : '' ?>>
+                    <label class="form-check-label w-100" for="ctaModeClosed" style="cursor: pointer;">
+                        <div class="fw-bold text-danger d-flex align-items-center gap-1">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">block</span>
+                            1. Registration closed
+                        </div>
+                        <div class="text-muted small mt-1">Hides the register button and indicates that registration is closed.</div>
+                    </label>
+                </div>
+
+                <!-- Option 2: Registration open -->
+                <div class="form-check p-3 rounded-3 border bg-white shadow-sm">
+                    <input class="form-check-input ms-0 me-3" type="radio" name="cta_mode" id="ctaModeOpen" value="open" <?= ($settings['cta_mode'] ?? 'closed_walkin') === 'open' ? 'checked' : '' ?>>
+                    <label class="form-check-label w-100" for="ctaModeOpen" style="cursor: pointer;">
+                        <div class="fw-bold text-success d-flex align-items-center gap-1">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">how_to_reg</span>
+                            2. Registration open
+                        </div>
+                        <div class="text-muted small mt-1">Displays the active "Register for ATCL" button for students to register online.</div>
+                    </label>
+                </div>
+
+                <!-- Option 3: Registration closed, walk in to XXX at XXX -->
+                <div class="form-check p-3 rounded-3 border bg-white shadow-sm">
+                    <input class="form-check-input ms-0 me-3" type="radio" name="cta_mode" id="ctaModeClosedWalkin" value="closed_walkin" <?= ($settings['cta_mode'] ?? 'closed_walkin') === 'closed_walkin' ? 'checked' : '' ?>>
+                    <label class="form-check-label w-100" for="ctaModeClosedWalkin" style="cursor: pointer;">
+                        <div class="fw-bold text-primary d-flex align-items-center gap-1">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">directions_walk</span>
+                            3. Registration closed, walk in to XXX at XXX
+                        </div>
+                        <div class="text-muted small mt-1">Closes online registration and instructs participants to walk in at a specific venue and time.</div>
+                    </label>
+
+                    <!-- Dynamic inputs for Location and Time when Option 3 is selected -->
+                    <div id="walkinDetailsBox" class="mt-3 pt-3 border-top" style="<?= ($settings['cta_mode'] ?? 'closed_walkin') === 'closed_walkin' ? '' : 'display: none;' ?>">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold" for="walkin_location">Walk-in Venue / Location (XXX)</label>
+                                <input type="text" name="walkin_location" id="walkin_location" class="form-control" placeholder="e.g. DTAR" value="<?= htmlspecialchars($settings['walkin_location'] ?? 'DTAR') ?>">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold" for="walkin_time">Walk-in Date &amp; Time (at XXX)</label>
+                                <input type="text" name="walkin_time" id="walkin_time" class="form-control" placeholder="e.g. tomorrow 1PM" value="<?= htmlspecialchars($settings['walkin_time'] ?? 'tomorrow 1PM') ?>">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Notice Preview & Custom Override -->
+            <div class="card border-0 bg-light p-3 rounded-3 mt-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="small fw-semibold text-secondary">Notice Display Preview:</span>
+                </div>
+                <div class="alert alert-secondary py-2 px-3 mb-3 small fw-medium" id="liveNoticePreview">
+                    Registration is currently closed, please walk in at DTAR tomorrow 1PM.
+                </div>
+
+                <div class="mb-0">
+                    <label class="form-label small text-muted mb-1" for="cta_custom_notice">
+                        Custom Notice Override (optional):
+                    </label>
+                    <input type="text" name="cta_custom_notice" id="cta_custom_notice" class="form-control form-control-sm" placeholder="Leave empty to use the auto-generated notice above" value="<?= htmlspecialchars($settings['cta_custom_notice'] ?? '') ?>">
+                    <div class="form-text small" style="font-size: 0.72rem;">If entered, this exact wording will be shown when registration is closed instead of the standard text.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <?php foreach ($contentSections as $section): ?>
         <?php
         $slot = $section['slot'];
@@ -222,18 +321,60 @@ $contentSections = [
 document.addEventListener('DOMContentLoaded', function () {
     var picker = document.getElementById('background_color_picker');
     var hex = document.getElementById('background_color');
-    if (!picker || !hex) {
-        return;
+    if (picker && hex) {
+        picker.addEventListener('input', function () {
+            hex.value = picker.value;
+        });
+
+        hex.addEventListener('input', function () {
+            if (/^#[a-fA-F0-9]{6}$/.test(hex.value)) {
+                picker.value = hex.value;
+            }
+        });
     }
 
-    picker.addEventListener('input', function () {
-        hex.value = picker.value;
-    });
+    // CTA Registration Mode Interactivity
+    var ctaModeRadios = document.querySelectorAll('input[name="cta_mode"]');
+    var walkinBox = document.getElementById('walkinDetailsBox');
+    var walkinLocInput = document.getElementById('walkin_location');
+    var walkinTimeInput = document.getElementById('walkin_time');
+    var customNoticeInput = document.getElementById('cta_custom_notice');
+    var noticePreview = document.getElementById('liveNoticePreview');
 
-    hex.addEventListener('input', function () {
-        if (/^#[a-fA-F0-9]{6}$/.test(hex.value)) {
-            picker.value = hex.value;
+    function updateCtaUI() {
+        var selectedMode = 'closed_walkin';
+        ctaModeRadios.forEach(function (radio) {
+            if (radio.checked) selectedMode = radio.value;
+        });
+
+        if (walkinBox) {
+            walkinBox.style.display = selectedMode === 'closed_walkin' ? 'block' : 'none';
         }
+
+        if (noticePreview) {
+            var custom = (customNoticeInput && customNoticeInput.value.trim()) || '';
+            if (selectedMode === 'open') {
+                noticePreview.className = 'alert alert-success py-2 px-3 mb-3 small fw-medium';
+                noticePreview.innerHTML = '<span class="material-symbols-outlined align-middle me-1" style="font-size: 18px;">check_circle</span> Registration is OPEN: "Register for ATCL" button will be displayed.';
+            } else if (selectedMode === 'closed') {
+                noticePreview.className = 'alert alert-danger py-2 px-3 mb-3 small fw-medium';
+                noticePreview.textContent = custom || 'Registration is currently closed.';
+            } else {
+                noticePreview.className = 'alert alert-info py-2 px-3 mb-3 small fw-medium';
+                var loc = (walkinLocInput && walkinLocInput.value.trim()) || 'DTAR';
+                var time = (walkinTimeInput && walkinTimeInput.value.trim()) || 'tomorrow 1PM';
+                noticePreview.textContent = custom || ('Registration is currently closed, please walk in at ' + loc + ' ' + time + '.');
+            }
+        }
+    }
+
+    ctaModeRadios.forEach(function (r) {
+        r.addEventListener('change', updateCtaUI);
     });
+    if (walkinLocInput) walkinLocInput.addEventListener('input', updateCtaUI);
+    if (walkinTimeInput) walkinTimeInput.addEventListener('input', updateCtaUI);
+    if (customNoticeInput) customNoticeInput.addEventListener('input', updateCtaUI);
+
+    updateCtaUI();
 });
 </script>

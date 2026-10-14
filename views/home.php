@@ -104,16 +104,29 @@ $landingUrl = static function (?string $filename): ?string {
                 <div class="card mb-5 border-0" style="background-color: var(--md-sys-color-primary-container) !important; color: var(--md-sys-color-on-primary-container) !important; box-shadow: 0 4px 20px var(--md-sys-color-shadow) !important;">
                     <div class="card-body text-center py-5 px-4">
                         <span class="material-symbols-outlined mb-2 text-primary" style="font-size: 48px;">campaign</span>
-                        <h2 class="h4 fw-bold mb-2">Ready to join?</h2>
+                        <h2 class="h4 fw-bold mb-2"><?= htmlspecialchars($landingSettings['cta_title'] ?? 'Ready to join?') ?></h2>
                         <p class="mb-4 text-center mx-auto" style="max-width: 28rem; opacity: 0.9;">
-                            Takes only a minute. You will need your student ID and TAR UMT student email.
+                            <?= htmlspecialchars($landingSettings['cta_caption'] ?? 'Takes only a minute. You will need your student ID and TAR UMT student email.') ?>
                         </p>
-                        <?php if ($registrationSettings['pre_register_enabled']): ?>
+                        <?php 
+                        $ctaMode = $landingSettings['cta_mode'] ?? ($registrationSettings['pre_register_enabled'] ? 'open' : 'closed_walkin');
+                        ?>
+                        <?php if ($ctaMode === 'open'): ?>
                             <a href="/participants/create" class="btn btn-primary btn-lg px-5 fs-6 shadow-sm">Register for ATCL</a>
-                        <?php elseif ($registrationSettings['walk_in_enabled']): ?>
-                            <a href="/participants/create-walkin" class="btn btn-primary btn-lg px-5 fs-6 shadow-sm">Register as Walk-in</a>
+                        <?php elseif ($ctaMode === 'closed_walkin'): ?>
+                            <?php 
+                            $loc = !empty($landingSettings['walkin_location']) ? $landingSettings['walkin_location'] : 'DTAR';
+                            $time = !empty($landingSettings['walkin_time']) ? $landingSettings['walkin_time'] : 'tomorrow 1PM';
+                            $customNotice = trim((string)($landingSettings['cta_custom_notice'] ?? ''));
+                            $notice = $customNotice !== '' ? $customNotice : "Registration is currently closed, please walk in at {$loc} {$time}.";
+                            ?>
+                            <p class="mb-0 fw-medium"><?= htmlspecialchars($notice) ?></p>
                         <?php else: ?>
-                            <p class="mb-0 fw-medium">Registration is currently closed, please walk in at DTAR tomorrow 1PM.</p>
+                            <?php 
+                            $customNotice = trim((string)($landingSettings['cta_custom_notice'] ?? ''));
+                            $notice = $customNotice !== '' ? $customNotice : "Registration is currently closed.";
+                            ?>
+                            <p class="mb-0 fw-medium"><?= htmlspecialchars($notice) ?></p>
                         <?php endif; ?>
                         <div class="mt-3">
                             <a href="/participants/lookup" class="btn btn-link btn-sm text-decoration-none fw-semibold" style="color: var(--md-sys-color-primary) !important;">Already registered? Find my QR code</a>
