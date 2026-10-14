@@ -122,11 +122,10 @@ class ThemeHelper
 
     /**
      * Generate all Material Design 3 CSS tokens from a source hex color.
-     * Supports both Light mode and Dark mode.
      *
      * @return array<string, string>
      */
-    public static function generateM3Palette(string $sourceHex, bool $isDark = false): array
+    public static function generateM3Palette(string $sourceHex): array
     {
         $hex = self::resolveHex($sourceHex);
         $hsl = self::hexToHsl($hex);
@@ -140,48 +139,6 @@ class ThemeHelper
         // Derive tertiary (triadic +60 deg, balanced saturation)
         $hTer = fmod($h + 60.0, 360.0);
         $sTer = max(20.0, $s * 0.50);
-
-        if ($isDark) {
-            return [
-                // Primary (Luminous M3 Dark Tone 80)
-                '--md-sys-color-primary' => "hsl({$h}, " . min(85.0, $s * 0.9) . "%, 78%)",
-                '--md-sys-color-primary-hover' => "hsl({$h}, " . min(85.0, $s * 0.9) . "%, 84%)",
-                '--md-sys-color-on-primary' => "hsl({$h}, 90%, 15%)",
-                '--md-sys-color-primary-container' => "hsl({$h}, " . round($s * 0.8, 1) . "%, 30%)",
-                '--md-sys-color-on-primary-container' => "hsl({$h}, 80%, 90%)",
-
-                // Secondary
-                '--md-sys-color-secondary' => "hsl({$hSec}, " . round($sSec * 1.2, 1) . "%, 75%)",
-                '--md-sys-color-on-secondary' => "hsl({$hSec}, 70%, 15%)",
-                '--md-sys-color-secondary-container' => "hsl({$hSec}, " . round($sSec, 1) . "%, 28%)",
-                '--md-sys-color-on-secondary-container' => "hsl({$hSec}, 70%, 90%)",
-
-                // Tertiary
-                '--md-sys-color-tertiary' => "hsl({$hTer}, " . round($sTer * 1.2, 1) . "%, 76%)",
-                '--md-sys-color-on-tertiary' => "hsl({$hTer}, 75%, 15%)",
-                '--md-sys-color-tertiary-container' => "hsl({$hTer}, " . round($sTer, 1) . "%, 28%)",
-                '--md-sys-color-on-tertiary-container' => "hsl({$hTer}, 75%, 90%)",
-
-                // Surface & Background (M3 Dark Mode Tone 6-22)
-                '--md-sys-color-background' => "hsl({$h}, 12%, 9%)",
-                '--md-sys-color-on-background' => '#E6E0E9',
-                '--md-sys-color-surface' => "hsl({$h}, 12%, 10%)",
-                '--md-sys-color-surface-dim' => "hsl({$h}, 12%, 8%)",
-                '--md-sys-color-surface-bright' => "hsl({$h}, 10%, 22%)",
-                '--md-sys-color-surface-container-lowest' => "hsl({$h}, 12%, 6%)",
-                '--md-sys-color-surface-container-low' => "hsl({$h}, 12%, 11%)",
-                '--md-sys-color-surface-container' => "hsl({$h}, 12%, 13%)",
-                '--md-sys-color-surface-container-high' => "hsl({$h}, 12%, 16%)",
-                '--md-sys-color-surface-container-highest' => "hsl({$h}, 12%, 19%)",
-                '--md-sys-color-on-surface' => '#E6E0E9',
-                '--md-sys-color-on-surface-variant' => '#CAC4D0',
-
-                // Outline & Shadow
-                '--md-sys-color-outline' => "hsl({$h}, 10%, 55%)",
-                '--md-sys-color-outline-variant' => "hsl({$h}, 12%, 28%)",
-                '--md-sys-color-shadow' => "rgba(0, 0, 0, 0.45)",
-            ];
-        }
 
         return [
             // Primary
@@ -233,35 +190,14 @@ class ThemeHelper
             return self::renderRgbBlock();
         }
 
-        $lightTokens = self::generateM3Palette($theme, false);
-        $darkTokens = self::generateM3Palette($theme, true);
-
-        $css = ":root, html[data-color-mode=\"light\"] {\n";
-        foreach ($lightTokens as $property => $value) {
+        $tokens = self::generateM3Palette($theme);
+        $css = ":root, html {\n";
+        foreach ($tokens as $property => $value) {
             $css .= "    {$property}: {$value};\n";
         }
-        $css .= "}\n\n";
+        $css .= "}\n";
 
-        $css .= "html[data-color-mode=\"dark\"] {\n";
-        foreach ($darkTokens as $property => $value) {
-            $css .= "    {$property}: {$value};\n";
-        }
-        $css .= "}\n\n";
-
-        // Adapt common components in dark mode
-        $css .= <<<'DARK_HELPERS'
-html[data-color-mode="dark"] .bg-white {
-    background-color: var(--md-sys-color-surface-container) !important;
-}
-html[data-color-mode="dark"] .text-dark {
-    color: var(--md-sys-color-on-surface) !important;
-}
-html[data-color-mode="dark"] .border {
-    border-color: var(--md-sys-color-outline-variant) !important;
-}
-DARK_HELPERS;
-
-        return "<style id=\"m3-dynamic-theme-vars\">\n{$css}\n</style>";
+        return "<style id=\"m3-dynamic-theme-vars\">\n{$css}</style>";
     }
 
     /**

@@ -94,23 +94,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             });
         });
-    // Global Dark / Light Mode Toggle button
-    const colorModeBtn = document.getElementById('globalColorModeToggle');
-    if (colorModeBtn) {
-        const icon = colorModeBtn.querySelector('.mode-toggle-icon');
-        const updateIcon = () => {
-            const isDark = document.documentElement.getAttribute('data-color-mode') === 'dark';
-            if (icon) icon.textContent = isDark ? 'light_mode' : 'dark_mode';
-            colorModeBtn.title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
-        };
-        updateIcon();
-        colorModeBtn.addEventListener('click', () => {
-            const current = document.documentElement.getAttribute('data-color-mode') || 'light';
-            const next = current === 'dark' ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-color-mode', next);
-            localStorage.setItem('color-mode', next);
-            updateIcon();
-        });
     }
 });
 </script>

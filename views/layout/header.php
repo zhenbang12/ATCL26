@@ -28,11 +28,6 @@ $themeHex = \App\Core\ThemeHelper::resolveHex($theme);
     <link rel="stylesheet" href="/css/material3.css?v=<?= filemtime($_SERVER['DOCUMENT_ROOT'] . '/css/material3.css') ?>">
     <?= \App\Core\ThemeHelper::renderCssBlock($theme) ?>
     <script>
-        // Apply color mode (light/dark) immediately before rendering to eliminate flash of white
-        (function() {
-            const savedMode = localStorage.getItem('color-mode') || 'light';
-            document.documentElement.setAttribute('data-color-mode', savedMode);
-        })();
         // Apply sidebar state immediately to prevent layout shift/flicker
         if (localStorage.getItem('sidebar-collapsed') === 'true') {
             document.documentElement.classList.add('sidebar-collapsed');
@@ -213,16 +208,13 @@ $themeHex = \App\Core\ThemeHelper::resolveHex($theme);
             </div>
             <?php endif; ?>
 
-            <!-- User Profile & Dark Mode Toggle -->
+            <!-- User Profile -->
             <div class="d-flex align-items-center gap-2 px-2 pt-2 border-top">
                 <span class="material-symbols-outlined text-secondary" style="font-size: 32px;">account_circle</span>
-                <div class="overflow-hidden flex-grow-1">
+                <div class="overflow-hidden">
                     <div class="fw-semibold text-truncate small" style="color: var(--md-sys-color-on-background);"><?= htmlspecialchars(\App\Core\Auth::user()['username'] ?? '') ?></div>
                     <div class="text-muted text-truncate" style="font-size: 0.75rem;"><?= htmlspecialchars(ucfirst(\App\Core\Auth::role() ?? '')) ?></div>
                 </div>
-                <button type="button" id="globalColorModeToggle" class="btn btn-sm p-1 rounded-circle border-0 text-muted d-flex align-items-center justify-content-center" title="Toggle Dark / Light Mode" style="width: 32px; height: 32px;">
-                    <span class="material-symbols-outlined mode-toggle-icon" style="font-size: 20px;">dark_mode</span>
-                </button>
             </div>
             <a href="/logout" class="btn btn-outline-danger btn-sm w-100 mt-3 d-flex align-items-center justify-content-center gap-1">
                 <span class="material-symbols-outlined" style="font-size: 18px;">logout</span>
