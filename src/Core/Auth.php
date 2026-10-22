@@ -44,6 +44,18 @@ class Auth
         return false;
     }
 
+    public static function login(array $user): void
+    {
+        if (!headers_sent()) {
+            session_regenerate_id(true);
+        }
+        $_SESSION['user'] = [
+            'id' => (int)($user['id'] ?? 0),
+            'username' => $user['username'] ?? '',
+            'role' => $user['role'] ?? 'committee',
+        ];
+    }
+
     public static function logout(): void
     {
         unset($_SESSION['user']);

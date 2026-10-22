@@ -34,6 +34,14 @@
                     Back to Home
                 </a>
             </div>
+
+            <div class="mt-4 pt-3 border-top text-center">
+                <p class="text-muted small mb-2">Want to evaluate or demonstrate without an account?</p>
+                <a href="/demo" class="btn btn-outline-primary btn-sm px-3 py-1 rounded-pill fw-semibold d-inline-flex align-items-center gap-1">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">science</span>
+                    Open Demo Portal
+                </a>
+            </div>
         </div>
     </div>
 </div>

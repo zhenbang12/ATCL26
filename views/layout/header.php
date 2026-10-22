@@ -25,7 +25,7 @@ $themeHex = \App\Core\ThemeHelper::resolveHex($theme);
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <link rel="stylesheet" href="/css/material3.css?v=<?= filemtime($_SERVER['DOCUMENT_ROOT'] . '/css/material3.css') ?>">
+    <link rel="stylesheet" href="/css/material3.css?v=<?= file_exists(__DIR__ . '/../../css/material3.css') ? filemtime(__DIR__ . '/../../css/material3.css') : time() ?>">
     <?= \App\Core\ThemeHelper::renderCssBlock($theme) ?>
     <script>
         // Apply sidebar state immediately to prevent layout shift/flicker
@@ -60,8 +60,9 @@ $themeHex = \App\Core\ThemeHelper::resolveHex($theme);
         }
         ?>
         <?php if ($currentSessionData && in_array(\App\Core\Auth::role(), ['advisor', 'committee', 'superuser'], true)): ?>
-        <a href="/sessions" class="d-flex align-items-center gap-2 px-2 py-2 mb-2 text-decoration-none rounded" style="background: var(--md-sys-color-primary-container, #EADDFF); color: var(--md-sys-color-on-primary-container, #21005D); font-size: 0.8rem;" title="Manage Sessions">
-            <span class="material-symbols-outlined" style="font-size: 18px;">event</span>
+        <?php $isDemo = \App\Core\SessionHelper::isDemoMode() || \App\Core\DemoHelper::isDemoSession((int)$currentSessionData['id']); ?>
+        <a href="/sessions" class="d-flex align-items-center gap-2 px-2 py-2 mb-2 text-decoration-none rounded" style="background: <?= $isDemo ? '#FFE0B2' : 'var(--md-sys-color-primary-container, #EADDFF)' ?>; color: <?= $isDemo ? '#E65100' : 'var(--md-sys-color-on-primary-container, #21005D)' ?>; font-size: 0.8rem;" title="<?= $isDemo ? 'Demonstration Session' : 'Manage Sessions' ?>">
+            <span class="material-symbols-outlined" style="font-size: 18px; color: <?= $isDemo ? '#E65100' : 'inherit' ?>;"><?= $isDemo ? 'science' : 'event' ?></span>
             <span class="text-truncate fw-semibold"><?= htmlspecialchars($currentSessionData['name']) ?></span>
             <span class="material-symbols-outlined ms-auto" style="font-size: 16px;">swap_horiz</span>
         </a>
@@ -69,6 +70,14 @@ $themeHex = \App\Core\ThemeHelper::resolveHex($theme);
         
         <nav class="flex-grow-1">
             <ul class="m3-nav-group">
+                <?php if (\App\Core\SessionHelper::isDemoMode()): ?>
+                <li>
+                    <a href="/demo" class="m3-nav-item <?= ($title ?? '') === 'Interactive Demo Portal' || strpos($_SERVER['REQUEST_URI'], '/demo') !== false ? 'active' : '' ?>" style="color: #E65100; font-weight: 600; background: rgba(255, 152, 0, 0.1);">
+                        <span class="material-symbols-outlined" style="color: #E65100;">science</span>
+                        Demo Hub
+                    </a>
+                </li>
+                <?php endif; ?>
                 <li>
                     <a href="/dashboard" class="m3-nav-item <?= ($title ?? '') === 'Dashboard' || strpos($_SERVER['REQUEST_URI'], '/dashboard') !== false ? 'active' : '' ?>">
                         <span class="material-symbols-outlined">dashboard</span>
@@ -251,8 +260,38 @@ $themeHex = \App\Core\ThemeHelper::resolveHex($theme);
         </div>
         <div class="d-flex align-items-center gap-2">
             <a href="/participants/lookup" class="btn btn-outline-primary btn-sm">Find My QR</a>
-            <?php /* <a href="/login" class="btn btn-primary btn-sm">Login as Committee</a> */ ?>
+            <a href="/demo" class="btn btn-primary btn-sm d-flex align-items-center gap-1 shadow-sm">
+                <span class="material-symbols-outlined" style="font-size: 16px;">science</span>
+                <span>Demo Portal</span>
+            </a>
         </div>
     </div>
 <?php endif; ?>
 <div class="container-fluid mb-4">
+    <?php if (\App\Core\SessionHelper::isDemoMode()): ?>
+        <div class="alert alert-warning mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2 shadow-sm rounded-4 border-0 py-2 px-3" style="background: linear-gradient(90deg, #FFF8E1 0%, #FFECB3 100%); color: #795548; border-left: 5px solid #FFA000 !important;">
+            <div class="d-flex align-items-center gap-2">
+                <span class="material-symbols-outlined text-warning" style="font-size: 24px; color: #E65100 !important;">science</span>
+                <div>
+                    <strong style="color: #E65100;">Interactive Demo Mode Active</strong>
+                    <span class="d-none d-md-inline ms-1 opacity-75">— Sandboxed session for presentation purposes. Production records are safe.</span>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <form method="post" action="/demo/reset" class="d-inline m-0" onsubmit="return confirm('Restore all demo records to initial sample state?');">
+                    <button type="submit" class="btn btn-sm btn-white bg-white border text-dark fw-semibold rounded-pill py-1 px-3 d-flex align-items-center gap-1 shadow-sm">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">restart_alt</span>
+                        Reset Demo Data
+                    </button>
+                </form>
+                <a href="/demo" class="btn btn-sm btn-outline-dark fw-semibold rounded-pill py-1 px-3 text-decoration-none d-flex align-items-center gap-1">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">dashboard_customize</span>
+                    Demo Hub
+                </a>
+                <a href="/demo/exit" class="btn btn-sm btn-dark fw-semibold rounded-pill py-1 px-3 text-decoration-none d-flex align-items-center gap-1">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
+                    Exit Demo
+                </a>
+            </div>
+        </div>
+    <?php endif; ?>

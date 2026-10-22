@@ -176,6 +176,13 @@ class SessionController
             exit;
         }
 
+        if (\App\Core\DemoHelper::isDemoSession($sessionId)) {
+            $_SESSION['session_message'] = 'The demo session cannot be deleted. You can reset its data from the Demo Portal instead.';
+            $_SESSION['session_message_type'] = 'danger';
+            header('Location: /sessions');
+            exit;
+        }
+
         // Check if this is the current user's active session
         $currentActive = SessionHelper::currentSessionId();
         if ($currentActive === $sessionId) {
@@ -247,6 +254,13 @@ class SessionController
 
             if (!$session) {
                 $_SESSION['session_message'] = 'Session not found.';
+                $_SESSION['session_message_type'] = 'danger';
+                header('Location: /sessions');
+                exit;
+            }
+
+            if (\App\Core\DemoHelper::isDemoSession($sessionId)) {
+                $_SESSION['session_message'] = 'The demo session cannot be set as the global default session.';
                 $_SESSION['session_message_type'] = 'danger';
                 header('Location: /sessions');
                 exit;

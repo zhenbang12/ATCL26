@@ -74,4 +74,24 @@ class SessionHelper
             return [];
         }
     }
+
+    /**
+     * Check if currently running in interactive demonstration mode.
+     */
+    public static function isDemoMode(): bool
+    {
+        return !empty($_SESSION['is_demo_mode']);
+    }
+
+    /**
+     * Set demo mode status in current session.
+     */
+    public static function setDemoMode(bool $active): void
+    {
+        if ($active) {
+            $_SESSION['is_demo_mode'] = true;
+        } else {
+            unset($_SESSION['is_demo_mode']);
+        }
+    }
 }

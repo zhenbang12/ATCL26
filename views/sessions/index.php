@@ -123,6 +123,11 @@ $currentSession = SessionHelper::currentSession();
                                                     <span class="material-symbols-outlined" style="font-size: 10px; vertical-align: text-bottom;">star</span> Global Default
                                                 </span>
                                             <?php endif; ?>
+                                            <?php if (\App\Core\DemoHelper::isDemoSession((int)$s['id'])): ?>
+                                                <span class="badge" style="background: #FFE0B2; color: #E65100; border: 1px solid #FFB74D; border-radius: 100px; font-size: 0.6rem;">
+                                                    <span class="material-symbols-outlined" style="font-size: 10px; vertical-align: text-bottom;">science</span> Demo Sandbox
+                                                </span>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                 </div>
@@ -143,7 +148,7 @@ $currentSession = SessionHelper::currentSession();
                                             <span class="material-symbols-outlined" style="font-size: 15px; vertical-align: text-bottom;">check</span> Currently Viewing
                                         </span>
                                     <?php endif; ?>
-                                    <?php if (\App\Core\Auth::isSuperuser() && !$isGlobalDefault): ?>
+                                    <?php if (\App\Core\Auth::isSuperuser() && !$isGlobalDefault && !\App\Core\DemoHelper::isDemoSession((int)$s['id'])): ?>
                                     <form method="POST" action="/sessions/set-default" class="d-inline m-0">
                                         <input type="hidden" name="session_id" value="<?= (int)$s['id'] ?>">
                                         <button type="submit" class="btn btn-outline-secondary btn-sm" style="border-radius: 100px; font-size: 0.75rem; padding: 4px 14px;" title="Set as the global default session for public pages and new logins">
@@ -151,7 +156,7 @@ $currentSession = SessionHelper::currentSession();
                                         </button>
                                     </form>
                                     <?php endif; ?>
-                                    <?php if (\App\Core\Auth::isSuperuser() && (int)$s['id'] !== 1 && !$isActive): ?>
+                                    <?php if (\App\Core\Auth::isSuperuser() && (int)$s['id'] !== 1 && !$isActive && !\App\Core\DemoHelper::isDemoSession((int)$s['id'])): ?>
                                     <button type="button" class="btn btn-outline-danger btn-sm" style="border-radius: 100px; font-size: 0.75rem; padding: 4px 14px;" data-bs-toggle="modal" data-bs-target="#deleteSessionModal<?= (int)$s['id'] ?>" title="Permanently delete this session and all its data">
                                         <span class="material-symbols-outlined" style="font-size: 15px; vertical-align: text-bottom;">delete</span> Delete
                                     </button>
