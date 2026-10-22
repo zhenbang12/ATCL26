@@ -61,11 +61,18 @@ $themeHex = \App\Core\ThemeHelper::resolveHex($theme);
         ?>
         <?php if ($currentSessionData && in_array(\App\Core\Auth::role(), ['advisor', 'committee', 'superuser'], true)): ?>
         <?php $isDemo = \App\Core\SessionHelper::isDemoMode() || \App\Core\DemoHelper::isDemoSession((int)$currentSessionData['id']); ?>
-        <a href="/sessions" class="d-flex align-items-center gap-2 px-2 py-2 mb-2 text-decoration-none rounded" style="background: <?= $isDemo ? '#FFE0B2' : 'var(--md-sys-color-primary-container, #EADDFF)' ?>; color: <?= $isDemo ? '#E65100' : 'var(--md-sys-color-on-primary-container, #21005D)' ?>; font-size: 0.8rem;" title="<?= $isDemo ? 'Demonstration Session' : 'Manage Sessions' ?>">
-            <span class="material-symbols-outlined" style="font-size: 18px; color: <?= $isDemo ? '#E65100' : 'inherit' ?>;"><?= $isDemo ? 'science' : 'event' ?></span>
-            <span class="text-truncate fw-semibold"><?= htmlspecialchars($currentSessionData['name']) ?></span>
-            <span class="material-symbols-outlined ms-auto" style="font-size: 16px;">swap_horiz</span>
-        </a>
+        <?php if ($isDemo): ?>
+            <div class="d-flex align-items-center gap-2 px-2 py-2 mb-2 rounded" style="background: #FFE0B2; color: #E65100; font-size: 0.8rem;" title="Sandboxed Demonstration Session">
+                <span class="material-symbols-outlined" style="font-size: 18px; color: #E65100;">lock</span>
+                <span class="text-truncate fw-semibold">Demo Sandbox (Locked)</span>
+            </div>
+        <?php else: ?>
+            <a href="/sessions" class="d-flex align-items-center gap-2 px-2 py-2 mb-2 text-decoration-none rounded" style="background: var(--md-sys-color-primary-container, #EADDFF); color: var(--md-sys-color-on-primary-container, #21005D); font-size: 0.8rem;" title="Manage Sessions">
+                <span class="material-symbols-outlined" style="font-size: 18px;">event</span>
+                <span class="text-truncate fw-semibold"><?= htmlspecialchars($currentSessionData['name']) ?></span>
+                <span class="material-symbols-outlined ms-auto" style="font-size: 16px;">swap_horiz</span>
+            </a>
+        <?php endif; ?>
         <?php endif; ?>
         
         <nav class="flex-grow-1">
@@ -171,6 +178,7 @@ $themeHex = \App\Core\ThemeHelper::resolveHex($theme);
                             Theme &amp; Appearance
                         </a>
                     </li>
+                    <?php if (!\App\Core\SessionHelper::isDemoMode()): ?>
                     <li>
                         <a href="/settings/landing" class="m3-nav-item <?= strpos($_SERVER['REQUEST_URI'], '/settings/landing') !== false ? 'active' : '' ?>">
                             <span class="material-symbols-outlined">settings</span>
@@ -183,6 +191,7 @@ $themeHex = \App\Core\ThemeHelper::resolveHex($theme);
                             Backup &amp; Restore
                         </a>
                     </li>
+                    <?php endif; ?>
                 <?php endif; ?>
             </ul>
         </nav>

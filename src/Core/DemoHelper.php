@@ -11,11 +11,17 @@ class DemoHelper
 {
     public const DEMO_SESSION_NAME = 'Interactive Demo Session';
 
+    private static ?int $cachedDemoSessionId = null;
+
     /**
      * Get or create the dedicated demo session ID.
      */
     public static function getDemoSessionId(): int
     {
+        if (self::$cachedDemoSessionId !== null && self::$cachedDemoSessionId > 0) {
+            return self::$cachedDemoSessionId;
+        }
+
         $db = Container::get('db');
         try {
             $stmt = $db->prepare('SELECT id FROM sessions WHERE name = ? LIMIT 1');
@@ -23,7 +29,8 @@ class DemoHelper
             $id = $stmt->fetchColumn();
 
             if ($id !== false && (int)$id > 0) {
-                return (int)$id;
+                self::$cachedDemoSessionId = (int)$id;
+                return self::$cachedDemoSessionId;
             }
 
             // Create new demo session
@@ -35,9 +42,20 @@ class DemoHelper
             $newId = (int)$db->lastInsertId();
 
             self::seedDemoData($newId);
+            self::$cachedDemoSessionId = $newId;
             return $newId;
         } catch (\Exception $e) {
-            return 1;
+            // Under NO circumstance return a production session ID (such as 1, 2, 3, 4).
+            try {
+                $fallback = $db->query("SELECT id FROM sessions WHERE name LIKE '%Demo%' LIMIT 1")->fetchColumn();
+                if ($fallback) {
+                    self::$cachedDemoSessionId = (int)$fallback;
+                    return self::$cachedDemoSessionId;
+                }
+            } catch (\Exception $ex) {
+                // ignore
+            }
+            throw new \RuntimeException('Failed to locate or initialize isolated demo session: ' . $e->getMessage());
         }
     }
 

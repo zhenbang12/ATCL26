@@ -11,6 +11,10 @@ class BackupController
 {
     private function requireAuth(): void
     {
+        if (\App\Core\SessionHelper::isDemoMode()) {
+            header('Location: /dashboard');
+            exit;
+        }
         Auth::requireRole(['advisor', 'committee']);
     }
 

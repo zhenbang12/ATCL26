@@ -1893,8 +1893,8 @@ class ParticipantController
         $db = Container::get('db');
         $id = (int)($_GET['id'] ?? 0);
 
-        $stmt = $db->prepare('SELECT * FROM participants WHERE id = ?');
-        $stmt->execute([$id]);
+        $stmt = $db->prepare('SELECT * FROM participants WHERE id = ? AND session_id = ?');
+        $stmt->execute([$id, $this->sid()]);
         $participant = $stmt->fetch(\PDO::FETCH_ASSOC);
 
         if (!$participant) {
@@ -1942,8 +1942,8 @@ class ParticipantController
             exit;
         }
 
-        $oldStmt = $db->prepare('SELECT * FROM participants WHERE id = ?');
-        $oldStmt->execute([$id]);
+        $oldStmt = $db->prepare('SELECT * FROM participants WHERE id = ? AND session_id = ?');
+        $oldStmt->execute([$id, $this->sid()]);
         $old = $oldStmt->fetch(\PDO::FETCH_ASSOC);
 
         try {
@@ -1963,7 +1963,7 @@ class ParticipantController
                 registration_type = ?,
                 group_code = ?,
                 blacklisted = ?
-                WHERE id = ?');
+                WHERE id = ? AND session_id = ?');
             $stmt->execute([
                 $fullName,
                 $icPassport,
@@ -1980,7 +1980,8 @@ class ParticipantController
                 $registrationType,
                 $groupCode,
                 $blacklisted,
-                $id
+                $id,
+                $this->sid()
             ]);
 
             $newStmt = $db->prepare('SELECT * FROM participants WHERE id = ?');
@@ -2011,13 +2012,13 @@ class ParticipantController
         $db = Container::get('db');
         $id = (int)($_POST['id'] ?? 0);
 
-        $oldStmt = $db->prepare('SELECT * FROM participants WHERE id = ?');
-        $oldStmt->execute([$id]);
+        $oldStmt = $db->prepare('SELECT * FROM participants WHERE id = ? AND session_id = ?');
+        $oldStmt->execute([$id, $this->sid()]);
         $old = $oldStmt->fetch(\PDO::FETCH_ASSOC);
 
         try {
-            $stmt = $db->prepare('DELETE FROM participants WHERE id = ?');
-            $stmt->execute([$id]);
+            $stmt = $db->prepare('DELETE FROM participants WHERE id = ? AND session_id = ?');
+            $stmt->execute([$id, $this->sid()]);
 
             if ($old) {
                 $this->logAudit($db, $id, $old['full_name'], 'deleted', "Record deleted from system");

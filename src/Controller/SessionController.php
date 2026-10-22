@@ -14,6 +14,11 @@ class SessionController
      */
     public function index(): void
     {
+        if (SessionHelper::isDemoMode()) {
+            header('Location: /dashboard');
+            exit;
+        }
+
         Auth::requireRole(['advisor', 'committee']);
 
         $title = 'Event Sessions';
@@ -30,6 +35,10 @@ class SessionController
      */
     public function create(): void
     {
+        if (SessionHelper::isDemoMode()) {
+            header('Location: /dashboard');
+            exit;
+        }
         Auth::requireRole(['advisor', 'committee']);
         header('Location: /sessions');
         exit;
@@ -40,6 +49,10 @@ class SessionController
      */
     public function store(): void
     {
+        if (SessionHelper::isDemoMode()) {
+            header('Location: /dashboard');
+            exit;
+        }
         Auth::requireRole(['advisor', 'committee']);
 
         $db = Container::get('db');
@@ -81,6 +94,10 @@ class SessionController
      */
     public function activate(): void
     {
+        if (SessionHelper::isDemoMode()) {
+            header('Location: /dashboard');
+            exit;
+        }
         Auth::requireRole(['advisor', 'committee']);
 
         $sessionId = (int)($_POST['session_id'] ?? 0);
@@ -124,6 +141,10 @@ class SessionController
      */
     public function delete(): void
     {
+        if (SessionHelper::isDemoMode()) {
+            header('Location: /dashboard');
+            exit;
+        }
         Auth::requireRole(['superuser']);
 
         $sessionId = (int)($_POST['session_id'] ?? 0);
@@ -235,6 +256,10 @@ class SessionController
      */
     public function setDefault(): void
     {
+        if (SessionHelper::isDemoMode()) {
+            header('Location: /dashboard');
+            exit;
+        }
         Auth::requireRole(['superuser']);
 
         $sessionId = (int)($_POST['session_id'] ?? 0);

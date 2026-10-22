@@ -27,6 +27,10 @@ class SettingsController
 
     public function landingPage(): void
     {
+        if (\App\Core\SessionHelper::isDemoMode()) {
+            header('Location: /dashboard');
+            exit;
+        }
         Auth::requireRole(['advisor', 'committee', 'superuser']);
 
         $title = 'Landing page images';
@@ -45,6 +49,10 @@ class SettingsController
 
     public function landingPageSave(): void
     {
+        if (\App\Core\SessionHelper::isDemoMode()) {
+            header('Location: /dashboard');
+            exit;
+        }
         Auth::requireRole(['advisor', 'committee', 'superuser']);
 
         $db = Container::get('db');
@@ -265,6 +273,16 @@ class SettingsController
 
     public function registrationSettingsSave(): void
     {
+        if (\App\Core\SessionHelper::isDemoMode()) {
+            if ((isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+                || (isset($_GET['format']) && $_GET['format'] === 'json')) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => 'Settings modifications disabled in demo mode.']);
+                exit;
+            }
+            header('Location: /dashboard');
+            exit;
+        }
         Auth::requireRole(['advisor', 'committee', 'superuser']);
 
         $db = Container::get('db');
