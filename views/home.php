@@ -135,13 +135,6 @@ $landingUrl = static function (?string $filename): ?string {
                             Committee or facilitators:
                             <a href="/login" class="fw-semibold text-decoration-none" style="color: var(--md-sys-color-primary) !important;">Advisor / committee login</a>
                         </p>
-                        <div class="mt-3 pt-3 border-top border-dark border-opacity-10 d-flex align-items-center justify-content-center gap-2 flex-wrap">
-                            <span class="small" style="opacity: 0.85;">Evaluating or presenting?</span>
-                            <a href="/demo" class="btn btn-outline-primary btn-sm px-3 rounded-pill fw-semibold shadow-sm d-inline-flex align-items-center gap-1 bg-white">
-                                <span class="material-symbols-outlined" style="font-size: 16px;">science</span>
-                                Interactive Demo Portal
-                            </a>
-                        </div>
                     </div>
                 </div>
 

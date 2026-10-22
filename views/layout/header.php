@@ -70,14 +70,6 @@ $themeHex = \App\Core\ThemeHelper::resolveHex($theme);
         
         <nav class="flex-grow-1">
             <ul class="m3-nav-group">
-                <?php if (\App\Core\SessionHelper::isDemoMode()): ?>
-                <li>
-                    <a href="/demo" class="m3-nav-item <?= ($title ?? '') === 'Interactive Demo Portal' || strpos($_SERVER['REQUEST_URI'], '/demo') !== false ? 'active' : '' ?>" style="color: #E65100; font-weight: 600; background: rgba(255, 152, 0, 0.1);">
-                        <span class="material-symbols-outlined" style="color: #E65100;">science</span>
-                        Demo Hub
-                    </a>
-                </li>
-                <?php endif; ?>
                 <li>
                     <a href="/dashboard" class="m3-nav-item <?= ($title ?? '') === 'Dashboard' || strpos($_SERVER['REQUEST_URI'], '/dashboard') !== false ? 'active' : '' ?>">
                         <span class="material-symbols-outlined">dashboard</span>
@@ -260,10 +252,6 @@ $themeHex = \App\Core\ThemeHelper::resolveHex($theme);
         </div>
         <div class="d-flex align-items-center gap-2">
             <a href="/participants/lookup" class="btn btn-outline-primary btn-sm">Find My QR</a>
-            <a href="/demo" class="btn btn-primary btn-sm d-flex align-items-center gap-1 shadow-sm">
-                <span class="material-symbols-outlined" style="font-size: 16px;">science</span>
-                <span>Demo Portal</span>
-            </a>
         </div>
     </div>
 <?php endif; ?>
@@ -273,8 +261,8 @@ $themeHex = \App\Core\ThemeHelper::resolveHex($theme);
             <div class="d-flex align-items-center gap-2">
                 <span class="material-symbols-outlined text-warning" style="font-size: 24px; color: #E65100 !important;">science</span>
                 <div>
-                    <strong style="color: #E65100;">Interactive Demo Mode Active</strong>
-                    <span class="d-none d-md-inline ms-1 opacity-75">— Sandboxed session for presentation purposes. Production records are safe.</span>
+                    <strong style="color: #E65100;">Demo Mode Active</strong>
+                    <span class="d-none d-md-inline ms-1 opacity-75">— Operating in isolated demonstration session. Real data is protected.</span>
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2">
@@ -284,10 +272,6 @@ $themeHex = \App\Core\ThemeHelper::resolveHex($theme);
                         Reset Demo Data
                     </button>
                 </form>
-                <a href="/demo" class="btn btn-sm btn-outline-dark fw-semibold rounded-pill py-1 px-3 text-decoration-none d-flex align-items-center gap-1">
-                    <span class="material-symbols-outlined" style="font-size: 16px;">dashboard_customize</span>
-                    Demo Hub
-                </a>
                 <a href="/demo/exit" class="btn btn-sm btn-dark fw-semibold rounded-pill py-1 px-3 text-decoration-none d-flex align-items-center gap-1">
                     <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
                     Exit Demo

@@ -15,41 +15,25 @@ use App\Core\SessionHelper;
 class DemoController
 {
     /**
-     * Show the Demo Portal landing hub.
+     * Direct auto-login into demo mode:
+     * Immediately activates the sandboxed demo session, logs in as committee,
+     * and redirects directly to /dashboard with zero intermediate pages.
      */
     public function index(): void
     {
-        $title = 'Interactive Demo Portal';
-
         $demoSessionId = DemoHelper::getDemoSessionId();
         DemoHelper::ensureDemoUsers();
         DemoHelper::ensureDemoDataSeeded($demoSessionId);
 
-        $stats = DemoHelper::getDemoStats($demoSessionId);
-
-        // Fetch a few sample participants for the quick reference cheatsheet
-        $db = Container::get('db');
-        $sampleParticipants = [];
-        try {
-            $stmt = $db->prepare('SELECT full_name, student_id, faculty, preferred_language, group_code, checked_in_at 
-                FROM participants WHERE session_id = ? ORDER BY id ASC LIMIT 8');
-            $stmt->execute([$demoSessionId]);
-            $sampleParticipants = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-        } catch (\Exception $e) {
-            // ignore
+        $user = DemoHelper::getDemoUser('committee');
+        if ($user) {
+            Auth::login($user);
+            SessionHelper::setDemoMode(true);
+            SessionHelper::setActiveSession($demoSessionId);
         }
 
-        $isDemoModeActive = SessionHelper::isDemoMode();
-        $currentUser = Auth::user();
-
-        // Flash message
-        $flash = $_SESSION['demo_flash'] ?? null;
-        $flashType = $_SESSION['demo_flash_type'] ?? 'info';
-        unset($_SESSION['demo_flash'], $_SESSION['demo_flash_type']);
-
-        include __DIR__ . '/../../views/layout/header.php';
-        include __DIR__ . '/../../views/demo/index.php';
-        include __DIR__ . '/../../views/layout/footer.php';
+        header('Location: /dashboard');
+        exit;
     }
 
     /**
