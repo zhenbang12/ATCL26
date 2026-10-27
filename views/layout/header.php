@@ -260,10 +260,6 @@ $themeHex = \App\Core\ThemeHelper::resolveHex($theme);
             <a href="/" class="text-decoration-none"><h1 class="m3-brand-name fs-5">ATCL</h1></a>
         </div>
         <div class="d-flex align-items-center gap-2">
-            <a href="/demo" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" title="Try Demo Mode">
-                <span class="material-symbols-outlined" style="font-size: 16px;">science</span>
-                <span>Demo</span>
-            </a>
             <a href="/participants/lookup" class="btn btn-outline-primary btn-sm">Find My QR</a>
         </div>
     </div>
@@ -291,12 +287,4 @@ $themeHex = \App\Core\ThemeHelper::resolveHex($theme);
                 </a>
             </div>
         </div>
-    <?php endif; ?>
-    <?php if (!empty($_SESSION['demo_flash'])): ?>
-        <div class="alert alert-<?= htmlspecialchars($_SESSION['demo_flash_type'] ?? 'info') ?> alert-dismissible fade show mb-4 rounded-4 shadow-sm border-0 d-flex align-items-center gap-2" role="alert">
-            <span class="material-symbols-outlined" style="font-size: 20px;">info</span>
-            <div class="flex-grow-1"><?= htmlspecialchars($_SESSION['demo_flash']) ?></div>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-        <?php unset($_SESSION['demo_flash'], $_SESSION['demo_flash_type']); ?>
     <?php endif; ?>
