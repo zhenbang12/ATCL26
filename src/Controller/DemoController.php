@@ -25,11 +25,19 @@ class DemoController
         DemoHelper::ensureDemoUsers();
         DemoHelper::ensureDemoDataSeeded($demoSessionId);
 
-        $user = DemoHelper::getDemoUser('committee');
+        $role = trim((string)($_GET['role'] ?? 'committee'));
+        if (!in_array($role, ['committee', 'advisor'], true)) {
+            $role = 'committee';
+        }
+
+        $user = DemoHelper::getDemoUser($role);
         if ($user) {
             Auth::login($user);
             SessionHelper::setDemoMode(true);
             SessionHelper::setActiveSession($demoSessionId);
+
+            $_SESSION['demo_flash'] = 'Welcome! You are now exploring ATCL as ' . ($role === 'advisor' ? 'Advisor' : 'Committee Member') . ' in an isolated sandbox.';
+            $_SESSION['demo_flash_type'] = 'success';
         }
 
         header('Location: /dashboard');
