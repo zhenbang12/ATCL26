@@ -62,7 +62,9 @@ try {
     // Force MySQL connection to UTC+8
     $pdo->exec("SET time_zone = '+08:00';");
 } catch (PDOException $e) {
-    die('Database connection failed: ' . $e->getMessage());
+    error_log('Database connection error: ' . $e->getMessage());
+    http_response_code(500);
+    die('A database connection error occurred. Please contact the system administrator.');
 }
 
 // Make shared services globally accessible via container-style helper

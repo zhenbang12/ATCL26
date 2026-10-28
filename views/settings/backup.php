@@ -65,10 +65,16 @@
                     </div>
                 </div>
 
+                <?php if (\App\Core\Auth::isSuperuser()): ?>
                 <form method="post" action="/settings/backup/restore" enctype="multipart/form-data" class="mt-auto m-0" onsubmit="return confirmRestore();">
                     <div class="mb-3">
                         <label for="backup_file" class="form-label fw-semibold small">Choose Backup File (.sql)</label>
                         <input type="file" name="backup_file" id="backup_file" class="form-control" accept=".sql" required style="border-radius: 8px;">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="restore_password" class="form-label fw-semibold small">Superuser Password Confirmation</label>
+                        <input type="password" name="password" id="restore_password" class="form-control" required placeholder="Enter your current password" style="border-radius: 8px;">
                     </div>
                     
                     <button type="submit" class="btn btn-warning w-100 d-flex align-items-center justify-content-center gap-2 py-2.5 shadow-sm" style="border-radius: 12px; font-weight: 500; background-color: var(--md-sys-color-tertiary-container, #ffd8e4); color: var(--md-sys-color-on-tertiary-container, #3e001d); border: 1px solid var(--md-sys-color-outline-variant);">
@@ -76,6 +82,12 @@
                         Restore SQL Backup
                     </button>
                 </form>
+                <?php else: ?>
+                <div class="alert alert-secondary d-flex align-items-center gap-2 mb-0" style="border-radius: 12px; font-size: 0.9rem;">
+                    <span class="material-symbols-outlined text-muted" style="font-size: 22px;">lock</span>
+                    <div>Only users with the <strong>Superuser</strong> role are permitted to restore the database.</div>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>

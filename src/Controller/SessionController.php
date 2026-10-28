@@ -216,9 +216,11 @@ class SessionController
         try {
             $db->beginTransaction();
 
-            // Delete all data associated with this session (in FK order)
             $tables = [
+                'participant_audit_logs',
                 'group_move_logs',
+                'anomaly_constraints',
+                'lost_and_found_items',
                 'crew_attendance',
                 'crew',
                 'event_group_settings',
@@ -226,8 +228,14 @@ class SessionController
                 'participants',
             ];
             foreach ($tables as $table) {
-                $delStmt = $db->prepare("DELETE FROM {$table} WHERE session_id = ?");
-                $delStmt->execute([$sessionId]);
+                try {
+                    $delStmt = $db->prepare("DELETE FROM {$table} WHERE session_id = ?");
+                    $delStmt->execute([$sessionId]);
+                } catch (\PDOException $e) {
+                    if ($e->getCode() !== '42S02') {
+                        throw $e;
+                    }
+                }
             }
 
             // Delete the session itself

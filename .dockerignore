@@ -2,11 +2,16 @@
 .github
 .gitignore
 .gitattributes
+.env
+.env.*
 *.zip
 *.tar.gz
 *.sql
 atcl26_backup*
 vendor
 start-ngrok*
+deploy.sh
+dev.bat
 .DS_Store
 Thumbs.db
+SECURITY_FIXES.md

@@ -27,6 +27,7 @@ $themeHex = \App\Core\ThemeHelper::resolveHex($theme);
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <link rel="stylesheet" href="/css/material3.css?v=<?= file_exists(__DIR__ . '/../../css/material3.css') ? filemtime(__DIR__ . '/../../css/material3.css') : time() ?>">
     <?= \App\Core\ThemeHelper::renderCssBlock($theme) ?>
+    <meta name="csrf-token" content="<?= \App\Core\Csrf::token() ?>">
     <script>
         // Apply sidebar state immediately to prevent layout shift/flicker
         if (localStorage.getItem('sidebar-collapsed') === 'true') {
@@ -34,6 +35,65 @@ $themeHex = \App\Core\ThemeHelper::resolveHex($theme);
         }
         // Set global registration mode variable
         window.currentRegMode = "<?= ($registrationSettings['pre_register_enabled'] && !$registrationSettings['walk_in_enabled']) ? 'pre_reg' : (($registrationSettings['walk_in_enabled'] && !$registrationSettings['pre_register_enabled']) ? 'walk_in' : 'closed') ?>";
+
+        // Global CSRF Protection: auto-attach token to forms and fetch requests
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            if (!token) return;
+
+            function injectCsrf(form) {
+                if ((form.method || '').toUpperCase() === 'POST' && !form.querySelector('input[name="csrf_token"]')) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'csrf_token';
+                    input.value = token;
+                    form.appendChild(input);
+                }
+            }
+
+            document.querySelectorAll('form').forEach(injectCsrf);
+
+            document.addEventListener('submit', function(e) {
+                if (e.target && e.target.tagName === 'FORM') {
+                    injectCsrf(e.target);
+                }
+            }, true);
+
+            const origFetch = window.fetch;
+            window.fetch = function(url, options = {}) {
+                options = options || {};
+                const method = (options.method || 'GET').toUpperCase();
+                if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+                    options.headers = options.headers || {};
+                    if (options.headers instanceof Headers) {
+                        if (!options.headers.has('X-CSRF-TOKEN')) {
+                            options.headers.append('X-CSRF-TOKEN', token);
+                        }
+                    } else if (Array.isArray(options.headers)) {
+                        options.headers.push(['X-CSRF-TOKEN', token]);
+                    } else {
+                        options.headers['X-CSRF-TOKEN'] = token;
+                    }
+                }
+                return origFetch(url, options);
+            };
+
+            // Intercept XMLHttpRequest (covers jQuery, Axios, etc.)
+            const origXhrOpen = XMLHttpRequest.prototype.open;
+            XMLHttpRequest.prototype.open = function(method) {
+                this._method = (method || 'GET').toUpperCase();
+                return origXhrOpen.apply(this, arguments);
+            };
+            const origXhrSend = XMLHttpRequest.prototype.send;
+            XMLHttpRequest.prototype.send = function() {
+                if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(this._method)) {
+                    try {
+                        this.setRequestHeader('X-CSRF-TOKEN', token);
+                    } catch (err) {}
+                }
+                return origXhrSend.apply(this, arguments);
+            };
+        });
     </script>
 </head>
 <body>

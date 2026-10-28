@@ -153,6 +153,15 @@ class LostAndFoundController
                 exit;
             }
 
+            // Verify it's actually an image binary
+            $imageInfo = @getimagesize($_FILES['photo']['tmp_name']);
+            if ($imageInfo === false) {
+                $_SESSION['lf_message'] = 'Uploaded file is not a valid image.';
+                $_SESSION['lf_message_type'] = 'danger';
+                header('Location: /lost-and-found/create');
+                exit;
+            }
+
             $photoFilename = 'lf_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
             $targetPath = $uploadDir . $photoFilename;
 

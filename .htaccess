@@ -1,11 +1,23 @@
-# Apache .htaccess for when using a real web server
-# All requests go through index.php
+# Apache .htaccess for production web server
+# Protect all sensitive files and route application requests through index.php
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
+
+    # Block access to hidden dotfiles (.env, .git, etc.)
+    RewriteRule (^|/)\. - [F,L]
+
+    # Block sensitive archive, database, script, and configuration extensions
+    RewriteRule \.(env|sql|zip|tar|gz|sh|bat|md|json|lock)$ - [F,L]
+
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} !^/uploads/
     RewriteRule ^(.*)$ index.php [QSA,L]
 </IfModule>
+
+# Direct file denial fallback
+<FilesMatch "(^\.|\.(env|sql|zip|tar|gz|sh|bat|md|json|lock)$)">
+    Require all denied
+</FilesMatch>

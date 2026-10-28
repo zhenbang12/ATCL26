@@ -17,12 +17,14 @@ $router->get('/dashboard', 'HomeController@dashboard');
 $router->get('/public', 'HomeController@public');
 $router->get('/insights', 'InsightsController@index');
 
-// Demonstration Portal (Interactive Demo Mode)
-$router->get('/demo', 'DemoController@index');
-$router->post('/demo/login', 'DemoController@quickLogin');
-$router->get('/demo/participant', 'DemoController@startParticipantDemo');
-$router->post('/demo/reset', 'DemoController@resetDemoData');
-$router->get('/demo/exit', 'DemoController@exitDemo');
+// Demonstration Portal (Interactive Demo Mode - disabled in production unless DEMO_MODE_ENABLED=true)
+if (getenv('APP_ENV') !== 'production' || getenv('DEMO_MODE_ENABLED') === 'true') {
+    $router->get('/demo', 'DemoController@index');
+    $router->post('/demo/login', 'DemoController@quickLogin');
+    $router->get('/demo/participant', 'DemoController@startParticipantDemo');
+    $router->post('/demo/reset', 'DemoController@resetDemoData');
+    $router->get('/demo/exit', 'DemoController@exitDemo');
+}
 
 // Site settings (advisor / committee)
 $router->get('/settings/landing', 'SettingsController@landingPage');

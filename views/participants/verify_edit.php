@@ -41,6 +41,18 @@
                         >
                     </div>
 
+                    <div class="mb-3">
+                        <label class="form-label" for="contact_no">Registered Contact Number (or last 4 digits)</label>
+                        <input 
+                            type="text" 
+                            name="contact_no" 
+                            id="contact_no" 
+                            class="form-control" 
+                            placeholder="e.g. 0123456789 or 6789" 
+                            required
+                        >
+                    </div>
+
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary">Verify & Edit</button>
                         <a href="/participants/create" class="btn btn-outline-secondary">Cancel</a>

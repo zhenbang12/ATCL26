@@ -222,7 +222,6 @@ class ParticipantController
 
             if ($existing) {
                 $_SESSION['registration_error'] = 'This email is already registered.';
-                $_SESSION['registration_duplicate_id'] = $existing['student_id'];
                 $_SESSION['registration_input'] = $_POST;
                 header('Location: ' . $returnPath);
                 exit;
@@ -238,7 +237,6 @@ class ParticipantController
 
             if ($existing) {
                 $_SESSION['registration_error'] = 'This phone number is already registered.';
-                $_SESSION['registration_duplicate_id'] = $existing['student_id'];
                 $_SESSION['registration_input'] = $_POST;
                 header('Location: ' . $returnPath);
                 exit;
@@ -1207,8 +1205,8 @@ class ParticipantController
         }
 
         try {
-            $participantStmt = $db->prepare('SELECT full_name, group_code FROM participants WHERE id = ?');
-            $participantStmt->execute([$participantId]);
+            $participantStmt = $db->prepare('SELECT full_name, group_code FROM participants WHERE id = ? AND session_id = ?');
+            $participantStmt->execute([$participantId, $sid]);
             $participant = $participantStmt->fetch(\PDO::FETCH_ASSOC);
             if (!$participant) {
                 $this->respondGroupMove(false, 'Participant not found.');
@@ -1230,8 +1228,8 @@ class ParticipantController
                 return;
             }
 
-            $stmt = $db->prepare('UPDATE participants SET group_code = ? WHERE id = ?');
-            $stmt->execute([$targetGroup, $participantId]);
+            $stmt = $db->prepare('UPDATE participants SET group_code = ? WHERE id = ? AND session_id = ?');
+            $stmt->execute([$targetGroup, $participantId, $sid]);
 
             $movedBy = (string)(Auth::user()['username'] ?? 'Unknown');
             $logDescription = null;
@@ -1465,6 +1463,14 @@ class ParticipantController
         ];
         fputcsv($output, $headers);
 
+        $sanitizeCell = static function ($val): string {
+            $str = (string)($val ?? '');
+            if ($str !== '' && in_array($str[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+                return "'" . $str;
+            }
+            return $str;
+        };
+
         // Write data rows
         while ($p = $stmt->fetch(\PDO::FETCH_ASSOC)) {
             $row = [
@@ -1480,7 +1486,7 @@ class ParticipantController
                 !empty($p['checked_in_at']) ? 'Yes' : 'No',
                 $p['checked_in_at'] ?? '',
             ];
-            fputcsv($output, $row);
+            fputcsv($output, array_map($sanitizeCell, $row));
         }
 
         fclose($output);
@@ -1551,6 +1557,14 @@ class ParticipantController
         ];
         fputcsv($output, $headers);
 
+        $sanitizeCell = static function ($val): string {
+            $str = (string)($val ?? '');
+            if ($str !== '' && in_array($str[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+                return "'" . $str;
+            }
+            return $str;
+        };
+
         // Write data rows by streaming each database record to output
         while ($p = $stmt->fetch(\PDO::FETCH_ASSOC)) {
             $row = [
@@ -1573,7 +1587,7 @@ class ParticipantController
                 $p['checked_in_at'] ?? '',
                 $p['created_at'] ?? ''
             ];
-            fputcsv($output, $row);
+            fputcsv($output, array_map($sanitizeCell, $row));
         }
 
         fclose($output);
@@ -2057,24 +2071,33 @@ class ParticipantController
         $db = Container::get('db');
         $studentId = trim((string)($_POST['student_id'] ?? ''));
         $email = trim((string)($_POST['student_email'] ?? ''));
+        $phoneInput = trim((string)($_POST['contact_no'] ?? ''));
 
-        if ($studentId === '' || $email === '') {
-            $_SESSION['public_verify_error'] = 'Both Student ID and Email are required.';
+        if ($studentId === '' || $email === '' || $phoneInput === '') {
+            $_SESSION['public_verify_error'] = 'Student ID, Email, and Registered Contact Number are required.';
             header('Location: /participants/verify-edit?student_id=' . urlencode($studentId));
             exit;
         }
 
         $sid = $this->sid();
-        $stmt = $db->prepare('SELECT id, student_email FROM participants WHERE student_id = ? AND session_id = ?');
+        $stmt = $db->prepare('SELECT id, student_email, contact_no FROM participants WHERE student_id = ? AND session_id = ?');
         $stmt->execute([$studentId, $sid]);
         $participant = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-        if ($participant && strtolower(trim((string)$participant['student_email'])) === strtolower($email)) {
+        $cleanPhoneInput = preg_replace('/\D/', '', $phoneInput);
+        $cleanDbPhone = preg_replace('/\D/', '', (string)($participant['contact_no'] ?? ''));
+
+        $phoneMatches = ($cleanPhoneInput !== '' && $cleanDbPhone !== '') && (
+            $cleanPhoneInput === $cleanDbPhone ||
+            (strlen($cleanPhoneInput) >= 4 && substr($cleanDbPhone, -strlen($cleanPhoneInput)) === $cleanPhoneInput)
+        );
+
+        if ($participant && strtolower(trim((string)$participant['student_email'])) === strtolower($email) && $phoneMatches) {
             $_SESSION['public_edit_participant_id'] = (int)$participant['id'];
             header('Location: /participants/edit-public');
             exit;
         } else {
-            $_SESSION['public_verify_error'] = 'Verification failed. The email entered does not match our records for this Student ID.';
+            $_SESSION['public_verify_error'] = 'Verification failed. The details entered do not match our records for this Student ID.';
             header('Location: /participants/verify-edit?student_id=' . urlencode($studentId));
             exit;
         }
@@ -2155,9 +2178,64 @@ class ParticipantController
         $contactNo = $this->formatPhoneNumber($contactRaw);
         $emergencyContactNo = $this->formatPhoneNumber($_POST['emergency_contact_no'] ?? '');
 
+        $sid = $this->sid();
+
+        // Check duplicate email against other participants in session
+        $checkEmail = $db->prepare('SELECT id FROM participants WHERE student_email = ? AND id != ? AND session_id = ? AND duplicate_of IS NULL LIMIT 1');
+        $checkEmail->execute([$studentEmail, $id, $sid]);
+        if ($checkEmail->fetch()) {
+            $_SESSION['registration_error'] = 'This student email is already registered to another participant in this session.';
+            header('Location: /participants/edit-public');
+            exit;
+        }
+
+        // Check duplicate phone number against other participants in session
+        if (!empty($contactNo)) {
+            $checkPhone = $db->prepare('SELECT id FROM participants WHERE contact_no = ? AND id != ? AND session_id = ? AND duplicate_of IS NULL LIMIT 1');
+            $checkPhone->execute([$contactNo, $id, $sid]);
+            if ($checkPhone->fetch()) {
+                $_SESSION['registration_error'] = 'This phone number is already registered to another participant in this session.';
+                header('Location: /participants/edit-public');
+                exit;
+            }
+        }
+
         $oldStmt = $db->prepare('SELECT * FROM participants WHERE id = ?');
         $oldStmt->execute([$id]);
         $old = $oldStmt->fetch(\PDO::FETCH_ASSOC);
+
+        // Check blocking constraints before saving
+        try {
+            $this->ensureAnomalyConstraintsTable($db);
+            $blockingStmt = $db->prepare('SELECT * FROM anomaly_constraints WHERE blocks_registration = 1 AND session_id = ?');
+            $blockingStmt->execute([$sid]);
+            $blockingConstraints = $blockingStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            if (!empty($blockingConstraints)) {
+                $checkData = array_merge($old ?: [], [
+                    'full_name' => $fullName,
+                    'student_email' => $studentEmail,
+                    'programme_name' => $programmeName,
+                    'faculty' => $faculty,
+                    'gender' => $gender,
+                    'contact_no' => $contactNo,
+                    'preferred_language' => $preferredLanguage,
+                ]);
+                $blockedReasons = [];
+                foreach ($blockingConstraints as $bc) {
+                    if ($this->evaluateConstraint($checkData, $bc)) {
+                        $blockedReasons[] = $bc['description'] ?? ("Blocked by constraint: {$bc['field_name']} {$bc['constraint_type']}");
+                    }
+                }
+                if (!empty($blockedReasons)) {
+                    $_SESSION['registration_error'] = 'Update rejected due to event constraints: ' . implode('; ', $blockedReasons);
+                    header('Location: /participants/edit-public');
+                    exit;
+                }
+            }
+        } catch (\Exception $e) {
+            // Silently fail - don't crash
+        }
 
         try {
             $stmt = $db->prepare('UPDATE participants SET 
@@ -2430,13 +2508,13 @@ class ParticipantController
                 ) VALUES (?, ?, ?, ?, ?, ?, "move")
             ');
 
-            $update = $db->prepare('UPDATE participants SET group_code = ? WHERE id = ?');
+            $update = $db->prepare('UPDATE participants SET group_code = ? WHERE id = ? AND session_id = ?');
             
             $movedCount = 0;
             foreach ($participantIds as $id) {
                 // Get current group and name
-                $stmt = $db->prepare('SELECT full_name, group_code FROM participants WHERE id = ?');
-                $stmt->execute([$id]);
+                $stmt = $db->prepare('SELECT full_name, group_code FROM participants WHERE id = ? AND session_id = ?');
+                $stmt->execute([$id, $sid]);
                 $p = $stmt->fetch(\PDO::FETCH_ASSOC);
                 if (!$p) {
                     continue;
@@ -2446,7 +2524,7 @@ class ParticipantController
                 $fromGroup = $fromGroup === '' ? null : $fromGroup;
 
                 // Update group code
-                $update->execute([$targetGroup, $id]);
+                $update->execute([$targetGroup, $id, $sid]);
 
                 // Log entry
                 $logInsert->execute([

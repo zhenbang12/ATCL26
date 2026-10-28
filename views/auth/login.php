@@ -12,8 +12,9 @@
 
             <?php if (!empty($error)): ?>
                 <div class="alert alert-danger mb-4">
-                    Invalid credentials. Please try again.
+                    <?= !empty($_SESSION['login_error']) ? htmlspecialchars($_SESSION['login_error']) : 'Invalid credentials. Please try again.' ?>
                 </div>
+                <?php unset($_SESSION['login_error']); ?>
             <?php endif; ?>
 
             <form method="post" action="/login">

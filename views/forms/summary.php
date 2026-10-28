@@ -28,7 +28,7 @@
             <div class="card-body">
                 <h3 class="card-title">
                     <?php
-                    $avgRate = $totalSubmissions > 0 ? round(array_sum(array_column($summary, 'response_rate')) / count($summary), 1) : 0;
+                    $avgRate = ($totalSubmissions > 0 && !empty($summary)) ? round(array_sum(array_column($summary, 'response_rate')) / count($summary), 1) : 0;
                     echo $avgRate;
                     ?>%
                 </h3>

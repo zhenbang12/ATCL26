@@ -46,8 +46,22 @@ $registrationLabel = $lookupFrom === 'walk-in' ? 'Back to walk-in' : 'Back to pr
                 </div>
             </div>
             <div style="font-size: 0.95rem; line-height: 1.8; color: var(--md-sys-color-on-surface-variant);">
+                <?php
+                $maskedEmail = 'N/A';
+                if (!empty($participant['student_email'])) {
+                    $emailParts = explode('@', (string)$participant['student_email']);
+                    $u = $emailParts[0];
+                    $d = $emailParts[1] ?? '';
+                    if (strlen($u) <= 2) {
+                        $maskedU = substr($u, 0, 1) . '***';
+                    } else {
+                        $maskedU = substr($u, 0, 1) . str_repeat('*', max(3, strlen($u) - 2)) . substr($u, -1);
+                    }
+                    $maskedEmail = $maskedU . ($d ? '@' . $d : '');
+                }
+                ?>
                 <div class="mb-1">
-                    <strong>Email:</strong> <?= htmlspecialchars($participant['student_email'] ?? 'N/A') ?>
+                    <strong>Email:</strong> <?= htmlspecialchars($maskedEmail) ?>
                 </div>
                 <div class="mb-1">
                     <strong>Faculty:</strong> <?= htmlspecialchars($participant['faculty'] ?? 'N/A') ?>

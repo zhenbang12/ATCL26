@@ -88,8 +88,8 @@ if ($message !== null) {
                             <form
                                 method="post"
                                 action="/operations/crew/delete"
-                                class="m-0"
-                                onsubmit="return confirm('Remove <?= htmlspecialchars(addslashes($c['full_name'])) ?> from the roster? This cannot be undone.');"
+                                class="m-0 delete-crew-form"
+                                data-crew-name="<?= htmlspecialchars($c['full_name'], ENT_QUOTES, 'UTF-8') ?>"
                             >
                                 <input type="hidden" name="crew_id" value="<?= (int)$c['id'] ?>">
                                 <button type="submit" class="btn btn-outline-danger btn-sm d-flex align-items-center gap-1">
@@ -105,4 +105,17 @@ if ($message !== null) {
         </table>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.delete-crew-form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            const name = this.getAttribute('data-crew-name') || 'this crew member';
+            if (!confirm('Remove ' + name + ' from the roster? This cannot be undone.')) {
+                e.preventDefault();
+            }
+        });
+    });
+});
+</script>
 <?php endif; ?>

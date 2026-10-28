@@ -37,6 +37,16 @@ class InsightsController
         $summaryStmt->execute([$sid]);
         $participants = $summaryStmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
 
+        // Load active anomaly constraints for current session
+        $activePatterns = [];
+        try {
+            $constraintsStmt = $db->prepare('SELECT pattern FROM anomaly_constraints WHERE session_id = ? AND is_enabled = 1 AND constraint_type = "email_pattern"');
+            $constraintsStmt->execute([$sid]);
+            $activePatterns = $constraintsStmt->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+        } catch (\Exception $e) {
+            $activePatterns = [];
+        }
+
         $totalActive = 0;
         $checkedIn = 0;
         $preRegister = 0;
@@ -59,10 +69,24 @@ class InsightsController
 
                     if ($domain !== 'student.tarc.edu.my') {
                         $isAnomaly = true;
+                    } elseif (!empty($activePatterns)) {
+                        $matchedAny = false;
+                        foreach ($activePatterns as $pattern) {
+                            if (@preg_match($pattern, $username)) {
+                                $matchedAny = true;
+                                break;
+                            }
+                        }
+                        if (!$matchedAny) {
+                            $isAnomaly = true;
+                        }
                     } else {
-                        $is26IntakeID = preg_match('/^26/i', $username);
-                        $is26IntakeName = preg_match('/w[a-z0-9]26$/i', $username);
-                        if (!$is26IntakeID && !$is26IntakeName) {
+                        // Dynamic current year fallback
+                        $yy = date('y');
+                        $nextYy = date('y', strtotime('+1 year'));
+                        $isId = preg_match('/^' . $yy . '/i', $username);
+                        $isCode = preg_match('/[a-z]{2}(' . $yy . '|' . $nextYy . ')$/i', $username);
+                        if (!$isId && !$isCode) {
                             $isAnomaly = true;
                         }
                     }

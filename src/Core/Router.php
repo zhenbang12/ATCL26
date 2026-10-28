@@ -33,6 +33,22 @@ class Router
             return;
         }
 
+        if ($method === 'POST') {
+            $exemptions = [
+                '/login',
+                '/demo/login',
+                '/participants/store',
+                '/forms/submit',
+                '/lost-and-found/submit-claim',
+                '/participants/verify-edit',
+                '/participants/update-public',
+                '/participants/lookup',
+            ];
+            if (!in_array($path, $exemptions, true)) {
+                \App\Core\Csrf::require();
+            }
+        }
+
         [$controllerName, $methodName] = explode('@', $action);
         $controllerClass = 'App\\Controller\\' . $controllerName;
 

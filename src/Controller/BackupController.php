@@ -15,7 +15,7 @@ class BackupController
             header('Location: /dashboard');
             exit;
         }
-        Auth::requireRole(['advisor', 'committee']);
+        Auth::requireRole(['advisor', 'committee', 'superuser']);
     }
 
     public function showPage(): void
@@ -64,6 +64,34 @@ class BackupController
     public function runRestore(): void
     {
         $this->requireAuth();
+
+        if (!Auth::isSuperuser()) {
+            $_SESSION['backup_message'] = 'Access denied: Only superusers are permitted to restore the database.';
+            $_SESSION['backup_message_type'] = 'danger';
+            header('Location: /settings/backup');
+            exit;
+        }
+
+        $password = (string)($_POST['password'] ?? '');
+        if ($password === '') {
+            $_SESSION['backup_message'] = 'Password confirmation is required to restore the database.';
+            $_SESSION['backup_message_type'] = 'danger';
+            header('Location: /settings/backup');
+            exit;
+        }
+
+        $user = Auth::user();
+        $db = Container::get('db');
+        $stmt = $db->prepare('SELECT password_hash FROM users WHERE id = ? LIMIT 1');
+        $stmt->execute([(int)($user['id'] ?? 0)]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row || !password_verify($password, $row['password_hash'])) {
+            $_SESSION['backup_message'] = 'Invalid password confirmation. Database restore aborted.';
+            $_SESSION['backup_message_type'] = 'danger';
+            header('Location: /settings/backup');
+            exit;
+        }
 
         if (empty($_FILES['backup_file']['tmp_name'])) {
             $_SESSION['backup_message'] = 'Please upload a backup SQL file.';

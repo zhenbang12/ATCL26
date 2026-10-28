@@ -4,6 +4,12 @@ atcl.site, www.atcl.site {
         max_size 50MB
     }
 
-    # Proxy all traffic to the Apache PHP container
+    # Block sensitive paths, dotfiles, archives, and database scripts
+    @blocked {
+        path /.git* /.env* /*.sql /*.zip /*.sh /*.bat /database/*
+    }
+    respond @blocked 403
+
+    # Proxy all legitimate traffic to the Apache PHP container
     reverse_proxy web:80
 }

@@ -8,6 +8,46 @@ use App\Core\Auth;
 
 class FinanceController
 {
+    private const ALLOWED_IMAGE_MIMES = [
+        'image/jpeg' => 'jpg',
+        'image/png'  => 'png',
+        'image/gif'  => 'gif',
+        'image/webp' => 'webp',
+    ];
+
+    private function storeFinanceUpload(array $file, string $subDir, string $prefix): ?string
+    {
+        if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || ($file['size'] ?? 0) <= 0) {
+            return null;
+        }
+
+        $maxSize = 5 * 1024 * 1024; // 5MB
+        if ($file['size'] > $maxSize) {
+            return null;
+        }
+
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mime = $finfo->file((string)$file['tmp_name']);
+        if ($mime === false || !isset(self::ALLOWED_IMAGE_MIMES[$mime])) {
+            return null;
+        }
+
+        $ext = self::ALLOWED_IMAGE_MIMES[$mime];
+        $uploadDir = __DIR__ . '/../../uploads/' . trim($subDir, '/') . '/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        $filename = $prefix . '_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
+        $target = $uploadDir . $filename;
+
+        if (!move_uploaded_file((string)$file['tmp_name'], $target)) {
+            return null;
+        }
+
+        return '/uploads/' . trim($subDir, '/') . '/' . $filename;
+    }
+
     public function index(): void
     {
         Auth::requireRole(['advisor', 'committee', 'treasurer']);
@@ -53,44 +93,14 @@ class FinanceController
         $receiptImage = null;
         $itemsImage = null;
 
-        // Create uploads directory if it doesn't exist
-        $uploadDir = __DIR__ . '/../../uploads/claims/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
+        // Handle receipt image upload securely
+        if (!empty($_FILES['receipt_image']['tmp_name'])) {
+            $receiptImage = $this->storeFinanceUpload($_FILES['receipt_image'], 'claims', 'receipt') ?? $receiptImage;
         }
 
-        // Handle receipt image upload
-        if (isset($_FILES['receipt_image']) && $_FILES['receipt_image']['error'] === UPLOAD_ERR_OK) {
-            $file = $_FILES['receipt_image'];
-            $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-            $maxSize = 5 * 1024 * 1024; // 5MB
-
-            if (in_array($file['type'], $allowedTypes) && $file['size'] <= $maxSize) {
-                $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-                $filename = 'receipt_' . time() . '_' . uniqid() . '.' . $extension;
-                $filepath = $uploadDir . $filename;
-
-                if (move_uploaded_file($file['tmp_name'], $filepath)) {
-                    $receiptImage = '/uploads/claims/' . $filename;
-                }
-            }
-        }
-
-        // Handle items image upload
-        if (isset($_FILES['items_image']) && $_FILES['items_image']['error'] === UPLOAD_ERR_OK) {
-            $file = $_FILES['items_image'];
-            $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-            $maxSize = 5 * 1024 * 1024; // 5MB
-
-            if (in_array($file['type'], $allowedTypes) && $file['size'] <= $maxSize) {
-                $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-                $filename = 'items_' . time() . '_' . uniqid() . '.' . $extension;
-                $filepath = $uploadDir . $filename;
-
-                if (move_uploaded_file($file['tmp_name'], $filepath)) {
-                    $itemsImage = '/uploads/claims/' . $filename;
-                }
-            }
+        // Handle items image upload securely
+        if (!empty($_FILES['items_image']['tmp_name'])) {
+            $itemsImage = $this->storeFinanceUpload($_FILES['items_image'], 'claims', 'items') ?? $itemsImage;
         }
 
         // Determine status: draft or submitted
@@ -164,27 +174,9 @@ class FinanceController
         // Handle file upload
         $referenceImage = null;
 
-        // Create uploads directory if it doesn't exist
-        $uploadDir = __DIR__ . '/../../uploads/buying_requests/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
-
-        // Handle reference image upload
-        if (isset($_FILES['reference_image']) && $_FILES['reference_image']['error'] === UPLOAD_ERR_OK) {
-            $file = $_FILES['reference_image'];
-            $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-            $maxSize = 5 * 1024 * 1024; // 5MB
-
-            if (in_array($file['type'], $allowedTypes) && $file['size'] <= $maxSize) {
-                $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-                $filename = 'reference_' . time() . '_' . uniqid() . '.' . $extension;
-                $filepath = $uploadDir . $filename;
-
-                if (move_uploaded_file($file['tmp_name'], $filepath)) {
-                    $referenceImage = '/uploads/buying_requests/' . $filename;
-                }
-            }
+        // Handle reference image upload securely
+        if (!empty($_FILES['reference_image']['tmp_name'])) {
+            $referenceImage = $this->storeFinanceUpload($_FILES['reference_image'], 'buying_requests', 'reference') ?? $referenceImage;
         }
 
         // Determine status: draft or pending
@@ -318,44 +310,14 @@ class FinanceController
         $receiptImage = $existing['receipt_image'] ?? null;
         $itemsImage = $existing['items_image'] ?? null;
 
-        // Create uploads directory if it doesn't exist
-        $uploadDir = __DIR__ . '/../../uploads/claims/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
+        // Handle receipt image upload securely
+        if (!empty($_FILES['receipt_image']['tmp_name'])) {
+            $receiptImage = $this->storeFinanceUpload($_FILES['receipt_image'], 'claims', 'receipt') ?? $receiptImage;
         }
 
-        // Handle receipt image upload
-        if (isset($_FILES['receipt_image']) && $_FILES['receipt_image']['error'] === UPLOAD_ERR_OK) {
-            $file = $_FILES['receipt_image'];
-            $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-            $maxSize = 5 * 1024 * 1024; // 5MB
-
-            if (in_array($file['type'], $allowedTypes) && $file['size'] <= $maxSize) {
-                $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-                $filename = 'receipt_' . time() . '_' . uniqid() . '.' . $extension;
-                $filepath = $uploadDir . $filename;
-
-                if (move_uploaded_file($file['tmp_name'], $filepath)) {
-                    $receiptImage = '/uploads/claims/' . $filename;
-                }
-            }
-        }
-
-        // Handle items image upload
-        if (isset($_FILES['items_image']) && $_FILES['items_image']['error'] === UPLOAD_ERR_OK) {
-            $file = $_FILES['items_image'];
-            $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-            $maxSize = 5 * 1024 * 1024; // 5MB
-
-            if (in_array($file['type'], $allowedTypes) && $file['size'] <= $maxSize) {
-                $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-                $filename = 'items_' . time() . '_' . uniqid() . '.' . $extension;
-                $filepath = $uploadDir . $filename;
-
-                if (move_uploaded_file($file['tmp_name'], $filepath)) {
-                    $itemsImage = '/uploads/claims/' . $filename;
-                }
-            }
+        // Handle items image upload securely
+        if (!empty($_FILES['items_image']['tmp_name'])) {
+            $itemsImage = $this->storeFinanceUpload($_FILES['items_image'], 'claims', 'items') ?? $itemsImage;
         }
 
         // Determine new status: if resubmitting, set to 'submitted'; if submitting draft, set to 'submitted'; otherwise keep current status
@@ -441,27 +403,9 @@ class FinanceController
 
         $referenceImage = $existing['reference_image'] ?? null;
 
-        // Create uploads directory if it doesn't exist
-        $uploadDir = __DIR__ . '/../../uploads/buying_requests/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
-
-        // Handle reference image upload
-        if (isset($_FILES['reference_image']) && $_FILES['reference_image']['error'] === UPLOAD_ERR_OK) {
-            $file = $_FILES['reference_image'];
-            $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-            $maxSize = 5 * 1024 * 1024; // 5MB
-
-            if (in_array($file['type'], $allowedTypes) && $file['size'] <= $maxSize) {
-                $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-                $filename = 'reference_' . time() . '_' . uniqid() . '.' . $extension;
-                $filepath = $uploadDir . $filename;
-
-                if (move_uploaded_file($file['tmp_name'], $filepath)) {
-                    $referenceImage = '/uploads/buying_requests/' . $filename;
-                }
-            }
+        // Handle reference image upload securely
+        if (!empty($_FILES['reference_image']['tmp_name'])) {
+            $referenceImage = $this->storeFinanceUpload($_FILES['reference_image'], 'buying_requests', 'reference') ?? $referenceImage;
         }
 
         // Determine new status: if resubmitting, set to 'pending'; if submitting draft, set to 'pending'; otherwise keep current status
