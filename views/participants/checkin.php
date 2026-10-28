@@ -212,7 +212,19 @@
                     body: new URLSearchParams({ qr_code: codeValue })
                 });
 
-                const data = await response.json();
+                const rawText = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(rawText);
+                } catch (parseErr) {
+                    const jsonStart = rawText.indexOf('{');
+                    const jsonEnd = rawText.lastIndexOf('}');
+                    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+                        data = JSON.parse(rawText.substring(jsonStart, jsonEnd + 1));
+                    } else {
+                        throw parseErr;
+                    }
+                }
 
                 if (data.success) {
                     // Build large result card

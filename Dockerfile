@@ -29,7 +29,9 @@ RUN echo 'upload_max_filesize = 50M\n\
 post_max_size = 50M\n\
 memory_limit = 256M\n\
 max_execution_time = 120\n\
-date.timezone = Asia/Kuala_Lumpur\n' > /usr/local/etc/php/conf.d/custom.ini
+date.timezone = Asia/Kuala_Lumpur\n\
+display_errors = Off\n\
+log_errors = On\n' > /usr/local/etc/php/conf.d/custom.ini
 
 # Get Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

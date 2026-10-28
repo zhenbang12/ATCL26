@@ -478,6 +478,9 @@ class ParticipantController
         $isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') || (isset($_GET['format']) && $_GET['format'] === 'json');
 
         if ($isAjax) {
+            if (ob_get_length()) {
+                ob_clean();
+            }
             header('Content-Type: application/json');
             if ($participant) {
                 if ($checkinCriticalError) {
@@ -490,15 +493,15 @@ class ParticipantController
                         'success' => true,
                         'message' => 'Check-in successful',
                         'participant' => [
-                            'id' => $participant['id'],
-                            'full_name' => $participant['full_name'],
-                            'student_id' => $participant['student_id'],
+                            'id' => $participant['id'] ?? null,
+                            'full_name' => $participant['full_name'] ?? '',
+                            'student_id' => $participant['student_id'] ?? '',
                             'student_email' => $participant['student_email'] ?? '',
                             'preferred_language' => $participant['preferred_language'] ?? '',
-                            'group_code' => $participant['group_code'] ?: 'Not assigned',
-                            'medical_notes' => $participant['medical_notes'] ?: '',
-                            'dietary_notes' => $participant['dietary_notes'] ?: '',
-                            'checked_in_at' => $participant['checked_in_at']
+                            'group_code' => !empty($participant['group_code']) ? $participant['group_code'] : 'Not assigned',
+                            'medical_notes' => $participant['medical_notes'] ?? '',
+                            'dietary_notes' => $participant['dietary_notes'] ?? '',
+                            'checked_in_at' => $participant['checked_in_at'] ?? ''
                         ],
                         'notice' => $checkinAssignmentNotice
                     ], JSON_UNESCAPED_UNICODE);
