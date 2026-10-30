@@ -663,6 +663,20 @@ document.addEventListener('DOMContentLoaded', function() {
         Chart.register(ChartDataLabels);
         Chart.defaults.plugins.datalabels = { display: false };
 
+        // Helper to convert any CSS color string (hex, hsl, rgb, named) to rgba(...)
+        function colorWithAlpha(colorStr, alpha) {
+            const dummy = document.createElement('div');
+            dummy.style.color = colorStr;
+            document.body.appendChild(dummy);
+            const cs = getComputedStyle(dummy).color;
+            document.body.removeChild(dummy);
+            const m = cs.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+            if (m) {
+                return `rgba(${m[1]}, ${m[2]}, ${m[3]}, ${alpha})`;
+            }
+            return colorStr;
+        }
+
         // --- 2. Chart Styling Helpers (Material Design Harmonious Color Palettes) ---
         // Fetch variables from document body/style computed tokens if needed, else use beautiful modern hues.
         const computedStyle = getComputedStyle(document.body);
@@ -699,8 +713,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const ctxTrend = document.getElementById('registrationTrendChart').getContext('2d');
         const gradientTrend = ctxTrend.createLinearGradient(0, 0, 0, 300);
-        gradientTrend.addColorStop(0, primaryColor + '40'); // 25% opacity
-        gradientTrend.addColorStop(1, primaryColor + '00'); // Transparent
+        gradientTrend.addColorStop(0, colorWithAlpha(primaryColor, 0.25));
+        gradientTrend.addColorStop(1, colorWithAlpha(primaryColor, 0));
 
         new Chart(ctxTrend, {
             type: 'line',
@@ -863,7 +877,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     label: 'Registrations',
                     data: initialRegData,
-                    backgroundColor: primaryColor + 'CC', // 80% opacity
+                    backgroundColor: colorWithAlpha(primaryColor, 0.8),
                     borderRadius: 6
                 }]
             },
